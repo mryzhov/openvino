@@ -97,7 +97,6 @@ class SharedObjectLoader::Impl {
     // path was set to "" or NULL so reset it to "" to keep
     // application safe.
     void ExcludeCurrentDirectoryA() {
-        GetDllDirectoryA;
 #ifndef WINAPI_FAMILY
         LoadSymbols();
         if (IEGetDllDirectoryA && IEGetDllDirectoryA(0, NULL) <= 1) {
