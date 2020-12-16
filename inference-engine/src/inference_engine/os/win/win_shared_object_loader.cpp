@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
+ 
 #include "details/ie_exception.hpp"
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
@@ -128,7 +128,7 @@ class SharedObjectLoader::Impl {
         if (pos == nullptr) {
             return path;
         }
-        std::basic_string<СHAR> original(path);
+        std::basic_string<CHAR> original(path);
         original[pos - path] = 0;
         return original;
     }
@@ -150,10 +150,7 @@ class SharedObjectLoader::Impl {
     }
 
     std::basic_string<WCHAR> IncludePluginDirectory(LPCWSTR path) {
-        std::basic_string<WCHAR> lpBuffer(path);
-        DWORD nBufferLength;
-
-        nBufferLength = GetDllDirectoryW(0, nullptr);
+        DWORD nBufferLength = GetDllDirectoryW(0, nullptr);
         std::vector<WCHAR> lpBuffer(nBufferLength);
         GetDllDirectoryW(nBufferLength, &lpBuffer.front());
 
@@ -164,10 +161,7 @@ class SharedObjectLoader::Impl {
     }
 #endif
     std::basic_string<CHAR> IncludePluginDirectory(LPCSTR path) {
-        std::basic_string<CHAR> lpBuffer(path);
-        DWORD nBufferLength;
-
-        nBufferLength = GetDllDirectoryA(0, nullptr);
+        DWORD nBufferLength = GetDllDirectoryA(0, nullptr);
         std::vector<CHAR> lpBuffer(nBufferLength);
         GetDllDirectoryA(nBufferLength, &lpBuffer.front());
 
@@ -207,11 +201,10 @@ class SharedObjectLoader::Impl {
     explicit Impl(const char* pluginName) {
         ExcludeCurrentDirectoryA();
         auto oldDir = IncludePluginDirectory(pluginName);
-        IncludePluginDirectory(pluginName);
 
         shared_object = LoadLibraryA(pluginName);
 
-        SetDllDirectoryW(oldDir.c_str());
+        SetDllDirectoryA(oldDir.c_str());
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()
