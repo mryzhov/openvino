@@ -217,10 +217,10 @@ def find_data_files(src_dirs):
     data_files = []
     for src_dir in src_dirs:
         local_base_dir = Path(src_dir)
-        for file_path in local_base_dir.glob('*'):
+        for file_path in local_base_dir.rglob('*'):
             file_name = os.path.basename(file_path)
             dir_name = os.path.dirname(file_path)
-            if not any(file_name.endswith(ext) for ext in data_blacklist):
+            if os.path.isfile(file_path) and not any(file_name.endswith(ext) for ext in data_blacklist):
                 data_files.append([
                     os.path.join(install_subdir, os.path.relpath(dir_name, local_base_dir)),
                     [str(file_path)]
