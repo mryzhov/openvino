@@ -30,12 +30,12 @@ WHEEL_LIBS_INSTALL_DIR = "openvino.libs"
 PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
 # The following variables can be defined in environment or .env file
-CMAKE_BUILD_DIR = config('CMAKE_BUILD_DIR', ".")
-CORE_LIBS_DIR = config('CORE_LIBS_DIR', '')
-PLUGINS_LIBS_DIR = config('PLUGINS_LIBS_DIR', '')
-NGRAPH_LIBS_DIR = config('NGRAPH_LIBS_DIR', '')
-TBB_LIBS_DIR = config('TBB_LIBS_DIR', '')
-PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', '')
+CMAKE_BUILD_DIR = os.path.normpath(config('CMAKE_BUILD_DIR', "."))
+CORE_LIBS_DIR = os.path.normpath(config('CORE_LIBS_DIR', ''))
+PLUGINS_LIBS_DIR = os.path.normpath(config('PLUGINS_LIBS_DIR', ''))
+NGRAPH_LIBS_DIR = os.path.normpath(config('NGRAPH_LIBS_DIR', ''))
+TBB_LIBS_DIR = os.path.normpath(config('TBB_LIBS_DIR', ''))
+PY_PACKAGES_DIR = os.path.normpath(config('PY_PACKAGES_DIR', ''))
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
 
 LIB_INSTALL_CFG = {
@@ -134,7 +134,7 @@ class PrepareLibs(build_clib):
             install_prefix = comp_data.get('prefix')
             install_dir = comp_data.get('install_dir')
             if install_dir and not os.path.isabs(install_dir):
-                # comp_data['install_dir'] = os.path.join(install_prefix, install_dir)
+                install_dir = os.path.join(install_prefix, install_dir)
                 self.announce(f"Installing {comp}", level=3)
                 self.spawn(["cmake",
                             "--install", CMAKE_BUILD_DIR,
@@ -157,9 +157,9 @@ class CopyExt(build_ext):
             src = extension.sources[0]
             dst = self.get_ext_fullpath(extension.name)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
-            #setting relative path to find dlls
+            # setting relative path to find dlls
             if sys.platform != "win32":
-                rpath = os.path.relpath(PY_PACKAGES_DIR, os.path.dirname(src))
+                rpath = os.path.relpath(get_package_dir(PY_INSTALL_CFG), os.path.dirname(src))
                 if sys.platform == "linux":
                     rpath = os.path.join("$ORIGIN", rpath, WHEEL_LIBS_INSTALL_DIR)
                 elif sys.platform == "darwin":
@@ -279,6 +279,19 @@ def get_dir_list(install_cfg):
     return dirs
 
 
+def get_package_dir(install_cfg):
+    """
+    Get python package path based on config
+    All the packages should be located in one directory
+    """
+    py_package_path = ""
+    dirs = get_dir_list(install_cfg)
+    if len(dirs) != 0:
+        # setup.py support only one package directory, all modules should be located there
+        py_package_path = dirs[0]
+    return py_package_path
+
+
 platforms = ["linux", "win32", "darwin"]
 if not any(pl in sys.platform for pl in platforms):
     sys.exit("Unsupported platform: {}, expected: {}".format(sys.platform, "linux, win32, darwin"))
@@ -301,7 +314,7 @@ setup(
     },
     ext_modules=find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)),
     packages=find_packages(','.join(get_dir_list(PY_INSTALL_CFG))),
-    package_dir={'': get_dir_list(PY_INSTALL_CFG)[0]},
+    package_dir={'': get_package_dir(PY_INSTALL_CFG)},
     data_files=find_data_files(get_dir_list(LIB_INSTALL_CFG)),
     zip_safe=False,
 )
