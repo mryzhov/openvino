@@ -17,6 +17,7 @@ import sys
 import errno
 import subprocess
 from pathlib import Path
+from shutil import copyfile
 from distutils.command.install import install
 from distutils.command.build import build
 from distutils.errors import DistutilsSetupError
@@ -220,7 +221,7 @@ def find_data_files(src_dirs):
         for file_path in local_base_dir.rglob('*'):
             file_name = os.path.basename(file_path)
             dir_name = os.path.dirname(file_path)
-            if os.path.isfile(file_path) and not any(file_name.endswith(ext) for ext in data_blacklist):
+            if file_path.is_file() and not any(file_name.endswith(ext) for ext in data_blacklist):
                 data_files.append([
                     os.path.join(install_subdir, os.path.relpath(dir_name, local_base_dir)),
                     [str(file_path)]
@@ -295,6 +296,11 @@ def get_package_dir(install_cfg):
 platforms = ["linux", "win32", "darwin"]
 if not any(pl in sys.platform for pl in platforms):
     sys.exit("Unsupported platform: {}, expected: {}".format(sys.platform, "linux, win32, darwin"))
+
+# copy license file into the build directory
+package_license = config('WHEEL_LICENSE', '')
+if os.path.exists(package_license):
+    copyfile(package_license, "LICENSE")
 
 setup(
     version=config('WHEEL_VERSION', '0.0.0'),
