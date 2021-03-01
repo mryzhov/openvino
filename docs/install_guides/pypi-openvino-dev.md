@@ -8,71 +8,41 @@ license terms for third party or open source software included in or with the So
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
 
-**The Developer Package Includes the Following Components Installed by Default:**
+**Included with the Installation and installed by default:**
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [Model Optimizer](https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                                                              |
-| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker.html), [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html)  |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker_README.html), [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html)  |
 
-**The Runtime Package Includes the Following Components Installed by Dependency:**
+**Installed by dependency:**
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [Inference Engine](https://pypi.org/project/openvino)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
 
 
-## System Requirements
+## Supported Operating Systems
 
-The table below lists the supported operating systems and Python* versions required to run the installation.
+* [Python* distribution](https://www.python.org/) 3.6, 3.7, 3.8
+* Operating Systems:
+  - Ubuntu* 18.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
+  - Ubuntu* 20.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
+  - macOS* 10.15.x versions
+  - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
+  - Windows Server* 2016 or higher
+> NOTE: This package can be installed on many versions of Linux, but only the specific versions above are fully validated.
 
-| Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
-| :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
-|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7                                            |
-|   Red Hat* Enterprise Linux* 8.2, 64-bit                     | 3.6, 3.7                                            |
-|   CentOS* 7.4, 64-bit                                        | 3.6, 3.7                                            |
-|   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8                                       |
-|   Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions       | 3.6, 3.7, 3.8                  |
-|   Windows Server* 2016 or higher                             | 3.6, 3.7, 3.8                |
+## Install the runtime or developer packages using the PyPI repository
 
-> **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
-
-## Install the Developer Package
-
-### Step 1. Set Up Python Virtual Environment
-
-To avoid dependency conflicts, use a virtual environment. Skip this
-   step only if you do want to install all dependencies globally.
-
-Create virtual environment:
-```sh
-python -m pip install --user virtualenv 
-python -m venv openvino_env --system-site-packages
-```
-
-> **NOTE**: On Linux and macOS, you may need to type `python3` instead of
-`python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/).
-
-### Step 2. Activate Virtual Environment
-
-On Linux and macOS:
-```sh
-source openvino_env/bin/activate
-```
-On Windows:
-```sh
-openvino_env\Scripts\activate
-```
-
-### Step 3. Set Up and Update pip to the Highest Version
+### Step 1. Set up and update pip to the highest version
 
 Run the command below:
 ```sh
-python -m pip install --upgrade pip
+python3 -m pip install --upgrade pip
 ```
 
-### Step 4. Install the Package
+### Step 2. Install the Intel® distribution of OpenVINO™ toolkit
 
 Run the command below: <br>
 
@@ -80,17 +50,18 @@ Run the command below: <br>
    pip install openvino-dev
    ```
 
-### Step 5. Verify that the Package is Installed
+### Step 3. Verify that the package is installed
 
-Run the command below (this may take a few seconds):
+Run the command below:
 ```sh
-pot -h
+python3 -c "pot -h"
 ```
-
-You will see the help message for Post-Training Optimization Tool if installation finished successfully.
+   
+Now you are ready to develop and run your application.
 
 ## Additional Resources
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
+
 
