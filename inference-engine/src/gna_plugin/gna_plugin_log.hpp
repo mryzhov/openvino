@@ -8,7 +8,7 @@
 #include <ie_common.h>
 #include <details/ie_exception.hpp>
 
-// #define GNA_DEBUG
+#define GNA_DEBUG
 #ifdef  GNA_DEBUG
 #include <iostream>
 /**
