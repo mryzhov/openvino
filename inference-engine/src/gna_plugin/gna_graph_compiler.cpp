@@ -150,9 +150,11 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
         size_t output_layer_size = 0;
 
         for (int j = 0; j != getInputTo(layer->outData[i]).size(); j++) {
-            auto outFunctionalLayer = CNNNetGetNextLayerSkipCertain(layer, i, j,  [](CNNLayerPtr l) {
-                return LayerInfo(l).isNonFunctional();
-            });
+            auto outFunctionalLayer = CNNNetGetNextLayerSkipCertain(layer, i, j, [](CNNLayerPtr l) {
+                return LayerInfo(l).isNonFunctional() && !LayerInfo(l).isOutput();
+                });
+            if (LayerInfo(outFunctionalLayer.first).isOutput())
+                continue;
 
             if (!outFunctionalLayer.first) {
                 THROW_GNA_LAYER_EXCEPTION(layer) << " outData["<< i << "]" << " connected by " << j <<" connection doesnt connect to functional layer";

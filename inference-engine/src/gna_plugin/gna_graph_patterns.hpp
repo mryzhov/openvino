@@ -113,23 +113,24 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
  * @param layers model sorted layers
  */
 inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr> &layers) {
-    for (auto& l : layers) {
-        if (!LayerInfo(l).isConvolution()) continue;
-
-        InferenceEngine::CNNLayerPtr next;
-        std::tie(std::ignore, next) = FindPermutationsAroundConvolutionInNHWCModel(l);
-        if (next != nullptr) return false;
-        // If a convolution has only 1-dimension input and output we should skip it
-        auto in_dims = l->insData.begin()->lock()->getDims();
-        auto out_dims = l->outData.front()->getDims();
-        if (std::count_if(std::begin(in_dims), std::end(in_dims), [](size_t dim) { return dim != 1; }) <= 1 &&
-            std::count_if(std::begin(out_dims), std::end(out_dims), [](size_t dim) { return dim != 1; }) <= 1) {
-            continue;
-        }
-
-        return FindPermutationAfterConvolutionInKaldiModel(l) == nullptr;
-    }
     return false;
+    //for (auto& l : layers) {
+    //    if (!LayerInfo(l).isConvolution()) continue;
+
+    //    InferenceEngine::CNNLayerPtr next;
+    //    std::tie(std::ignore, next) = FindPermutationsAroundConvolutionInNHWCModel(l);
+    //    if (next != nullptr) return false;
+    //    // If a convolution has only 1-dimension input and output we should skip it
+    //    auto in_dims = l->insData.begin()->lock()->getDims();
+    //    auto out_dims = l->outData.front()->getDims();
+    //    if (std::count_if(std::begin(in_dims), std::end(in_dims), [](size_t dim) { return dim != 1; }) <= 1 &&
+    //        std::count_if(std::begin(out_dims), std::end(out_dims), [](size_t dim) { return dim != 1; }) <= 1) {
+    //        continue;
+    //    }
+
+    //    return FindPermutationAfterConvolutionInKaldiModel(l) == nullptr;
+    //}
+    //return false;
 }
 
 /**

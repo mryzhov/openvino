@@ -559,9 +559,9 @@ bool ParseAndCheckCommandLine(int argc, char* argv[]) {
         throw std::logic_error("Either IR file (-m) or GNAModel file (-rg) need to be set.");
     }
 
-    if ((!FLAGS_m.empty() && !FLAGS_rg.empty())) {
-        throw std::logic_error("Only one of -m and -rg is allowed.");
-    }
+    // if ((!FLAGS_m.empty() && !FLAGS_rg.empty())) {
+    //     throw std::logic_error("Only one of -m and -rg is allowed.");
+    // }
 
     std::vector<std::string> supportedDevices = {"CPU",
                                                  "GPU",
@@ -662,6 +662,7 @@ int main(int argc, char* argv[]) {
         Core ie;
         CNNNetwork network;
         ExecutableNetwork executableNet;
+        ExecutableNetwork executableNet2, executableNetTmp;
 
         if (!FLAGS_l.empty()) {
             // Custom CPU extension is loaded as a shared library and passed as a pointer to base extension
@@ -802,13 +803,17 @@ int main(int argc, char* argv[]) {
                 network.addOutput(outputs[i], ports[i]);
             }
         }
+        if (!FLAGS_rg.empty()) {
+            slog::info << "Importing model to the device" << slog::endl;
+            executableNet2 = ie.ImportNetwork(FLAGS_rg.c_str(), deviceStr, genericPluginConfig);
+        }
         if (!FLAGS_m.empty()) {
             slog::info << "Loading model to the device" << slog::endl;
-            executableNet = ie.LoadNetwork(network, deviceStr, genericPluginConfig);
-        } else {
-            slog::info << "Importing model to the device" << slog::endl;
-            executableNet = ie.ImportNetwork(FLAGS_rg.c_str(), deviceStr, genericPluginConfig);
+            executableNetTmp = ie.LoadNetwork(network, deviceStr, genericPluginConfig);
+            executableNetTmp.Export("exported_model.gna");
+            executableNet = ie.ImportNetwork("exported_model.gna", deviceStr, genericPluginConfig);
         }
+
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
 

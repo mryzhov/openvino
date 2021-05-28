@@ -64,6 +64,7 @@
 #include "transformations/reorder_activation_and_pooling.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
 
+#include <transformations/common_optimizations/algebraic_simplification.hpp>
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
 
@@ -702,6 +703,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         // Consider to enable after per-channel quantization on FakeQuantize layer is supported in GNAPlugin, see issue 52034
         pass_config->disable<ngraph::pass::AddFakeQuantizeFusion>();
         pass_config->disable<ngraph::pass::TransposeOptimization>();
+        pass_config->disable<ngraph::pass::AlgebraicSimplification>();
         manager.run_passes(graph);
         convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
