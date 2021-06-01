@@ -158,21 +158,19 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
 
 GNAPluginNS::HeaderLatest::RuntimeEndPoint GNAModelSerial::ReadEndPoint(std::istream &is) {
     is.exceptions(std::istream::failbit);
-    auto startPos = is.tellg();
-    if (startPos == -1) {
-        THROW_GNA_EXCEPTION << "Can't open stream to import";
-    }
-    is.seekg(0, is.end);
-    auto stream_len = is.tellg();
-    if (stream_len == -1) {
-        THROW_GNA_EXCEPTION << "Can't open file to import";
-    }
-    stream_len -= startPos;
-    is.seekg(startPos, is.beg);
+    // auto startPos = is.tellg();
+    // if (startPos == -1) {
+    //     THROW_GNA_EXCEPTION << "Can't open stream to import";
+    // }
+    // is.seekg(0, is.end);
+    // auto stream_len = is.tellg();
+    // if (stream_len == -1) {
+    //     THROW_GNA_EXCEPTION << "Can't open file to import";
+    // }
+    // stream_len -= startPos;
+    // is.seekg(startPos, is.beg);
 
     HeaderLatest::RuntimeEndPoint endPoint;
-
-    Header2dot1::RuntimeEndPoint tempEndPoint2dot1;
     switch (modelHeader.version.major) {
         case 2:
             switch (modelHeader.version.minor) {
@@ -416,6 +414,7 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         out.element_size = ep.element_size;
         out.shape = ep.shape;
         out.layout = ep.layout;
+        out.precision = ep.precision;
         out.orientation = ep.orientation;
         return out;
     };
