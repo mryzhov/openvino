@@ -134,12 +134,6 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                 }
                 case 5:
                 case 6:
-                // {
-                //     Header2dot6::ModelHeader tempHeader2dot6;
-                //     readBits(tempHeader2dot6, is);
-                //     header = HeaderLatest::ModelHeader(tempHeader2dot6);
-                //     break;
-                // }
                 case 7:
                     readNBytes(&header, sizeof(HeaderLatest::ModelHeader), is);
                     break;
@@ -953,7 +947,7 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
     for (uint32_t outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                                   ? outputNames.at(outputIndex) : std::string("output" + std::to_string(outputIndex));
-        HeaderLatest::RuntimeEndPoint output = output = ReadEndPoint(is);
+        HeaderLatest::RuntimeEndPoint output = ReadEndPoint(is);
         // is.read(reinterpret_cast<char *>(&output), sizeof(output));
         OutputDesc description;
         description.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + output.descriptor_offset));

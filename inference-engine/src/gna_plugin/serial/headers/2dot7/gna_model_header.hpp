@@ -103,18 +103,6 @@ struct ModelHeader {
         doRotateOutput = old.doRotateOutput;
         version.minor = old.version.minor;
     }
-    ModelHeader(GNAPluginNS::Header2dot6::ModelHeader const &old) {
-        gnaMemSize = old.gnaMemSize;
-        layersCount = old.layersCount;
-        nRotateRows = old.nRotateRows;
-        nRotateColumns = old.nRotateColumns;
-        nInputs = old.nInputs;
-        nOutputs = old.nOutputs;
-        nRotateOutputRows = old.nRotateOutputRows;
-        nRotateOutputColumns = old.nRotateOutputColumns;
-        doRotateOutput = old.doRotateOutput;
-        version.minor = old.version.minor;
-    }
 };
 #pragma pack(pop)
 
