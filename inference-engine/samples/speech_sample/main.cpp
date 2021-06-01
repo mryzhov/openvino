@@ -805,7 +805,7 @@ int main(int argc, char* argv[]) {
         }
         if (!FLAGS_rg.empty()) {
             slog::info << "Importing model to the device" << slog::endl;
-            executableNet2 = ie.ImportNetwork(FLAGS_rg.c_str(), deviceStr, genericPluginConfig);
+            executableNet = ie.ImportNetwork(FLAGS_rg.c_str(), deviceStr, genericPluginConfig);
         }
         if (!FLAGS_m.empty()) {
             slog::info << "Loading model to the device" << slog::endl;

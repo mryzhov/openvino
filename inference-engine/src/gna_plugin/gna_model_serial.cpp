@@ -190,7 +190,7 @@ GNAPluginNS::HeaderLatest::RuntimeEndPoint GNAModelSerial::ReadEndPoint(std::ist
                 case 6:
                 {
                     Header2dot6::RuntimeEndPoint tempEndPoint2dot6;
-                    is.read(reinterpret_cast<char *>(&endPoint), sizeof(endPoint));
+                    is.read(reinterpret_cast<char *>(&tempEndPoint2dot6), sizeof(tempEndPoint2dot6));
                     endPoint = HeaderLatest::RuntimeEndPoint(tempEndPoint2dot6, modelHeader.nGroup);
                     break;
                 }
@@ -953,8 +953,8 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
     for (uint32_t outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                                   ? outputNames.at(outputIndex) : std::string("output" + std::to_string(outputIndex));
-        HeaderLatest::RuntimeEndPoint output;
-        is.read(reinterpret_cast<char *>(&output), sizeof(output));
+        HeaderLatest::RuntimeEndPoint output = output = ReadEndPoint(is);
+        // is.read(reinterpret_cast<char *>(&output), sizeof(output));
         OutputDesc description;
         description.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + output.descriptor_offset));
         description.orientation = kDnnInterleavedOrientation;
