@@ -158,17 +158,6 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
 
 GNAPluginNS::HeaderLatest::RuntimeEndPoint GNAModelSerial::ReadEndPoint(std::istream &is) {
     is.exceptions(std::istream::failbit);
-    // auto startPos = is.tellg();
-    // if (startPos == -1) {
-    //     THROW_GNA_EXCEPTION << "Can't open stream to import";
-    // }
-    // is.seekg(0, is.end);
-    // auto stream_len = is.tellg();
-    // if (stream_len == -1) {
-    //     THROW_GNA_EXCEPTION << "Can't open file to import";
-    // }
-    // stream_len -= startPos;
-    // is.seekg(startPos, is.beg);
 
     HeaderLatest::RuntimeEndPoint endPoint;
     switch (modelHeader.version.major) {
@@ -182,7 +171,7 @@ GNAPluginNS::HeaderLatest::RuntimeEndPoint GNAModelSerial::ReadEndPoint(std::ist
                 case 6:
                 {
                     Header2dot6::RuntimeEndPoint tempEndPoint2dot6;
-                    is.read(reinterpret_cast<char *>(&tempEndPoint2dot6), sizeof(tempEndPoint2dot6));
+                    readBits(tempEndPoint2dot6, is);
                     endPoint = HeaderLatest::RuntimeEndPoint(tempEndPoint2dot6, modelHeader.nGroup);
                     break;
                 }
@@ -912,8 +901,8 @@ void GNAModelSerial::ImportInputs(std::istream &is,
     for (uint32_t inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                 ? inputNames.at(inputIndex) : std::string("input" + std::to_string(inputIndex));
+
         HeaderLatest::RuntimeEndPoint input = ReadEndPoint(is);
-        //is.read(reinterpret_cast<char *>(&input), sizeof(input));
         inputsDesc->getPtrInputsGlobal(name).push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + input.descriptor_offset));
         inputsDesc->orientation_in[name] = input.orientation;
         inputsDesc->bytes_allocated_for_input[name] = input.element_size * input.elements_count;
@@ -946,8 +935,8 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
     for (uint32_t outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
                                   ? outputNames.at(outputIndex) : std::string("output" + std::to_string(outputIndex));
+
         HeaderLatest::RuntimeEndPoint output = ReadEndPoint(is);
-        // is.read(reinterpret_cast<char *>(&output), sizeof(output));
         OutputDesc description;
         description.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + output.descriptor_offset));
         description.orientation = kDnnInterleavedOrientation;
