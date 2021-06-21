@@ -28,6 +28,8 @@ std::string ImportNetworkTestBase::getTestCaseName(testing::TestParamInfo<export
         result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
     }
     result << "_appHeader=" << appHeader;
+    result << CommonTestUtils::vec2str(inputShape);
+
     return result.str();
 }
 
