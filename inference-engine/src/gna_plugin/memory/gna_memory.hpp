@@ -13,7 +13,9 @@
 #include <list>
 #include <algorithm>
 #include <functional>
+#include <iostream>
 #include "gna_lib_ver_selector.hpp"
+#include "gna_memory_solver.hpp"
 
 namespace GNAPluginNS {
 namespace memory {
@@ -66,9 +68,10 @@ class GNAMemory : public GNAMemRequestsQueue {
      * @brief calculates size required for all requests, allocates memory and updates pointers
      */
     void commit() {
+
         // 1st stage -- looking for expandable bind requests:
         for (auto &originated : _future_heap) {
-            if (originated._type & REQUEST_BIND) continue;
+            if (originated._type == REQUEST_BIND) continue;
             size_t offset = 0;
             iterate_binded(originated, [&](MemRequest & reference, MemRequest & binded) {
                 if (&originated == &reference) {
@@ -85,7 +88,20 @@ class GNAMemory : public GNAMemRequestsQueue {
 
         updateSectionsSizes();
 
-        _total = _rw_section_size + _ro_section_size;
+
+        std::cout << "REQESTED size=" << _total << "\n";
+
+
+        std::vector<MemorySolver::Box> boxes(_future_heap.size());
+        for (int i = 0; i < _future_heap.size(); i++) {
+            if (_future_heap[i]._type & REQUEST_BIND) continue;
+            MemorySolver::Box &box = boxes[i];
+            auto original_with_pad = ALIGN(_future_heap[i]._num_elements * _future_heap[i]._element_size + _future_heap[i]._padding, _future_heap[i]._alignment);
+            box = { 0, i, static_cast<int64_t>(original_with_pad), i };
+        }
+        MemorySolver memSolver(boxes);
+        size_t total_size = static_cast<size_t>(memSolver.solve());
+        std::cout << "REQESTED_OPT size=" << total_size << "\n";
 
         // allocation with memory setting to 0 internally
         heap = allocate(_total);
@@ -180,7 +196,7 @@ class GNAMemory : public GNAMemRequestsQueue {
     void iterate_binded(GNAPluginNS::memory::MemRequest & reference, const T & visitor) {
         for (auto &re : _future_heap) {
             if ((re._type & REQUEST_BIND) && (re._ptr_in == reference._ptr_out)) {
-                // std::cout << "  [binded=" << re._type << ", ptr=" << re._ptr_out <<"]\n";
+                std::cout << "  [binded=" << re._type << ", ptr=" << re._ptr_out <<"]\n";
                 visitor(reference, re);
                 // primitive loop check
                 if (re._ptr_in == re._ptr_out) continue;
@@ -225,6 +241,7 @@ class GNAMemory : public GNAMemRequestsQueue {
         }
         _rw_section_size = ALIGN(_rw_section_size, _page_alignment);
         _ro_section_size = ALIGN(_ro_section_size, _page_alignment);
+        _total = _rw_section_size + _ro_section_size;
     }
 };
 }  // namespace memory
