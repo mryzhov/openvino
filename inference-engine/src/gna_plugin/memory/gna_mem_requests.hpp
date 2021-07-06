@@ -91,16 +91,14 @@ struct MemRequest {
                 uint8_t element_size = 0,
                 size_t num_elements = 0,
                 size_t alignment = 1,
-                size_t offset = 0,
-                size_t execution_id = 0) : _region(region),
+                size_t offset = 0) : _region(region),
                                      _type(req),
                                      _ptr_out(ptr_out),
                                      _ptr_in(ptr_in),
                                      _element_size(element_size),
                                      _num_elements(num_elements),
                                      _alignment(alignment),
-                                     _offset(offset),
-                                     _execution_id(execution_id) {}
+                                     _offset(offset) {}
 
     /**
      * Store value only request
@@ -125,33 +123,6 @@ struct MemRequest {
         _data.resize(sizeof(T));
         std::copy(reinterpret_cast<uint8_t *>(&element), reinterpret_cast<uint8_t *>(&element) + sizeof(T), _data.begin());
     }
-
-    /**
-     * Store value with execution order request
-     * @tparam T
-     * @param req
-     * @param ptr_out
-     * @param element
-     * @param num_elements
-     * @param alignment
-     */
-    template<class T>
-    MemRequest(rRegion region,
-                void *ptr_out,
-                T element,
-                size_t num_elements,
-                size_t alignment = 1,
-                size_t execution_id = 0) : _region(region),
-                                        _type(REQUEST_STORE),
-                                        _ptr_out(ptr_out),
-                                        _element_size(sizeof(T)),
-                                        _num_elements(num_elements),
-                                        _alignment(alignment),
-                                        _execution_id(execution_id) {
-        _data.resize(sizeof(T));
-        std::copy(reinterpret_cast<uint8_t *>(&element), reinterpret_cast<uint8_t *>(&element) + sizeof(T), _data.begin());
-    }
-
 /**
      * Store initializer request
      * @param req

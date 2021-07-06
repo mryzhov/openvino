@@ -529,7 +529,7 @@ bool GNAPlugin::TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer) 
         desc.num_elements = numElem;
 
         // binding ptr for first infer request - then others will be setup during relocation
-        gnamem->bind_ptr(&desc.ptrs.front(), outputPtr, 0, 0, -1);
+        gnamem->bind_ptr(&desc.ptrs.front(), outputPtr);
     };
 
     // probing gna_primitives
