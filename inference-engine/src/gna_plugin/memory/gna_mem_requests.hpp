@@ -26,9 +26,9 @@ enum rRegion {
     REGION_AUTO,
 };
 
-inline const char* rRegionToStr(uint8_t type) {
+inline const char* rRegionToStr(uint8_t region) {
    const char* strRegion = "UNKNOWN";
-   switch (type) {
+   switch (region) {
       case REGION_RO:
         strRegion = "REGION_RO";
         break;
@@ -44,7 +44,8 @@ inline const char* rRegionToStr(uint8_t type) {
 
 inline const char* rTypeToStr(uint8_t type) {
    const char* strType = "UNKNOWN";
-   switch (type) {
+   uint8_t initializerMask = 0x7;
+   switch (type & initializerMask) {
       case REQUEST_STORE:
         strType = "REQUEST_STORE";
         break;

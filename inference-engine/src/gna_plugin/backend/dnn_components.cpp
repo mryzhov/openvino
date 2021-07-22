@@ -32,7 +32,7 @@ intel_dnn_component_t & DnnComponents::addComponent(const std::string layerName,
         execOrder = static_cast<int>(components.size() - 1 - delayedOperations);
     } else {
         // todo: not perfect - propose to create mapping table that will be printed out by extra request
-        execOrder = - static_cast<int>(delayedOperations);
+        execOrder = static_cast<int>(components.size() - delayedOperations);
     }
     components.back().execOrder = execOrder;
     gnalog() << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << execOrder << std::endl;
