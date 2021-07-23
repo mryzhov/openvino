@@ -56,10 +56,10 @@ protected:
     MockTaskExecutor::Ptr mockTaskExecutor;
 
 
-    void TearDown() override {
+    virtual void TearDown() {
     }
 
-    void SetUp() override {
+    virtual void SetUp() {
         InputsDataMap inputsInfo;
         OutputsDataMap outputsInfo;
         mockTaskExecutor = make_shared<MockTaskExecutor>();

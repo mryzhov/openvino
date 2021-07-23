@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::BinaryConvolution, "BinaryConvolution", 1);
+constexpr NodeTypeInfo op::v1::BinaryConvolution::type_info;
 
 op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
                                              const Output<Node>& kernel,

@@ -74,6 +74,7 @@ protected:
         const auto tensorWithTargetShapeParam = std::make_shared<ngraph::opset3::Parameter>(tensorType, targetShape);
 
         const auto shapeOfNode = std::make_shared<ngraph::opset3::ShapeOf>(tensorWithTargetShapeParam, shapeType);
+        shapeOfNode->set_is_foldable(false);
 
         ngraph::ParameterVector params{tensorParam, tensorWithTargetShapeParam};
 
@@ -150,7 +151,7 @@ protected:
 TEST_P(DynamicToStaticShapeBroadcastExplicitTests, compareFunctions) {
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeBroadcastExplicitTests, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeBroadcastExplicitTests, testing::Combine(
         testing::Values(
             ngraph::element::f16,
             ngraph::element::f32,
@@ -196,6 +197,7 @@ protected:
         const auto tensorWithTargetShapeParam = std::make_shared<ngraph::opset5::Parameter>(shapeType, targetShape);
 
         const auto shapeOfNode = std::make_shared<ngraph::opset5::ShapeOf>(tensorWithTargetShapeParam, shapeType);
+        shapeOfNode->set_is_foldable(false);
 
         ngraph::ParameterVector params{tensorParam, tensorWithTargetShapeParam};
 
@@ -295,7 +297,7 @@ protected:
 TEST_P(DynamicToStaticShapeBroadcastBidirectionalTests, compareFunctions) {
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_NGraph, DynamicToStaticShapeBroadcastBidirectionalTests, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeBroadcastBidirectionalTests, testing::Combine(
         testing::Values(
             ngraph::element::f16,
             ngraph::element::f32,

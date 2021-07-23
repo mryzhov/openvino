@@ -27,7 +27,7 @@ struct resample_params : public base_params {
     using AxesAndScales = std::map<InterpolateAxis, float>;
     AxesAndScales axesAndScales;
 
-    ParamsKey GetParamsKey() const override {
+    virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
         k.EnableReampleType(resampleType);
         return k;

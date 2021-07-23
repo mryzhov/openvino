@@ -18,7 +18,7 @@ struct concatenation_params : public base_params {
     bool isAligned = true;
     size_t misalignment = 0;
 
-    ParamsKey GetParamsKey() const override {
+    virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
         k.EnableConcatAxis(axis);
         return k;
@@ -32,7 +32,7 @@ struct concatenation_optional_params : optional_params {
     concatenation_optional_params() : optional_params(KernelType::CONCATENATION) {}
     bool kernelPerInput = true;
 
-    ParamsKey GetSupportedKey() const override {
+    virtual ParamsKey GetSupportedKey() const {
         ParamsKey k = optional_params::GetSupportedKey();
 
         if (kernelPerInput) {

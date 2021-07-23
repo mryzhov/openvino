@@ -16,7 +16,7 @@ struct softmax_params : public base_params {
 
     SoftmaxDim dim = SoftmaxDim::FEATURE;
 
-    ParamsKey GetParamsKey() const override {
+    virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
         k.EnableSoftmaxDim(dim);
         return k;
@@ -48,7 +48,7 @@ public:
     };
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    virtual bool Validate(const Params&, const optional_params&) const;
     virtual JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const softmax_params& params, const optional_params& optParams) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params& optParams) const;

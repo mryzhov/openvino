@@ -36,9 +36,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Clamp,                 {{-2.0f, 2.0f}}},
         {Negative,              {}},
         {Acos,                  {}},
-        {Acosh,                 {}},
         {Asin,                  {}},
-        {Asinh,                  {}},
         {Atan,                  {}},
         {Cos,                   {}},
         {Cosh,                  {}},
@@ -54,7 +52,6 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Ceiling,               {}},
         {Mish,                  {}},
         {HSwish,                {}},
-        {Swish,                 {{0.3f}}},
         {SoftPlus,              {}},
         {HSigmoid,              {}},
         {RoundHalfToEven,       {}},
@@ -102,11 +99,11 @@ const auto basicPreluCases = ::testing::Combine(
 );
 
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Activation_Basic, ActivationDynamicLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationDynamicLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

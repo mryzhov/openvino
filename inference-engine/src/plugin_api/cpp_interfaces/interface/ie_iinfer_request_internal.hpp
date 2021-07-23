@@ -15,10 +15,8 @@
 #include <string>
 
 namespace InferenceEngine {
-
 class IExecutableNetworkInternal;
 class IVariableStateInternal;
-
 /**
  * @interface IInferRequestInternal
  * @brief An internal API of synchronous inference request to be implemented by plugin,
@@ -174,26 +172,7 @@ public:
      */
     void setPointerToExecutableNetworkInternal(const std::shared_ptr<IExecutableNetworkInternal>& exeNetwork);
 
-    /**
-     * @brief   Gets the pointer to userData.
-     * @return  Pointer to user data
-     */
-    INFERENCE_ENGINE_DEPRECATED("The method will be removed")
-    void* GetUserData() noexcept;
-
-    /**
-     * @brief       Sets the pointer to userData.
-     * @param[in]   Pointer to user data
-     */
-    INFERENCE_ENGINE_DEPRECATED("The method will be removed")
-    void SetUserData(void* userData) noexcept;
-
 protected:
-    /**
-     * @brief Destroys the object.
-     */
-    ~IInferRequestInternal();
-
     /**
      * @brief Checks and executes input data pre-processing if needed.
      * @param inputs Inputs blobs to perform preprocessing on
@@ -208,6 +187,7 @@ protected:
      * @param foundOutput A pointer to output DataPtr if found.
      * @return `True` - if loaded network has input with provided name,
      *         `false` - if loaded network has output with provided name
+     * @throws [parameter_mismatch] exception if input and output has the same name
      * @throws [not_found] exception if there is no input and output layers with given name
      */
     bool findInputAndOutputBlobByName(const std::string& name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const;
@@ -232,19 +212,16 @@ protected:
     int m_curBatch = -1;  //!< Current batch value used in dynamic batching
 
     /**
-     * @brief A shared pointer to IInferRequestInternal
+     * @brief A shared pointer to ExecutableNetworkInternal interface
      * @note Needed to correctly handle ownership between objects.
      */
     std::shared_ptr<IExecutableNetworkInternal> _exeNetwork;
     Callback _callback;  //!< A callback
 
-private:
-    void*   _userData = nullptr;
+    /**
+     * @brief Destroys the object.
+     */
+    ~IInferRequestInternal();
 };
-
-/**
- * @brief SOPointer to IInferRequestInternal.
- */
-using SoIInferRequestInternal = details::SOPointer<IInferRequestInternal>;
 
 }  // namespace InferenceEngine

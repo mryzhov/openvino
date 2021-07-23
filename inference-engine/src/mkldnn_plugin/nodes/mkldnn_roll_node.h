@@ -29,7 +29,7 @@ private:
     void rollImpl();
 
     std::vector<size_t> shape;
-    static const std::vector<size_t> supportedPrecisionSizes;
+    const static std::vector<size_t> supportedPrecisionSizes;
     std::string layerErrorPrefix;
     size_t numOfDims;
 

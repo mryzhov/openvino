@@ -16,38 +16,26 @@ namespace subgraph {
 // TODO: remove, reuse mode extended method
 std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const ngraph::element::Type precision,
-    const ngraph::PartialShape& inputShape,
+    const ngraph::Shape& inputShape,
     const FakeQuantizeOnData& fqOnData,
     const FakeQuantizeOnWeights& fqOnWeights) {
 
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     const auto fakeQuantizeOnActivations = fqOnData.empty() ?
         nullptr :
         ngraph::builder::makeFakeQuantize(
             input, precision, fqOnData.quantizationLevel, fqOnData.constantShape,
             fqOnData.inputLowValues, fqOnData.inputHighValues, fqOnData.outputLowValues, fqOnData.outputHighValues);
-    if (fakeQuantizeOnActivations != nullptr) {
-        fakeQuantizeOnActivations->set_friendly_name("fakeQuantizeOnActivations");
-    }
 
-    const size_t inputChannelsCount = inputShape[1].get_length();
-    const size_t outputChannelsCount = 2 * inputShape[1].get_length();
+    const size_t inputChannelsCount = inputShape[1];
+    const size_t outputChannelsCount = 2 * inputShape[1];
     const auto weights = ngraph::opset1::Constant::create(
         precision,
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
 
-    auto maxPool = std::make_shared<opset1::MaxPool>(
-        fqOnData.empty() ? input : fakeQuantizeOnActivations,
-        Strides{ 1, 1 },
-        Shape{ 1, 1 },
-        Shape{ 0, 0 },
-        Shape{ 2, 2 },
-        op::RoundingType::FLOOR);
-    maxPool->set_friendly_name("maxPool");
-
     const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
-        maxPool, //fqOnData.empty() ? input : fakeQuantizeOnActivations,
+        fqOnData.empty() ? input : fakeQuantizeOnActivations,
         fqOnWeights.empty() ? weights->output(0) :
         ngraph::builder::makeFakeQuantize(
             weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
@@ -56,7 +44,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
-    convolution->set_friendly_name("convolution");
+    convolution->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeAndConvolutionFunction");
@@ -64,7 +52,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
 
 std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const ngraph::element::Type precision,
-    const ngraph::PartialShape& inputShape,
+    const ngraph::Shape& inputShape,
     const FakeQuantizeOnDataWithConstant& fqOnData,
     const DequantizationOperations::Convert& convertOnData,
     const DequantizationOperations& dequantizationOnData,
@@ -94,7 +82,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
 
 std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const ngraph::element::Type precision,
-    const ngraph::PartialShape& inputShape,
+    const ngraph::Shape& inputShape,
     const FakeQuantizeOnDataWithConstant& fqOnData,
     const DequantizationOperations::Convert& convertOnData,
     const DequantizationOperations& dequantizationOnData,
@@ -109,7 +97,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const DequantizationOperations& dequantizationAfter,
     const std::string operation,
     bool multiplyAfter) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
 
     std::shared_ptr<Node> parentOnActivation = input;
     {
@@ -130,16 +118,13 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
 
     std::shared_ptr<Node> parentOnWeights;
     {
-        const bool isDynamicChannel = inputShape.is_dynamic() || inputShape[1].is_dynamic();
-        size_t numGroups = !isDynamicChannel ? inputShape[1].get_length() : 3ul;
-        size_t inputChannelsCount = !isDynamicChannel ? inputShape[1].get_length() : 3ul;
-        size_t outputChannelsCount = inputChannelsCount * 2;
-
+        size_t numGroups = inputShape[1];
+        size_t inputChannelsCount = inputShape[1];
+        size_t outputChannelsCount = inputShape[1] * 2;
         if (operation == "GroupConvolution") {
-            inputChannelsCount /= numGroups;
-            outputChannelsCount = numGroups;
+            inputChannelsCount = inputShape[1] / numGroups;
+            outputChannelsCount = inputShape[1];
         }
-
         const Shape shape = constantOnWeights.shapeIsDefined ? constantOnWeights.shape : ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
         parentOnWeights = ngraph::opset1::Constant::create(
             constantOnWeights.outPrecision,

@@ -124,7 +124,7 @@ void MKLDNNSpaceToDepthNode::initSupportedPrimitiveDescriptors() {
     std::vector<TensorDescCreatorTypes> supportedTypes;
     if (nDims > 2) {
         auto canUseBlocked = [=](const size_t block) {
-            return srcDims[1] % block == 0 && (mode == Mode::DEPTH_FIRST ? block % blockStep == 0 : true);
+            return mode == Mode::DEPTH_FIRST ? block % blockStep == 0 : true;
         };
 
         supportedTypes.push_back(TensorDescCreatorTypes::nspc);

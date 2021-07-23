@@ -12,7 +12,7 @@ from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
 
-def backward_bfs_for_operation(start_node: Node, op_names: list, skip_op_list: list = None):
+def backward_bfs_for_operation(start_node: Node, op_names: list):
     """
     Find node with 'op' attribute equal to one of from 'op_name', searching in the backward direction.
     In case of branching algorithm goes into each branch, but if it can't find layer in one of them it returns
@@ -20,10 +20,7 @@ def backward_bfs_for_operation(start_node: Node, op_names: list, skip_op_list: l
 
     :param start_node: Start node for BFS algorithm
     :param op_names: The list with names of operations to search
-    :param skip_op_list: list of operations to be stopped at if they are met
     """
-    if skip_op_list is None:
-        skip_op_list = []
     ret = []
     q = deque([start_node])
     while len(q) != 0:
@@ -36,8 +33,7 @@ def backward_bfs_for_operation(start_node: Node, op_names: list, skip_op_list: l
                     if pnode.id not in ret:
                         ret.append(pnode.id)
                 else:
-                    if pnode.op not in skip_op_list:
-                        q.append(pnode)
+                    q.append(pnode)
             elif pnode.kind == 'data' and pnode.value is None:
                 q.append(pnode)
     return [Node(start_node.graph, x) for x in ret]

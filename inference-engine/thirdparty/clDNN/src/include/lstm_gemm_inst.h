@@ -4,9 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/lstm.hpp"
+#include "api/lstm.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 
 namespace cldnn {
@@ -40,10 +39,10 @@ public:
 public:
     typed_primitive_inst(network_impl& network, lstm_gemm_node const& node);
 
-    memory::ptr weights_memory() const { return dep_memory_ptr(1); }
-    memory::ptr recurrent_memory() const { return dep_memory_ptr(2); }
-    memory::ptr bias_memory() const { return dep_memory_ptr(3); }
-    memory::ptr hidden_memory() const { return bias_term() ? dep_memory_ptr(4) : dep_memory_ptr(3); }
+    memory_impl& weights_memory() const { return dep_memory(1); }
+    memory_impl& recurrent_memory() const { return dep_memory(2); }
+    memory_impl& bias_memory() const { return dep_memory(3); }
+    memory_impl& hidden_memory() const { return bias_term() ? dep_memory(4) : dep_memory(3); }
     bool bias_term() const { return !argument.bias.empty(); }
     bool hidden_term() const { return !argument.hidden.empty(); }
     uint32_t direction() const { return argument.direction; }

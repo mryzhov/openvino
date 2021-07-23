@@ -29,7 +29,9 @@ namespace ngraph
                            const int64_t batch_dims = 0);
 
                 void validate_and_infer_types() override;
-                virtual int64_t get_axis() const;
+                int64_t get_batch_dims() const;
+                int64_t get_axis() const;
+                bool is_axis_set() const;
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;

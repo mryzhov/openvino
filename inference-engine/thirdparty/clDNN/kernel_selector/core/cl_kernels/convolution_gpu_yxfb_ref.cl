@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/include_all.cl"
 
 KERNEL(convolution_gpu_yxfb_ref)(
     const __global UNIT_TYPE* input,
@@ -23,7 +22,7 @@ KERNEL(convolution_gpu_yxfb_ref)(
 
     const int x = (int)out_x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int y = (int)out_y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
-
+    
 #if GROUPED || DEPTHWISE_SEPARABLE_OPT
     const uint g = ofm_offset / FILTER_OFM_NUM;
     const uint in_split_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;

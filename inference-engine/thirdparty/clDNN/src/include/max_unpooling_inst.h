@@ -4,9 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/max_unpooling.hpp"
+#include "api/max_unpooling.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 #include <memory>
 

@@ -25,7 +25,7 @@ namespace ngraph
             AlignedBuffer(size_t byte_size, size_t alignment = 64);
 
             AlignedBuffer();
-            virtual ~AlignedBuffer();
+            ~AlignedBuffer();
 
             AlignedBuffer(AlignedBuffer&& other);
             AlignedBuffer& operator=(AlignedBuffer&& other);

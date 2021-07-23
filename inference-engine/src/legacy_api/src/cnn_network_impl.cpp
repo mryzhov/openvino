@@ -88,14 +88,11 @@ std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
 
 CNNNetworkImpl::CNNNetworkImpl() {}
 
-CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & cnnnetwork) {
-    IE_SUPPRESS_DEPRECATED_START
-    auto & icnnnetwork = static_cast<const ICNNNetwork &>(cnnnetwork);
-    IE_SUPPRESS_DEPRECATED_END
-    auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&icnnnetwork);
+CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
+    auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&ngraphImpl);
     IE_ASSERT(ngraphImplPtr != nullptr);
     IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
-    auto graph = ngraph::clone_function(*ngraphImplPtr->getFunction());
+    auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
 
     ::ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
@@ -107,8 +104,16 @@ CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & cnnnetwork) {
     manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.run_passes(graph);
 
-    InferenceEngine::details::convertFunctionToICNNNetwork(graph, cnnnetwork, this, false);
+    InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
 }
+
+IE_SUPPRESS_DEPRECATED_START
+
+CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & ngraphImpl) :
+    CNNNetworkImpl(static_cast<const ICNNNetwork&>(ngraphImpl)) {
+}
+
+IE_SUPPRESS_DEPRECATED_END
 
 CNNNetworkImpl::~CNNNetworkImpl() {
     // In case of cycles, memory leaks occur: Layer holds shared_ptr<Data>, and vice versa.
@@ -229,7 +234,7 @@ void CNNNetworkImpl::validate(int version) {
     }
 
     bool res = CNNNetForestDFS(
-        CNNNetGetAllInputLayers(this),
+        CNNNetGetAllInputLayers(CNNNetwork(shared_from_this())),
         [&](CNNLayerPtr layer) {
             std::string layerName = layer->name;
 
@@ -391,10 +396,8 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     noexcept {
     try {
 #ifdef ENABLE_V7_SERIALIZE
-        IE_SUPPRESS_DEPRECATED_START
         Serialization::Serialize(xmlPath, binPath, CNNNetwork(
             std::const_pointer_cast<ICNNNetwork>(shared_from_this())));
-        IE_SUPPRESS_DEPRECATED_END
         return OK;
 #endif
     } catch (const Exception& e) {
@@ -405,17 +408,6 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
         return DescriptionBuffer(UNEXPECTED, resp);
     }
 
-    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
-}
-
-
-StatusCode CNNNetworkImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
-    noexcept {
-    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
-}
-
-StatusCode CNNNetworkImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
-    noexcept {
     return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
 }
 
@@ -433,9 +425,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 0D/1D/3D input";
         }
 
-        IE_SUPPRESS_DEPRECATED_START
         const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(CNNNetwork(shared_from_this()));
-        IE_SUPPRESS_DEPRECATED_END
         for (auto& layer : _data) {
             SizeVector dims = layer.second->getDims();
             CNNLayerPtr layerT = getCreatorLayer(layer.second).lock();

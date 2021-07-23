@@ -20,7 +20,7 @@
 #include <string>
 #include <utility>
 
-namespace tests { namespace distributions {
+namespace cldnn { namespace tests { namespace distributions {
 
 /// @cond PRIVATE
 namespace detail
@@ -812,7 +812,7 @@ public:
         return os;
     }
 
-
+    
 
     /// @brief Deserialize from stream.
     ///
@@ -1537,5 +1537,4 @@ private:
     underlying_dist_type _base_distribution; ///< Base distribution used to generate input numbers.
 };
 
-}  // namespace distributions
-}  // namespace tests
+}}} // namespace cldnn { namespace tests { namespace distributions

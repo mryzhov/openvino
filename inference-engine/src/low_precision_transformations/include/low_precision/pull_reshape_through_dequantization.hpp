@@ -6,14 +6,14 @@
 
 #include <memory>
 #include <vector>
-#include <low_precision/lpt_visibility.hpp>
+#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API PullReshapeThroughDequantization;
+class TRANSFORMATIONS_API PullReshapeThroughDequantization;
 
 }  // namespace low_precision
 }  // namespace pass

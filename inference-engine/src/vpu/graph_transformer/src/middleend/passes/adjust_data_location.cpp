@@ -14,9 +14,6 @@
 #include <vpu/middleend/allocator/allocator.hpp>
 #include <vpu/middleend/hw/utility.hpp>
 
-#include <vpu/configuration/options/hw_acceleration.hpp>
-#include <vpu/configuration/options/pack_data_in_cmx.hpp>
-
 namespace vpu {
 
 namespace {
@@ -51,7 +48,7 @@ void PassImpl::run(const Model& model) {
     allocNonIntermediateData(model);
     adjustModelForMemReqs(model);
     copyHwMisalignedInput(model);
-    if (env.config.get<PackDataInCMXOption>()) {
+    if (env.config.packDataInCmx.getOrDefault(true)) {
         packDataInCmx(model);
     }
 }
@@ -150,7 +147,7 @@ void PassImpl::collectMemReqs(const Model& model) {
 }
 
 void PassImpl::resetStageOrder(const Model& model) {
-    if (!CompileEnv::get().config.get<HwAccelerationOption>())
+    if (!CompileEnv::get().config.hwOptimization)
         return;
 
     static const std::string s_expectCMXOutput {"expectCMXOutput"};

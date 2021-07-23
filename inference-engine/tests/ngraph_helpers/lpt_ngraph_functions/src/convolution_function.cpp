@@ -25,7 +25,7 @@ namespace subgraph {
 std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     const ngraph::element::Type netPrecision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::PartialShape& inputShape,
+    const ngraph::Shape& inputShape,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ngraph::opset1::Constant> weights,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
@@ -34,10 +34,8 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     dequantizationStructure.multiply.outPrecision = netPrecision;
     const auto dequantization = makeDequantization(input, dequantizationStructure);
 
-    bool channelsIsDynamic = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
-
-    const size_t inputChannelsCount = !channelsIsDynamic ? inputShape[1].get_length() : 3ul;
-    const size_t outputChannelsCount = 2 * inputChannelsCount;
+    const size_t inputChannelsCount = inputShape[1];
+    const size_t outputChannelsCount = 2 * inputShape[1];
 
     if ((weights->cast_vector<float>().size() != 1ul) && (weights->cast_vector<float>().size() != (inputChannelsCount * outputChannelsCount))) {
         throw std::runtime_error("unexpected actual weights values size");
@@ -122,20 +120,20 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectW
 }
 
 std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectWeights(
-    const ngraph::PartialShape& inputShape,
+    const ngraph::Shape& inputShape,
     ngraph::element::Type precision,
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData,
     bool isCorrect) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     const auto fqOnData = fakeQuantizeOnData.empty() ?
         nullptr :
         ngraph::builder::makeFakeQuantize(
             input, precision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
             fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
-    const size_t inputChannelsCount = inputShape[1].get_length();
-    const size_t outputChannelsCount = 2 * inputShape[1].get_length();
+    const size_t inputChannelsCount = inputShape[1];
+    const size_t outputChannelsCount = 2 * inputShape[1];
     const auto weights = ngraph::opset1::Constant::create(
         precision,
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
@@ -169,7 +167,8 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
     ngraph::builder::subgraph::DequantizationOperations dequantizationBefore,
     ngraph::element::Type weightsPrecision,
     std::vector<float> weightsValues,
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter) {
+    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter,
+    bool isCorrect) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
@@ -189,9 +188,12 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
         std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0]) :
         weightsValues);
 
+    const auto subtract = isCorrect ? nullptr : std::make_shared<DequantizationSubtract>(weights,
+        std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{ 1, 1, 1, 1 }, 3.0f));
+
     auto convolutionOriginal = ngraph::opset1::Convolution(
         ngraph::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(isCorrect ? weights : subtract, element::f32).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
@@ -211,7 +213,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
 std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const ngraph::element::Type netPrecision,
     const ngraph::element::Type inputPrecision,
-    const ngraph::PartialShape& inputShape,
+    const ngraph::Shape& inputShape,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ngraph::opset1::Constant> weights,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
@@ -223,10 +225,8 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     dequantizationBeforeStructure.multiply.outPrecision = netPrecision;
     const auto deqBefore = makeDequantization(input, dequantizationBeforeStructure);
 
-    bool channelsIsDynamic = inputShape.rank().is_dynamic() || inputShape[1].is_dynamic();
-
-    const size_t inputChannelsCount = !channelsIsDynamic ? inputShape[1].get_length() : 3ul;
-    const size_t outputChannelsCount = 2 * inputChannelsCount;
+    const size_t inputChannelsCount = inputShape[1];
+    const size_t outputChannelsCount = 2 * inputShape[1];
 
     if ((weights->cast_vector<float>().size() != 1ul) && (weights->cast_vector<float>().size() != (inputChannelsCount * outputChannelsCount))) {
         throw std::runtime_error("unexpected actual weights values size");

@@ -12,6 +12,7 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <low_precision/max_pool.hpp>
+#include <low_precision/transformer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
@@ -21,7 +22,6 @@
 
 using namespace testing;
 using namespace ngraph::pass;
-using namespace ngraph;
 
 class MaxPoolTransformationTestValues {
 public:
@@ -41,19 +41,19 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
     };
 
-    TestTransformationParams params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
 };
 
 typedef std::tuple<
-    ngraph::PartialShape,
+    ngraph::Shape,
     MaxPoolTransformationTestValues> MaxPoolTransformationParams;
 
 class MaxPoolTransformation : public LayerTransformation, public testing::WithParamInterface<MaxPoolTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape shape = std::get<0>(GetParam());
+        const ngraph::Shape shape = std::get<0>(GetParam());
         const MaxPoolTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MaxPoolFunction::get(
@@ -76,12 +76,12 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MaxPoolTransformationParams> obj) {
-        const ngraph::PartialShape shape = std::get<0>(obj.param);
+        const ngraph::Shape shape = std::get<0>(obj.param);
         const MaxPoolTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
-        result << testValues.actual.precisionBeforeDequantization << "_"<<
-            shape << "_" << toString(testValues.params) << "_" <<
+        result <<
+            LayerTransformation::getTestCaseNameByParams(testValues.actual.precisionBeforeDequantization, shape, testValues.params) << "_" <<
             testValues.actual.dequantization1 << "_" <<
             testValues.actual.dequantization2 << "_" <<
             testValues.expected.dequantization1 << "_" <<
@@ -92,15 +92,13 @@ public:
 
 TEST_P(MaxPoolTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
+    auto res = compare_functions(referenceFunction, actualFunction, true, false, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {
-    { 1, 3, 72, 48 },
-    { 4, 3, 72, 48 },
-    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+const std::vector<ngraph::Shape> shapes = {
+    { 1, 32, 72, 48 },
+    { 4, 32, 72, 48 }
 };
 
 const std::vector<MaxPoolTransformationTestValues> testValues = {
@@ -207,80 +205,13 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
             ngraph::element::f32,
             { {}, {}, { 0.02f }}
         }
-    },
-    // per-channel dequantization
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}},
-            ngraph::element::f32,
-            {}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, { {0.02f, 0.01f, 0.03f} }}
-        }
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     MaxPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
     MaxPoolTransformation::getTestCaseName);
-} // namespace testValues1
-
-namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-    PartialShape::dynamic()
-};
-
-const std::vector<MaxPoolTransformationTestValues> testValues = {
-    // per-tensor dequantization
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {128.f}, {0.01f}},
-            ngraph::element::f32,
-            {}
-        },
-        {
-            ngraph::element::u8,
-            {},
-            ngraph::element::u8,
-            { ngraph::element::f32, {128.f}, {0.01f}}
-        }
-    },
-    // per-channel dequantization
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {{128.f, 64.f, 32.f}}, {{0.02f, 0.01f, 0.03f}}},
-            ngraph::element::f32,
-            {}
-        },
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {{128.f, 64.f, 32.f}}, { {0.02f, 0.01f, 0.03f} }},
-            ngraph::element::f32,
-            {}
-        }
-    }
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    MaxPoolTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(shapesWithDynamicChannels),
-        ::testing::ValuesIn(testValues)),
-    MaxPoolTransformation::getTestCaseName);
-} // namespace testValues2

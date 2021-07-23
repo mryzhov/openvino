@@ -13,7 +13,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::RNNCell, "RNNCell", 0, util::RNNCellBase);
+constexpr NodeTypeInfo op::v0::RNNCell::type_info;
 
 op::v0::RNNCell::RNNCell()
 {

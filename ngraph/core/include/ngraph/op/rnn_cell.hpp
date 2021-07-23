@@ -41,8 +41,8 @@ namespace ngraph
             class NGRAPH_API RNNCell : public util::RNNCellBase
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"RNNCell", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 RNNCell();
                 ///
                 /// \brief      Constructs RNNCell node.

@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "include/common.cl"
+
 #include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/fetch.cl"
+#include "include/mmad.cl"
 
 KERNEL(convolution_mmad_b_fs_yx_fsv32_dw)(
     __global INPUT0_TYPE* input,

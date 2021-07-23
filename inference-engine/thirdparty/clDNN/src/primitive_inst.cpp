@@ -2,19 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "primitive_inst.h"
 #include "data_inst.h"
 #include "mutable_data_inst.h"
 #include "generic_layer_inst.h"
 #include "input_layout_inst.h"
+#include "max_unpooling_inst.h"
 #include "arg_max_min_inst.h"
 #include "fused_conv_eltwise_inst.h"
 
 #include "network_impl.h"
-#include "cldnn/runtime/engine.hpp"
-#include "cldnn/runtime/memory.hpp"
+#include "engine_impl.h"
+#include "memory_impl.h"
 
-#include "cldnn/runtime/error_handler.hpp"
+#include "error_handler.h"
 #include "json_object.h"
 #include <string>
 #include <vector>
@@ -25,7 +27,7 @@ namespace cldnn {
 
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
-void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout) const {
+void primitive_inst::check_memory_to_set(const memory_impl& mem, const layout& layout) const {
     CLDNN_ERROR_LAYOUT_MISMATCH("network layout",
         "set memory layout",
         mem.get_layout(),
@@ -58,15 +60,15 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
     }
 }
 
-void primitive_inst::set_output_memory(memory::ptr mem) {
+void primitive_inst::set_output_memory(memory_impl& mem) {
     auto ol = _node.get_output_layout();
 
-    check_memory_to_set(*mem, ol);
+    check_memory_to_set(mem, ol);
 
-    _output = mem;
+    _output = (memory_impl::ptr) &mem;
 }
 
-event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
+event_impl::ptr primitive_inst::execute(const std::vector<event_impl::ptr>& events) {
     const auto primitive_id = id();
     CLDNN_ERROR_BOOL(primitive_id,
                      "Invalid/unset input",
@@ -77,12 +79,12 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     if (_exec_deps.empty())
         return _impl->execute(events, *this);
 
-    std::vector<event::ptr> dependencies;
+    std::vector<event_impl::ptr> dependencies;
     dependencies.reserve(_exec_deps.size());
     for (auto& input : _exec_deps) {
         auto id = input->id();
         try {
-            // if the requested event does not exits it means that it has not been executed, so the processing_order is
+            // if the requested event deos not exits it means that it has not been executed, so the processing_order is
             // wrong or synchronization failed.
             auto ev = get_network().get_primitive_event(id);
             dependencies.emplace_back(ev);
@@ -105,6 +107,10 @@ void primitive_inst::set_arguments() {
     _impl->set_arguments(*this);
 }
 
+void primitive_inst::cleanup() {
+    _impl->cleanup(*this);
+}
+
 void primitive_inst::build_deps() {
     if (_deps.empty() && !_node.get_dependencies().empty()) {
         _deps = _network.get_primitives(_node.get_dependencies());
@@ -113,7 +119,7 @@ void primitive_inst::build_deps() {
 }
 
 primitive_inst::primitive_inst(network_impl& network, program_node const& node, bool allocate_memory)
-    : _network(network), _node(node), _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr), _output(), _output_changed(false) {
+    : _network(network), _node(node), _impl(node.get_selected_impl()), _output(), _output_changed(false) {
     if (allocate_memory) {
         // In case when output is mutable_data primitive, and other users dependencies are only used for
         // suychronization, The output memory of such primitive will be fused with mutable_data
@@ -147,8 +153,9 @@ primitive_inst::primitive_inst(network_impl& network, program_node const& node, 
     }
 }
 
-memory::ptr primitive_inst::allocate_output() {
+memory_impl::ptr primitive_inst::allocate_output() {
     auto layout = _node.get_output_layout();
+    auto net_id = get_network_id();
     auto& engine = get_network().get_engine();
 
     // For outputs, cpu prim we want to have lockable alloc type
@@ -156,33 +163,33 @@ memory::ptr primitive_inst::allocate_output() {
     auto use_lockable_memory = _node.is_output() || _node.get_selected_impl()->is_cpu()
                                || std::any_of(_node.get_users().begin(), _node.get_users().end(),
                                               [](const program_node* n) {return n->get_selected_impl()->is_cpu() || n->can_be_optimized(); })
-                               || !engine.supports_allocation(allocation_type::usm_device);
+                               || engine.supports_allocation(allocation_type::usm_device) == false;
     allocation_type alloc_type = use_lockable_memory ?
                                  engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d())
                                                      : allocation_type::usm_device;
-
     if (!_network.is_internal() && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
-        return _network.get_memory_from_pool(layout,
-                                             _node.id(),
-                                             _node.get_memory_dependencies(),
-                                             alloc_type,
-                                             false);
+        return engine.allocate_memory(layout,
+                                      _node.id(),
+                                      net_id,
+                                      _node.get_memory_dependencies(),
+                                      alloc_type,
+                                      false);
     } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>() &&
                engine.supports_allocation(allocation_type::usm_device)) {
-        return engine.allocate_memory(layout, allocation_type::usm_device, false);
+        return engine.allocate_memory(layout, allocation_type::usm_device, net_id, false);
     } else if (_network.is_internal() && !_node.is_output() && _node.is_type<input_layout>()) {
         // Skip memory reset for input_layout primitives, since data will be copied from cldnn::data primitive
         // or just reuse primitive's memory
-        return engine.allocate_memory(layout, alloc_type, false);
+        return engine.allocate_memory(layout, alloc_type, net_id, false);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
-        return engine.allocate_memory(layout, alloc_type);
-    } else {
-        return _network.get_memory_from_pool(layout,
-                                             _node.id(),
-                                             _node.get_memory_dependencies(),
-                                             alloc_type,
-                                             true);
+        return engine.allocate_memory(layout, alloc_type, net_id);
     }
+    return engine.allocate_memory(layout,
+                                  _node.id(),
+                                  net_id,
+                                  _node.get_memory_dependencies(),
+                                  alloc_type,
+                                  true);
 }
 
 std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(

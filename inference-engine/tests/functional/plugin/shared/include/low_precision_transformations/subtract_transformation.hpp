@@ -13,7 +13,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::PartialShape,
+    ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params
 > SubtractTransformationParams;

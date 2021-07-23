@@ -44,8 +44,6 @@ namespace ngraph
                               const BroadcastModeSpec& broadcast_mode = BroadcastType::NUMPY);
 
             public:
-                NGRAPH_RTTI_DECLARATION;
-
                 void validate_and_infer_types() override;
                 /// \return true and the AxisSet if broadcast axes can be fully determined.
                 virtual std::pair<bool, AxisSet> get_broadcast_axes() const;
@@ -61,10 +59,9 @@ namespace ngraph
                                         const std::pair<bool, AxisSet> pair_broadcast_axes,
                                         const Shape output_shape) const;
 
-                bool evaluate_broadcast(const HostTensorPtr& arg0,
-                                        const HostTensorPtr& out,
-                                        const AxisSet& broadcast_axes) const;
-
+                bool evaluate(const HostTensorPtr& arg0,
+                              const HostTensorPtr& out,
+                              const AxisSet& broadcast_axes) const;
                 bool evaluate_lower(const HostTensorVector& outputs) const override;
                 bool evaluate_upper(const HostTensorVector& outputs) const override;
 

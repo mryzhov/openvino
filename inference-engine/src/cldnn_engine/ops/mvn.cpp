@@ -8,8 +8,7 @@
 #include "ngraph/op/mvn.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/mvn.hpp"
-
+#include "api/mvn.hpp"
 #include <algorithm>
 
 namespace CLDNNPlugin {

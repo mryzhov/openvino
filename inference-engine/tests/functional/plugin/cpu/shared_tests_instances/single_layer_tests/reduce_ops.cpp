@@ -12,7 +12,9 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::I32
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::I8,
 };
 
 const std::vector<bool> keepDims = {
@@ -73,9 +75,9 @@ const std::vector<ngraph::helpers::ReductionType> reductionLogicalTypes = {
 const auto paramsOneAxis = testing::Combine(
         testing::Values(std::vector<int>{0}),
         testing::ValuesIn(opTypes),
-        testing::ValuesIn(keepDims),
+        testing::Values(true, false),
         testing::ValuesIn(reductionTypes),
-        testing::Values(netPrecisions[0]),
+        testing::Values(InferenceEngine::Precision::FP32),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
@@ -86,7 +88,7 @@ const auto paramsOneAxis = testing::Combine(
 const auto paramsOneAxisLogical = testing::Combine(
         testing::Values(std::vector<int>{0}),
         testing::ValuesIn(opTypes),
-        testing::ValuesIn(keepDims),
+        testing::Values(true, false),
         testing::ValuesIn(reductionLogicalTypes),
         testing::Values(InferenceEngine::Precision::BOOL),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -101,7 +103,8 @@ const auto params_Precisions = testing::Combine(
         testing::Values(opTypes[1]),
         testing::ValuesIn(keepDims),
         testing::Values(ngraph::helpers::ReductionType::Sum),
-        testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::FP32,
+                        InferenceEngine::Precision::I32),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
@@ -114,7 +117,7 @@ const auto params_InputShapes = testing::Combine(
         testing::Values(opTypes[1]),
         testing::ValuesIn(keepDims),
         testing::Values(ngraph::helpers::ReductionType::Mean),
-        testing::Values(netPrecisions[0]),
+        testing::Values(InferenceEngine::Precision::FP32),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
@@ -132,7 +135,7 @@ const auto params_Axes = testing::Combine(
         testing::Values(opTypes[1]),
         testing::ValuesIn(keepDims),
         testing::Values(ngraph::helpers::ReductionType::Mean),
-        testing::Values(netPrecisions[0]),
+        testing::Values(InferenceEngine::Precision::FP32),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
@@ -145,7 +148,7 @@ const auto params_ReductionTypes = testing::Combine(
         testing::Values(opTypes[1]),
         testing::ValuesIn(keepDims),
         testing::ValuesIn(reductionTypes),
-        testing::Values(netPrecisions[0]),
+        testing::Values(InferenceEngine::Precision::FP32),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         testing::Values(InferenceEngine::Layout::ANY),
@@ -166,56 +169,56 @@ const auto params_ReductionTypesLogical = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         smoke_ReduceOneAxis,
         ReduceOpsLayerTest,
         paramsOneAxis,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         smoke_ReduceLogicalOneAxis,
         ReduceOpsLayerTest,
         paramsOneAxisLogical,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         smoke_Reduce_Precisions,
         ReduceOpsLayerTest,
         params_Precisions,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         smoke_Reduce_InputShapes,
         ReduceOpsLayerTest,
         params_InputShapes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         smoke_Reduce_Axes,
         ReduceOpsLayerTest,
         params_Axes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         smoke_Reduce_ReductionTypes,
         ReduceOpsLayerTest,
         params_ReductionTypes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         smoke_ReduceLogical_ReductionTypes,
         ReduceOpsLayerTest,
         params_ReductionTypesLogical,
         ReduceOpsLayerTest::getTestCaseName
 );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         smoke_Reduce,
         ReduceOpsLayerWithSpecificInputTest,
         testing::Combine(

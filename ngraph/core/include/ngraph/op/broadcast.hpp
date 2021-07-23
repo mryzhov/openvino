@@ -70,7 +70,6 @@ namespace ngraph
                 std::pair<bool, AxisSet> get_broadcast_axes() const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
 
             private:
                 bool broadcast_evaluate(const HostTensorVector& outputs,
@@ -85,8 +84,8 @@ namespace ngraph
             class NGRAPH_API Broadcast : public util::BroadcastBase
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"Broadcast", 1};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a broadcast operation.
                 Broadcast() = default;
                 /// \brief Constructs a broadcast operation.
@@ -133,7 +132,6 @@ namespace ngraph
                 void validate_and_infer_types() override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
 
             protected:
                 AutoBroadcastSpec m_broadcast_spec;

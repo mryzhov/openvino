@@ -2,32 +2,35 @@
 
 **Versioned name**: *Sign-1*
 
-**Category**: Arithmetic unary operation
+**Category**: Arithmetic unary operation 
 
-**Short description**: *Sign* performs element-wise sign operation on a given input tensor.
+**Short description**: *Sign* performs element-wise sign operation with given tensor.
 
-**Detailed description**: *Sign* performs element-wise sign operation on a given input tensor, based on the following mathematical formula:
+**Attributes**:
 
-\f[
-a_{i} = sign(a_{i})
-\f]
-
-**Attributes**: *Sign* operation has no attributes.
+    No attributes available.
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: An tensor of type T. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise *Sign* operation. A tensor of type *T* with mapped elements of the input tensor to -1 (if it is negative), 0 (if it is zero), or 1 (if it is positive).
+* **1**: The result of element-wise sign operation. A tensor of type T with mapped elements of the input tensor to -1 (if it is negative), 0 (if it is zero), or 1 (if it is positive).
 
 **Types**
 
 * *T*: any numeric type.
 
+*Sign* does the following with the input tensor *a*:
 
-**Example**
+\f[
+a_{i} = sign(a_{i})
+\f]
+
+**Examples**
+
+*Example 1*
 
 ```xml
 <layer ... type="Sign">

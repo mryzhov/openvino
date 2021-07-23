@@ -30,7 +30,7 @@ class FrontEnd final {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
 
-    explicit FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICore> core);
+    explicit FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core);
 
     ModelPtr buildInitialModel(const ie::CNNNetwork& network);
 
@@ -162,7 +162,6 @@ public:
     void parseCeiling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseRound(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
-    void parseAbs(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
 
     //
     // Special layers
@@ -215,7 +214,7 @@ private:
 
 private:
     StageBuilder::Ptr _stageBuilder;
-    const std::shared_ptr<ie::ICore> _core = nullptr;
+    const ie::ICore* _core = nullptr;
 
     IeParsedNetwork _ieParsedNetwork;
     std::unordered_set<ie::DataPtr> _unbatchedOutputs;

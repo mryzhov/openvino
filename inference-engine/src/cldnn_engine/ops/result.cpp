@@ -7,7 +7,7 @@
 
 #include "ngraph/op/result.hpp"
 
-#include "cldnn/primitives/reorder.hpp"
+#include "api/reorder.hpp"
 
 using namespace InferenceEngine;
 

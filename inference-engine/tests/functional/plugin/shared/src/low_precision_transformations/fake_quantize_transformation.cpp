@@ -19,7 +19,7 @@ namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeTransformationParam testParams;
@@ -32,19 +32,15 @@ std::string FakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<F
 
 void FakeQuantizeTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeTransformationParam testParams;
     std::tie(netPrecision, inputShape, targetDevice, params, testParams) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
-        params,
+    function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginalWithMaxPool(
         netPrecision,
         inputShape,
-        testParams.fakequantize,
-        true);
-
-    ngraph::pass::InitNodeInfo().run_on_function(function);
+        testParams.fakequantize);
 }
 
 void FakeQuantizeTransformation::Run() {
@@ -56,7 +52,6 @@ void FakeQuantizeTransformation::Run() {
     if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
         expectedPrecision = "FP16";
     }
-
     EXPECT_EQ(actualPrecision, expectedPrecision);
 }
 

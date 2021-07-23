@@ -11,6 +11,7 @@ import re
 import time
 
 from github import Github, GithubException, RateLimitExceededException, IncompletableObject
+from github import UnknownObjectException
 from github.PaginatedList import PaginatedList
 
 from configs import Config
@@ -109,13 +110,17 @@ class GithubOrgApi:
     def is_org_user(self, user):
         """Checks that user is a member of GitHub organization"""
         if is_valid_user(user):
-            # user.get_organization_membership(self.github_org) doesn't work with org members
-            # permissions, GITHUB_TOKEN must be org owner now
-            return self.github_org.has_in_members(user)
+            try:
+                membership = user.get_organization_membership(self.github_org)
+                # membership.role can be 'member' or 'admin'
+                if membership.state == 'active' and membership.role:
+                    return True
+            except UnknownObjectException:
+                pass
         return False
 
     def get_org_emails(self):
-        """Gets and prints emails of all GitHub organization members"""
+        """Gets and prints all emails of GitHub organization members"""
         org_members = self.github_org.get_members()
         org_emails = set()
         org_members_fix = set()
@@ -141,7 +146,7 @@ class GithubOrgApi:
               '; '.join(org_logins_fix_intel_email))
         print(f'\nOrg members - no real name {len(org_emails_fix_name)}:',
               '; '.join(org_emails_fix_name))
-        return (org_emails, org_logins_fix_intel_email)
+        return org_emails
 
     def get_org_invitation_emails(self):
         """Gets GitHub organization teams prints info"""

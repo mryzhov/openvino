@@ -34,7 +34,6 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
             };
         } // namespace v0

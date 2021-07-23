@@ -76,11 +76,6 @@ bool ngraph::op::is_output(const ngraph::Node* node)
     return dynamic_cast<const ngraph::op::Result*>(node) != nullptr;
 }
 
-bool ngraph::op::is_sink(const ngraph::Node* node)
-{
-    return dynamic_cast<const ngraph::op::Sink*>(node) != nullptr;
-}
-
 bool ngraph::op::is_constant(const ngraph::Node* node)
 {
     return dynamic_cast<const ngraph::op::Constant*>(node) != nullptr;
@@ -138,10 +133,6 @@ bool ngraph::op::is_parameter(const std::shared_ptr<ngraph::Node>& node)
 bool ngraph::op::is_output(const std::shared_ptr<ngraph::Node>& node)
 {
     return is_output(node.get());
-}
-bool ngraph::op::is_sink(const std::shared_ptr<ngraph::Node>& node)
-{
-    return is_sink(node.get());
 }
 bool ngraph::op::is_constant(const std::shared_ptr<ngraph::Node>& node)
 {

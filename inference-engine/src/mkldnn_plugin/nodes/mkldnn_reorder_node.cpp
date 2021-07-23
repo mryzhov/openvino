@@ -17,9 +17,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 MKLDNNReorderNode::MKLDNNReorderNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
-        MKLDNNNode(op, eng, w_cache) {
-    IE_THROW() << "Can't create reorder node from ngraph node";
-}
+        MKLDNNNode(op, eng, w_cache) {}
 
 MKLDNNReorderNode::MKLDNNReorderNode(const std::string& name, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
         MKLDNNNode("Reorder", name, eng, w_cache) {

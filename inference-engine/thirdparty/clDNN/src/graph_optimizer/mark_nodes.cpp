@@ -10,8 +10,18 @@
 using namespace cldnn;
 
 void mark_nodes::run(program_impl& p) {
-    for (const auto& node : p.get_processing_order()) {
+    mark_constants(p);
+    mark_data_flow(p);
+}
+
+void mark_nodes::mark_constants(program_impl& p) {
+    for (auto& node : p.get_processing_order()) {
         p.mark_if_constant(*node);
+    }
+}
+
+void mark_nodes::mark_data_flow(program_impl& p) {
+    for (auto const& node : p.get_processing_order()) {
         p.mark_if_data_flow(*node);
     }
 }

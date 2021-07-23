@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <ostream>
 #include <string>
 
 namespace slog {
@@ -43,7 +42,9 @@ public:
      * @brief A constructor. Creates an LogStream object
      * @param prefix The prefix to print
      */
-    LogStream(const std::string& prefix, std::ostream& log_stream);
+    LogStream(const std::string& prefix, std::ostream& log_stream): _prefix(prefix), _new_line(true) {
+        _log_stream = &log_stream;
+    }
 
     /**
      * @brief A stream output operator to be used within the logger
@@ -61,14 +62,22 @@ public:
     }
 
     // Specializing for LogStreamEndLine to support slog::endl
-    LogStream& operator<<(const LogStreamEndLine&);
+    LogStream& operator<<(const LogStreamEndLine& /*arg*/) {
+        _new_line = true;
+
+        (*_log_stream) << std::endl;
+        return *this;
+    }
 
     // Specializing for LogStreamBoolAlpha to support slog::boolalpha
-    LogStream& operator<<(const LogStreamBoolAlpha&);
+    LogStream& operator<<(const LogStreamBoolAlpha& /*arg*/) {
+        (*_log_stream) << std::boolalpha;
+        return *this;
+    }
 };
 
-extern LogStream info;
-extern LogStream warn;
-extern LogStream err;
+static LogStream info("INFO", std::cout);
+static LogStream warn("WARNING", std::cout);
+static LogStream err("ERROR", std::cerr);
 
 }  // namespace slog

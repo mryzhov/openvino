@@ -4,12 +4,11 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/scale.hpp"
+#include "api/scale.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/core/actual_kernels/eltwise/eltwise_kernel_base.h"
-
 #include <string>
 #include <memory>
+#include "kernel_selector/core/actual_kernels/eltwise/eltwise_kernel_base.h"
 
 namespace cldnn {
 
@@ -48,8 +47,8 @@ public:
 public:
     typed_primitive_inst(network_impl& network, scale_node const& desc);
 
-    memory::ptr scale_memory() const { return dep_memory_ptr(1); }
-    memory::ptr bias_memory() const { return dep_memory_ptr(2); }
+    memory_impl& scale_memory() const { return dep_memory(1); }
+    memory_impl& bias_memory() const { return dep_memory(2); }
 
     bool bias_term() const { return _node.as<scale>().bias_term(); }
 };

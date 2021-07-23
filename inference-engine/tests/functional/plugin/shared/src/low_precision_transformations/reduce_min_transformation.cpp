@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 std::string ReduceMinTransformation::getTestCaseName(testing::TestParamInfo<ReduceMinTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ReduceMinTransformationParam param;;
@@ -32,7 +32,7 @@ std::string ReduceMinTransformation::getTestCaseName(testing::TestParamInfo<Redu
 
 void ReduceMinTransformation::SetUp() {
     ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ReduceMinTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();

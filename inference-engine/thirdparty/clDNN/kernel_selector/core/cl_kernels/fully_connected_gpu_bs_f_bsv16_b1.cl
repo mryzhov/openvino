@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/include_all.cl"
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Just-in-time macro definitions:
@@ -193,7 +192,7 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
 #if BIAS_TERM
     // [SCATTERED] Bias base identifier/element offset to use (x/f format of biases).
     const uint bias_base_id = output_base_id;
-#endif //
+#endif // 
     // Filter/input byte offsets in sub-group used duering read/write operations.
     const uint sg_elem_offset = sg_elem_id * CHUNK_BYTE_SIZE;
 
@@ -518,3 +517,4 @@ KERNEL (fully_connected_gpu_bx_bs_x_bsv16_b1)(
 #undef ALIGNED_WRITE2
 #undef ALIGNED_WRITE4
 #undef ALIGNED_WRITE8
+

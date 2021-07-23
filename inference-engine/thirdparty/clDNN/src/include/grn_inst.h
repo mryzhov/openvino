@@ -4,9 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/grn.hpp"
+#include "api/grn.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 
 namespace cldnn {

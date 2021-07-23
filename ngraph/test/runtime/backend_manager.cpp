@@ -3,9 +3,6 @@
 //
 
 #ifdef _WIN32
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
 #include <windows.h>
 #else
 #include <dlfcn.h>
@@ -21,6 +18,7 @@
 using namespace std;
 using namespace ngraph;
 
+#ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
 #ifdef _WIN32
 #define CLOSE_LIBRARY(a) FreeLibrary(a)
 #define DLSYM(a, b) GetProcAddress(a, b)
@@ -33,6 +31,9 @@ string DLERROR()
     const char* error = dlerror();
     return error == nullptr ? "" : error;
 }
+#endif
+#else
+#define DLERROR() ""
 #endif
 
 unordered_map<string, runtime::BackendConstructor>& runtime::BackendManager::get_registry()
@@ -79,6 +80,7 @@ shared_ptr<runtime::Backend> runtime::BackendManager::create_backend(std::string
     auto& registry = get_registry();
     auto it = registry.find(type);
     string error;
+#ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
     if (it == registry.end())
     {
         DL_HANDLE handle = open_shared_library(type);
@@ -113,6 +115,7 @@ shared_ptr<runtime::Backend> runtime::BackendManager::create_backend(std::string
             }
         }
     }
+#endif
 
     if (it == registry.end())
     {
@@ -130,6 +133,7 @@ shared_ptr<runtime::Backend> runtime::BackendManager::create_backend(std::string
 DL_HANDLE runtime::BackendManager::open_shared_library(string type)
 {
     DL_HANDLE handle = nullptr;
+#ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
     string lib_prefix = SHARED_LIB_PREFIX;
     string lib_suffix = SHARED_LIB_SUFFIX;
 
@@ -164,12 +168,14 @@ DL_HANDLE runtime::BackendManager::open_shared_library(string type)
         }
         throw runtime_error(ss.str());
     }
+#endif
     return handle;
 }
 
 map<string, string> runtime::BackendManager::get_registered_device_map()
 {
     map<string, string> rc;
+#ifdef NGRAPH_DYNAMIC_COMPONENTS_ENABLE
     string my_directory =
         file_util::get_directory(Backend::get_backend_shared_library_search_directory());
     vector<string> backend_list;
@@ -186,6 +192,7 @@ map<string, string> runtime::BackendManager::get_registered_device_map()
         }
     };
     file_util::iterate_files(my_directory, f, false, true);
+#endif
     return rc;
 }
 

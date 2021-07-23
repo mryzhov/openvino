@@ -7,8 +7,8 @@
 
 #include "ngraph/op/gather.hpp"
 
-#include "cldnn/primitives/gather.hpp"
-#include "cldnn/primitives/reorder.hpp"
+#include "api/gather.hpp"
+#include "api/reorder.hpp"
 
 namespace CLDNNPlugin {
 
@@ -57,8 +57,8 @@ static cldnn::gather::gather_axis GetGatherAxis(int32_t axis, cldnn::format inpu
     }
 }
 
-template <typename T>
-void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t batch_dim = 0, bool support_neg_ind = false) {
+void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v1::Gather>& op) {
+    p.ValidateInputs(op, {2, 3});
     auto inputPrimitives = p.GetInputPrimitiveIDs(op);
     std::string layerName = layer_type_name_ID(op);
 
@@ -92,33 +92,12 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
                                     reorderedInputs[1],
                                     GetGatherAxis(axis, DefaultFormatForDims(op->get_input_shape(0).size())),
                                     outLayout,
-                                    CldnnTensorFromIEDims(op->get_output_shape(0)),
-                                    batch_dim,
-                                    support_neg_ind);
+                                    CldnnTensorFromIEDims(op->get_output_shape(0)));
 
     p.AddPrimitive(gatherPrim);
     p.AddPrimitiveToProfiler(op);
 }
 
-void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v1::Gather>& op) {
-    p.ValidateInputs(op, {2, 3});
-    CreateGatherOpBase<ngraph::op::v1::Gather>(p, op);
-}
-
 REGISTER_FACTORY_IMPL(v1, Gather);
-
-void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v7::Gather>& op) {
-    p.ValidateInputs(op, {2, 3, 4});
-    CreateGatherOpBase<ngraph::op::v7::Gather>(p, op, op->get_batch_dims());
-}
-
-REGISTER_FACTORY_IMPL(v7, Gather);
-
-void CreateGatherOp(Program& p, const std::shared_ptr<ngraph::op::v8::Gather>& op) {
-    p.ValidateInputs(op, {2, 3, 4});
-    CreateGatherOpBase<ngraph::op::v8::Gather>(p, op, op->get_batch_dims(), true);
-}
-
-REGISTER_FACTORY_IMPL(v8, Gather);
 
 }  // namespace CLDNNPlugin

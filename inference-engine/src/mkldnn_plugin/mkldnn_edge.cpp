@@ -32,7 +32,7 @@ bool MKLDNNEdge::isUseExternalMemory() const {
     return externalMemoryPtr;
 }
 
-bool MKLDNNEdge::isDropped() const {
+bool MKLDNNEdge::isDropped() {
     bool not_in_parent = true;
     bool not_in_child = true;
 
@@ -117,26 +117,11 @@ bool MKLDNNEdge::needReorder() {
     return canBeInPlaceConflicts || !MKLDNNExtensionUtils::initTensorsAreEqual(getInputDesc(), getOutputDesc());
 }
 
-void MKLDNNEdge::reuse(MKLDNNMemoryPtr ptr) {
-    if (status != Status::NeedAllocation)
-        return;
-    memoryPtr = ptr;
-    status = Status::Allocated;
-}
-
-const InferenceEngine::TensorDesc& MKLDNNEdge::getInputDescRO() const {
-    return inputDesc;
-}
-
 InferenceEngine::TensorDesc MKLDNNEdge::getInputDesc() {
     if (inputDesc.getLayout() == InferenceEngine::Layout::ANY) {
         inputDesc = getSpecifiedInputDesc({});
     }
     return inputDesc;
-}
-
-const InferenceEngine::TensorDesc& MKLDNNEdge::getOutputDescRO() const {
-    return outputDesc;
 }
 
 InferenceEngine::TensorDesc MKLDNNEdge::getOutputDesc() {
@@ -153,11 +138,11 @@ InferenceEngine::TensorDesc MKLDNNEdge::getDesc() {
     return getInputDesc();
 }
 
-int MKLDNNEdge::getInputNum() const {
+int MKLDNNEdge::getInputNum() {
     return parent_port;
 }
 
-int MKLDNNEdge::getOutputNum() const {
+int MKLDNNEdge::getOutputNum() {
     return child_port;
 }
 
@@ -661,10 +646,6 @@ void MKLDNNEdge::init() {
     if (edgePtr.get() == this) {
         changeStatus(Status::NeedAllocation);
     } else {
-        if (edgePtr->getParent()->isConstant() && !edgePtr->getChild()->isConstant()) {
-            changeStatus(Status::NeedAllocation);
-            return;
-        }
         sharedMemFrom(edgePtr);
     }
 

@@ -10,8 +10,7 @@
 #include <string>
 #include <vector>
 
-#include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
-#include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
+#include <cpp_interfaces/impl/ie_variable_state_internal.hpp>
 
 class MockIInferRequestInternal : public InferenceEngine::IInferRequestInternal {
 public:

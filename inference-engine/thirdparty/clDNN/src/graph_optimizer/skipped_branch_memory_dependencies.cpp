@@ -9,7 +9,7 @@
 #include "layout_optimizer.h"
 #include "program_impl.h"
 #include "program_helpers.h"
-#include "runtime/cldnn_itt.hpp"
+#include "cldnn_itt.h"
 #include <vector>
 #include <memory>
 #include <list>

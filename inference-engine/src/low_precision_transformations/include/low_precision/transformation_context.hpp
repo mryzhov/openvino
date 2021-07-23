@@ -13,9 +13,8 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API TransformationContext {
+class TRANSFORMATIONS_API TransformationContext {
 public:
-    TransformationContext();
     explicit TransformationContext(std::shared_ptr<Function> function);
     std::shared_ptr<Function> function;
 

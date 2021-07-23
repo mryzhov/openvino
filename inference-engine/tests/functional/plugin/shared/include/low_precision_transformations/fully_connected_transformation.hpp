@@ -11,8 +11,8 @@
 
 class MatMulShapes {
 public:
-    ngraph::PartialShape inputA;
-    ngraph::PartialShape inputB;
+    ngraph::Shape inputA;
+    ngraph::Shape inputB;
     bool transposeA;
     bool transposeB;
 };
@@ -33,6 +33,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

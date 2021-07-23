@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <map>
-#include <numeric>
 #include <vector>
 
 #include "ngraph/coordinate_transform.hpp"
@@ -22,45 +21,59 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void mean(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes)
+            void mean(const T* arg,
+                      T* out,
+                      const Shape& in_shape,
+                      const AxisSet& reduction_axes,
+                      bool keep_dims)
             {
-                constexpr bool dont_keep_dims_in_output = false;
-                const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
-                std::vector<T> cs(shape_size(out_shape), 0);
-                std::fill(out, out + shape_size(out_shape), 0);
+                auto out_shape = reduce(in_shape, reduction_axes, keep_dims);
+                CoordinateTransform output_transform(out_shape);
+                std::vector<T> cs(shape_size(out_shape));
 
-                const auto in_strides = row_major_strides(in_shape);
-                const auto out_strides = row_major_strides(out_shape);
+                for (const Coordinate& output_coord : output_transform)
+                {
+                    out[output_transform.index(output_coord)] = 0;
+                    cs[output_transform.index(output_coord)] = 0;
+                }
 
-                CoordinateTransformBasic input_transform(in_shape);
+                CoordinateTransform input_transform(in_shape);
                 std::map<size_t, int> index_to_count_map;
 
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    const Coordinate output_coord =
-                        reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
+                    Coordinate output_coord = reduce(input_coord, reduction_axes, keep_dims);
 
-                    const size_t in_idx = std::inner_product(
-                        input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
-                    const size_t out_idx = std::inner_product(
-                        output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
-
-                    details::kahan_summation(arg[in_idx], cs[out_idx], out[out_idx]);
-
-                    if (index_to_count_map.find(out_idx) == index_to_count_map.end())
+                    T x = arg[input_transform.index(input_coord)];
+                    T& z = out[output_transform.index(output_coord)];
+                    auto index = output_transform.index(output_coord);
+                    if (index_to_count_map.find(index) == index_to_count_map.end())
                     {
-                        index_to_count_map[out_idx] = 1;
+                        index_to_count_map[index] = 1;
                     }
                     else
                     {
-                        index_to_count_map[out_idx]++;
+                        index_to_count_map[index]++;
+                    }
+
+                    if (is_finite(x) && is_finite(z))
+                    {
+                        T& c = cs[output_transform.index(output_coord)];
+                        T t = z + (x - c);
+                        c = (t - z) - (x - c);
+                        z = t;
+                    }
+                    else
+                    {
+                        z = z + x;
                     }
                 }
 
-                for (size_t i = 0; i < shape_size(out_shape); ++i)
+                for (const Coordinate& output_coord : output_transform)
                 {
-                    auto count = index_to_count_map[i];
-                    out[i] = out[i] / count;
+                    auto count = index_to_count_map[output_transform.index(output_coord)];
+                    out[output_transform.index(output_coord)] =
+                        out[output_transform.index(output_coord)] / count;
                 }
             }
         } // namespace reference

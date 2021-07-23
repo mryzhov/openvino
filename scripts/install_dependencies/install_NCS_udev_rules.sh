@@ -22,3 +22,5 @@ else
     echo "File '97-myriad-usbboot.rules' is missing. Please make sure you installed 'Inference Engine Runtime for Intel® Movidius™ VPU'."
     exit -1
 fi 
+
+

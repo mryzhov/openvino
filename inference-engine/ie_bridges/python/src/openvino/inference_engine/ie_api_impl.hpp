@@ -38,14 +38,6 @@ struct ProfileInfo {
     unsigned execution_index;
 };
 
-struct CVariableState {
-    InferenceEngine::VariableState variableState;
-    void reset();
-    std::string getName();
-    InferenceEngine::Blob::Ptr getState();
-    void setState(InferenceEngine::Blob::Ptr state);
-};
-
 struct IENetwork {
     std::shared_ptr<InferenceEngine::CNNNetwork> actual;
     std::string name;
@@ -102,7 +94,9 @@ struct InferRequestWrap {
     int index;
     using cy_callback = void (*)(void*, int);
 
-    InferenceEngine::InferRequest request_ptr;
+    IE_SUPPRESS_DEPRECATED_START
+    InferenceEngine::IInferRequest::Ptr request_ptr;
+    IE_SUPPRESS_DEPRECATED_END
     Time::time_point start_time;
     double exec_time;
     cy_callback user_callback;
@@ -117,7 +111,7 @@ struct InferRequestWrap {
 
     void setCyCallback(cy_callback callback, void* data);
 
-    InferenceEngine::Blob::Ptr getBlobPtr(const std::string& blob_name);
+    void getBlobPtr(const std::string& blob_name, InferenceEngine::Blob::Ptr& blob_ptr);
 
     void setBlob(const std::string& blob_name, const InferenceEngine::Blob::Ptr& blob_ptr);
 
@@ -125,15 +119,13 @@ struct InferRequestWrap {
 
     void setBatch(int size);
 
-    const InferenceEngine::PreProcessInfo& getPreProcess(const std::string& blob_name);
+    void getPreProcess(const std::string& blob_name, const InferenceEngine::PreProcessInfo** info);
 
     std::map<std::string, InferenceEnginePython::ProfileInfo> getPerformanceCounts();
-
-    std::vector<InferenceEnginePython::CVariableState> queryState();
 };
 
 struct IEExecNetwork {
-    std::shared_ptr<InferenceEngine::ExecutableNetwork> actual;
+    InferenceEngine::ExecutableNetwork actual;
     std::vector<InferRequestWrap> infer_requests;
     std::string name;
     IdleInferRequestQueue::Ptr request_queue_ptr;
@@ -156,9 +148,6 @@ struct IEExecNetwork {
     int getIdleRequestId();
 
     void createInferRequests(int num_requests);
-
-    // binds plugin to InputInfo and Data, so that they can be destroyed before plugin (ussue 28996)
-    std::shared_ptr<InferenceEngine::ExecutableNetwork> getPluginLink();
 };
 
 struct IECore {

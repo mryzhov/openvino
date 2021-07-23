@@ -9,6 +9,8 @@
 #include "data_inst.h"
 #include "condition_inst.h"
 
+#include "gpu/ocl_toolkit.h"
+
 #include <algorithm>
 #include <vector>
 #include <string>
@@ -211,7 +213,7 @@ void dump_graph_init(std::ofstream& graph,
             !node->can_be_optimized()) {
             graph << "\\n Selected kernel: "
                   << (node->get_selected_impl() == nullptr ? "none"
-                                                           : node->get_selected_impl()->get_kernel_name()) +
+                                                           : node->get_selected_impl().get()->get_kernel_name()) +
                          "\n" + dump_mem_info(node);
         }
         graph << "\"";
@@ -224,6 +226,9 @@ void dump_graph_init(std::ofstream& graph,
         }
         if (node->is_type<data>() || node->is_constant()) {
             graph << ", shape=box";
+        }
+        if (node->is_type<internal_primitive>()) {
+            graph << ", color=blue";
         }
 
         if (node->is_reusing_memory()) {

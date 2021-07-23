@@ -23,7 +23,8 @@ namespace ngraph
             class NGRAPH_API NonZero : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
+                static constexpr NodeTypeInfo type_info{"NonZero", 3};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a NonZero operation.
                 NonZero() = default;
                 /// \brief Constructs a NonZero operation.
@@ -59,7 +60,6 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
 
             protected:
                 element::Type m_output_type = element::i64;

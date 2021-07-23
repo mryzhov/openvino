@@ -22,27 +22,23 @@ public:
         const ngraph::Shape& inputShape,
         const ngraph::Shape& outputShape,
         const size_t groupCount,
-        const int groupCalculationDimention,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         std::shared_ptr<ngraph::opset1::Constant> weightsConst,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+        const ngraph::Shape& inputShape,
         const ngraph::Shape& outputShape,
         const size_t groupCount,
-        const int groupCalculationDimention,
         const FakeQuantizeOnData& fakeQuantizeOnData,
-        const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
-        const bool addPrecisionPreserved = false);
+        const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
-        const ngraph::PartialShape& outputShape,
+        const ngraph::Shape& inputShape,
+        const ngraph::Shape& outputShape,
         const size_t groupCount,
-        const int calculatedDimention,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         std::shared_ptr<ngraph::opset1::Constant> weightsConst,
         const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,

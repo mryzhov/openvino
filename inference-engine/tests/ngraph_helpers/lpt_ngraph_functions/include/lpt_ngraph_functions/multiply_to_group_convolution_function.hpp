@@ -9,8 +9,6 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
-#include "lpt_ngraph_functions/common/constant.hpp"
-#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 namespace ngraph {
@@ -20,19 +18,18 @@ namespace subgraph {
 class MultiplyToGroupConvolutionFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::PartialShape& inputShape,
+        const ngraph::Shape& inputShape,
         const ngraph::element::Type& precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization,
         const bool haveMultiplyWithNoConstBeforeDequantization);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
-        const FakeQuantizeOnData& fqOnData,
-        const Constant& constant);
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fqOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::PartialShape& inputShape,
+        const ngraph::Shape& inputShape,
         const ngraph::element::Type& precision,
         const std::shared_ptr<ngraph::opset1::Constant>& weights,
         const std::shared_ptr<ngraph::opset1::Constant>& biases,

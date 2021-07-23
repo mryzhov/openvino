@@ -12,8 +12,6 @@
 #include <vector>
 #include <cassert>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/network_helper.hpp"
@@ -22,24 +20,11 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::MultiplyTransformation, "MultiplyTransformation", 0);
-
-MultiplyTransformation::MultiplyTransformation(const Params& params) : EltwiseBaseTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::Multiply>();
-
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        auto op = m.get_match_root();
-        if (transformation_callback(op)) {
-            return false;
-        }
-        return transform(*context, m);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "MultiplyTransformation");
-    this->register_matcher(m, callback);
+void MultiplyTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
+    addSingleNodePattern<opset1::Multiply>(pass, context);
 }
 
-bool MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) {
+bool MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     auto multiply = m.get_match_root();
     if (!LayerTransformation::canBeTransformed(context, multiply)) {
         return false;
@@ -89,8 +74,8 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             ngraph::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(
                 fold<opset1::Multiply>(
-                    foldConvert(multiplyParentConst, element::f32),
-                    foldConvert(constParent, element::f32)),
+                    fold<opset1::Convert>(multiplyParentConst, element::f32),
+                    fold<opset1::Convert>(constParent, element::f32)),
                 element::f32).get());
 
         NetworkHelper::copyInfo(multiplyParent.get_node_shared_ptr(), newMultiply);

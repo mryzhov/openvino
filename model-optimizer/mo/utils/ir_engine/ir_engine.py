@@ -5,9 +5,7 @@ import hashlib
 import logging as log
 import os
 import sys
-
-from defusedxml import defuse_stdlib
-import defusedxml.ElementTree as ET
+import xml.etree.ElementTree as ET
 from argparse import Namespace
 from collections import namedtuple, defaultdict
 from pathlib import Path
@@ -19,9 +17,6 @@ from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.DEBUG, stream=sys.stdout)
 
-# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
-# in a safe manner without including unsafe xml.etree.ElementTree
-ElementTree = defuse_stdlib()[ET].ElementTree
 
 class IREngine(object):
     def __init__(self, path_to_xml: str, path_to_bin=None, precision="FP32", xml_tree=None):
@@ -92,6 +87,7 @@ class IREngine(object):
                         self.meta_data['quantization_parameters']['config'] = elem.text
                     elif elem.tag in ['version', 'cli_params']:
                         self.meta_data['quantization_parameters'][elem.tag] = elem.attrib['value']
+
 
         self.graph.graph['cmd_params'] = Namespace(**self.meta_data)  # TODO check what we need all this attrs
 
@@ -241,7 +237,7 @@ class IREngine(object):
 
                 body_ir = IREngine(path_to_xml=None,
                                    path_to_bin=self.path_to_bin,
-                                   xml_tree=ElementTree(xml_body_child[0]))
+                                   xml_tree=ET.ElementTree(xml_body_child[0]))
                 self.graph.graph['hashes'].update(body_ir.graph.graph['hashes'])
 
                 # Find port_map section and take an input_port_map & output_port_map
@@ -305,7 +301,6 @@ class IREngine(object):
             'I4': (1, np.uint8),
             'BOOL': (1, np.bool),
             'BIN': (1, np.uint8),
-            'U64': (8, np.uint64)
         }
         type_size, dtype = precision_map[precision]
         layer_attrs[tag] = (int(offset), int(size) // type_size, in_port, dtype)
@@ -321,7 +316,7 @@ class IREngine(object):
         """
         normalized_attrs = {}
         for attr, value in attrs.items():
-            value = value.replace('\"', '').replace(' ', '')
+            value = value.replace('\"', '')
             value = value.split(',')
             n_value = []
             for val in value:

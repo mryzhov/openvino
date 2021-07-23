@@ -67,7 +67,6 @@ namespace ngraph
                 const AutoBroadcastSpec& get_autob() const override { return m_auto_broadcast; }
                 virtual bool evaluate(const HostTensorVector& output_values,
                                       const HostTensorVector& input_values) const override;
-                bool has_evaluate() const override;
 
             private:
                 AutoBroadcastSpec m_auto_broadcast;

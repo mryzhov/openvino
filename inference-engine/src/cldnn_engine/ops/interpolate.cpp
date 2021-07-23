@@ -9,7 +9,7 @@
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/constant.hpp"
 
-#include "cldnn/primitives/resample.hpp"
+#include "api/resample.hpp"
 
 namespace CLDNNPlugin {
 

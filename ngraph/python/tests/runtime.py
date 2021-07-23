@@ -119,12 +119,7 @@ class Computation(object):
 
     def _get_ie_output_blob_buffer(self, output_blobs: Dict[str, Blob], ng_result: result) -> np.ndarray:
         out_name = self._get_ie_output_blob_name(output_blobs, ng_result)
-        out_blob = output_blobs[out_name]
-
-        if out_blob.tensor_desc.layout == "SCALAR":
-            return out_blob.buffer.reshape(())
-        else:
-            return out_blob.buffer
+        return output_blobs[out_name].buffer
 
     def convert_buffers(self, source_buffers, target_dtypes):
         converted_buffers = []

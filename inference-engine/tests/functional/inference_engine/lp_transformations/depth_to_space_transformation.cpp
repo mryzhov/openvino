@@ -18,11 +18,9 @@
 #include "simple_low_precision_transformer.hpp"
 #include "lpt_ngraph_functions/depth_to_space_function.hpp"
 
-namespace {
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 using namespace ngraph::opset1;
-using namespace ngraph;
 
 class DepthToSpaceTransformationTestValues {
 public:
@@ -40,36 +38,33 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
+    ngraph::Shape inputShape;
     DepthToSpace::DepthToSpaceMode mode;
     size_t blockSize;
-    TestTransformationParams params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
 };
 
-typedef std::tuple<
-    ngraph::PartialShape,
-    DepthToSpaceTransformationTestValues> DepthToSpaceTransformationParams;
-
-class DepthToSpaceTransformation : public LayerTransformation, public testing::WithParamInterface<DepthToSpaceTransformationParams> {
+class DepthToSpaceTransformation : public LayerTransformation, public testing::WithParamInterface<DepthToSpaceTransformationTestValues> {
 public:
     void SetUp() override {
-        const ngraph::PartialShape inputShape = std::get<0>(GetParam());
-        const DepthToSpaceTransformationTestValues testValues = std::get<1>(GetParam());
+        const DepthToSpaceTransformationTestValues testValues = GetParam();
 
         actualFunction = DepthToSpaceFunction::getOriginal(
-            inputShape,
+            testValues.inputShape,
             testValues.mode,
             testValues.blockSize,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<low_precision::DepthToSpaceTransformation, ngraph::opset1::DepthToSpace>(testValues.params);
+        transform.add<low_precision::DepthToSpaceTransformation, ngraph::opset1::DepthToSpace>(
+            low_precision::LayerTransformation::Params(testValues.params));
         transform.transform(actualFunction);
 
         referenceFunction = DepthToSpaceFunction::getReference(
-            inputShape,
+            testValues.inputShape,
             testValues.mode,
             testValues.blockSize,
             testValues.expected.precisionBeforeDequantization,
@@ -78,18 +73,17 @@ public:
             testValues.expected.dequantizationAfter);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceTransformationParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceTransformationTestValues> obj) {
         static std::map<DepthToSpace::DepthToSpaceMode, std::string> names = {
             {DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, "BLOCKS_FIRST"},
             {DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, "DEPTH_FIRST"},
         };
 
-        const ngraph::PartialShape inputShape = std::get<0>(obj.param);
-        const DepthToSpaceTransformationTestValues testValues = std::get<1>(obj.param);
+        const DepthToSpaceTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
         result <<
-            inputShape << "_" <<
+            testValues.inputShape << "_" <<
             names[testValues.mode] << "_" <<
             testValues.blockSize << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
@@ -104,15 +98,10 @@ TEST_P(DepthToSpaceTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapesForBlockSize2 = {
-    { 1, 4, 3, 3 },
-    {Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}
-};
-
 const std::vector<DepthToSpaceTransformationTestValues> testValues = {
     // blockSize = 2
     {
+        ngraph::Shape{ 1, 4, 3, 3 },
         DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
         2,
         LayerTransformation::createParamsU8I8(),
@@ -129,6 +118,7 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
     },
     // blockSize = 2
     {
+        ngraph::Shape{ 1, 4, 3, 3 },
         DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
         2,
         LayerTransformation::createParamsU8I8(),
@@ -149,10 +139,45 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
                 {{0.32f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
                 {0.45f}
             }
+        }
+    },
+    // blockSize = 3
+    {
+        ngraph::Shape{ 1, 9, 3, 3 },
+        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        3,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+        }
+    },
+    // DEPTH_FIRST
+    {
+        ngraph::Shape{ 1, 9, 3, 3 },
+        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST,
+        3,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {0.32f}, {0.45f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {0.32f}, {0.45f}}
         }
     },
     // not scalar-like dequantizations with different values
     {
+        ngraph::Shape{ 1, 4, 3, 3 },
         DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
         2,
         LayerTransformation::createParamsU8I8(),
@@ -177,6 +202,7 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
     },
     // not scalar-like dequantizations with the same values
     {
+        ngraph::Shape{ 1, 4, 3, 3 },
         DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
         2,
         LayerTransformation::createParamsU8I8(),
@@ -201,6 +227,7 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
     },
     // without dequantization
     {
+        ngraph::Shape{ 1, 4, 3, 3 },
         DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
         2,
         LayerTransformation::createParamsU8I8(),
@@ -217,150 +244,8 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     DepthToSpaceTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapesForBlockSize2),
-        ::testing::ValuesIn(testValues)),
+    ::testing::ValuesIn(testValues),
     DepthToSpaceTransformation::getTestCaseName);
-} // namespace testValues1
-
-namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesForBlockSize3 = {
-    { 1, 9, 3, 3 },
-    {Dimension::dynamic(), 9, Dimension::dynamic(), Dimension::dynamic()}
-};
-
-const std::vector<DepthToSpaceTransformationTestValues> testValues = {
-    // blockSize = 3
-    {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        3,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        },
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        }
-    },
-    // DEPTH_FIRST
-    {
-        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST,
-        3,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        },
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    DepthToSpaceTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapesForBlockSize3),
-        ::testing::ValuesIn(testValues)),
-    DepthToSpaceTransformation::getTestCaseName);
-} // namespace testValues2
-
-namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannel = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-};
-
-const std::vector<DepthToSpaceTransformationTestValues> testValues = {
-    {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-            2,
-            LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        },
-            {
-                ngraph::element::u8,
-                {{}, {}, {}},
-                ngraph::element::u8,
-                {{ngraph::element::f32}, {0.32f}, {0.45f}}
-            }
-    },
-    // per-channel dequantizations with the same values
-    {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        2,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{0.32f, 0.32f, 0.32f, 0.32f}},
-                {{0.1f, 0.1f, 0.1f, 0.1f}}
-            }
-        },
-        {
-            ngraph::element::u8,
-            {
-                {ngraph::element::f32},
-                {{0.32f, 0.32f, 0.32f, 0.32f}},
-                {{0.1f, 0.1f, 0.1f, 0.1f}}
-            },
-            ngraph::element::f32,
-            {}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    DepthToSpaceTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapesWithDynamicChannel),
-        ::testing::ValuesIn(testValues)),
-    DepthToSpaceTransformation::getTestCaseName);
-} // namespace testValues3
-
-namespace testValues4 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
-    PartialShape::dynamic(),
-};
-
-const std::vector<DepthToSpaceTransformationTestValues> testValues = {
-    {
-        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        2,
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}}
-        },
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {0.32f}, {0.45f}},
-            ngraph::element::f32,
-            {}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    DepthToSpaceTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapesWithDynamicRank),
-        ::testing::ValuesIn(testValues)),
-    DepthToSpaceTransformation::getTestCaseName);
-} // namespace testValues4
-} // namespace

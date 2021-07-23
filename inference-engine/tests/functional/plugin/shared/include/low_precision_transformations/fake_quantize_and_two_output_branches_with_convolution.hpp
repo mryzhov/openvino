@@ -22,7 +22,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::PartialShape,
+    ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     FakeQuantizeAndTwoOutputBranchesWithConvolution
@@ -36,6 +36,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

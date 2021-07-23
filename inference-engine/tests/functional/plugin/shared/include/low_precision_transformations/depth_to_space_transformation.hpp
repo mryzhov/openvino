@@ -13,7 +13,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::PartialShape,
+    ngraph::Shape,
     std::string,
     ngraph::opset1::DepthToSpace::DepthToSpaceMode,
     size_t> DepthToSpaceTransformationParams;
@@ -26,6 +26,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

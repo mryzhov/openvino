@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-#include <cstring>
+#include <cmath>
+#include <stdio.h>
 
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
-#include "ngraph/runtime/reference/reshape.hpp"
 
 using namespace ngraph;
 
@@ -234,13 +233,6 @@ namespace
             }
         }
     }
-    bool no_axis_reordering(const AxisVector& axis_order)
-    {
-        auto tmp = axis_order;
-        std::sort(begin(tmp), end(tmp));
-        tmp.erase(std::unique(begin(tmp), end(tmp)), end(tmp));
-        return tmp == axis_order;
-    }
 } // namespace
 void runtime::opt_kernel::reshape(const char* in,
                                   char* out,
@@ -249,12 +241,6 @@ void runtime::opt_kernel::reshape(const char* in,
                                   const Shape& out_shape,
                                   size_t elem_size)
 {
-    if (no_axis_reordering(in_axis_order))
-    {
-        std::memcpy(out, in, shape_size(in_shape) * elem_size);
-        return;
-    }
-
     switch (in_shape.size())
     {
     case 0: reshape_in0(in, out, in_shape, in_axis_order, out_shape, elem_size); break;

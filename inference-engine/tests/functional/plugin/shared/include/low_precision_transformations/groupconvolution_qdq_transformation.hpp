@@ -51,7 +51,7 @@ inline std::ostream& operator<<(std::ostream& out, const GroupConvolutionQDqTran
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::PartialShape,
+    ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     GroupConvolutionQDqTransformationParam

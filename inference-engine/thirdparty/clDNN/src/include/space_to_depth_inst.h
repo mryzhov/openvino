@@ -4,10 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-
-#include "cldnn/primitives/space_to_depth.hpp"
+#include "api/space_to_depth.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 
 namespace cldnn {

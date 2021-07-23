@@ -19,15 +19,8 @@
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/profiling.hpp>
 
-#include <vpu/configuration/options/protocol.hpp>
-#include <vpu/configuration/options/power_config.hpp>
-#include <vpu/configuration/options/watchdog_interval.hpp>
-#include <vpu/configuration/options/device_id.hpp>
-#include <vpu/configuration/options/device_connect_timeout.hpp>
-#include <vpu/configuration/options/memory_type.hpp>
-#include <vpu/configuration/options/enable_async_dma.hpp>
-
 #include "myriad_executor.h"
+#include "myriad_config.h"
 
 #ifndef _WIN32
 # include <libgen.h>
@@ -80,7 +73,8 @@ MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
 /*
  * @brief Boot available device
  */
-ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, const PluginConfiguration& config) {
+ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
+                                          const MyriadConfig& config) {
     VPU_PROFILE(bootNextDevice);
 // #-17972, #-16790
 #if defined(NO_BOOT)
@@ -90,11 +84,11 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
     }
 #endif
 
-    const ncDevicePlatform_t& configPlatform = ncDevicePlatform_t::NC_ANY_PLATFORM;
-    const ncDeviceProtocol_t& configProtocol = config.get<ProtocolOption>();
-    const std::string& configDevName = config.get<DeviceIDOption>();
-    PowerConfig powerConfig = config.get<PowerConfigOption>();
-    int enableAsyncDma = config.get<EnableAsyncDMAOption>();
+    const ncDevicePlatform_t& configPlatform = config.platform();
+    const ncDeviceProtocol_t& configProtocol = config.protocol();
+    const std::string& configDevName = config.deviceName();
+    PowerConfig powerConfig = config.powerConfig();
+    int enableAsyncDma = config.asyncDma();
     int lastDeviceIdx = devicePool.empty() ? -1 : devicePool.back()->_deviceIdx;
 
     ncStatus_t statusOpen = NC_ERROR;
@@ -138,15 +132,15 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
         configDevName.copy(in_deviceDesc.name, NC_MAX_NAME_SIZE - 1);
     }
 
-    statusOpen = ncSetDeviceConnectTimeout(static_cast<int>(config.get<DeviceConnectTimeoutOption>().count()));
+    statusOpen = ncSetDeviceConnectTimeout(static_cast<int>(config.deviceConnectTimeout().count()));
     if (statusOpen) {
         return statusOpen;
     }
 
     ncDeviceOpenParams_t deviceOpenParams = {};
     deviceOpenParams.watchdogHndl = _mvnc->watchdogHndl();
-    deviceOpenParams.watchdogInterval = static_cast<int>(config.get<WatchdogIntervalOption>().count());
-    deviceOpenParams.memoryType = static_cast<char>(config.get<MemoryTypeOption>());
+    deviceOpenParams.watchdogInterval = static_cast<int>(config.watchdogInterval().count());
+    deviceOpenParams.memoryType = checked_cast<char>(config.memoryType());
     deviceOpenParams.customFirmwareDirectory = dirName.c_str();
 
     // Open new device with specific path to FW folder
@@ -227,7 +221,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool, co
 }
 
 DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
-                                     const PluginConfiguration& config) {
+                                     const MyriadConfig& config) {
     VPU_PROFILE(openDevice);
     std::lock_guard<std::mutex> lock(device_mutex);
 
@@ -243,7 +237,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
         return device;
     }
 
-    if (!config.get<DeviceIDOption>().empty()) {
+    if (!config.deviceName().empty()) {
         auto firstBootedBySpecificName = std::find_if(devicePool.begin(), devicePool.end(),
             [&](const DevicePtr& device) {
                 return device->isBooted() && device->isSuitableForConfig(config);
@@ -255,7 +249,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
                 device->_graphNum++;
                 return device;
             } else {
-                IE_THROW() << "Maximum number of networks reached for device: " << config.get<DeviceIDOption>();
+                IE_THROW() << "Maximum number of networks reached for device: " << config.deviceName();
             }
         }
     }
@@ -275,7 +269,12 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
             });
 
         // Return mock device. If try infer with it, exception will be thrown
-        if (availableDevices.empty()) {
+        if (availableDevices.empty() && config.platform() != NC_ANY_PLATFORM) {
+            DeviceDesc device;
+            device._platform = config.platform();
+            device._protocol = config.protocol();
+            return std::make_shared<DeviceDesc>(device);
+        } else if (availableDevices.empty()) {
             IE_THROW() << "Can not init Myriad device: " << ncStatusToStr(nullptr, booted);
         }
 

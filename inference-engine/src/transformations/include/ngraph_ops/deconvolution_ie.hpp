@@ -29,7 +29,6 @@ public:
                     const Strides& dilations,
                     const CoordinateDiff& pads_begin,
                     const CoordinateDiff& pads_end,
-                    const element::Type output_type,
                     const size_t& group = 1,
                     const PadType& auto_pad = PadType::EXPLICIT,
                     const CoordinateDiff& output_padding = {},
@@ -42,7 +41,6 @@ public:
                     const Strides& dilations,
                     const CoordinateDiff& pads_begin,
                     const CoordinateDiff& pads_end,
-                    const element::Type output_type,
                     const size_t& group = 1,
                     const PadType& auto_pad = PadType::EXPLICIT,
                     const CoordinateDiff& output_padding = {},
@@ -81,7 +79,6 @@ protected:
     size_t m_group;
     CoordinateDiff m_output_padding;
     std::shared_ptr<Node> m_output_shape;
-    element::Type m_output_type;
 };
 
 }  // namespace op

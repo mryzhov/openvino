@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "multi-device/multi_device_config.hpp"
+
 #include "behavior/preprocessing.hpp"
 
 using namespace BehaviorTestsDefinitions;
@@ -17,7 +19,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_PreprocessingPrecisionConvertTestsViaSetInput, PreprocessingPrecisionConvertTest,
+INSTANTIATE_TEST_CASE_P(smoke_PreprocessingPrecisionConvertTestsViaSetInput, PreprocessingPrecisionConvertTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(4),   // Number of input tensor channels
@@ -26,7 +28,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PreprocessingPrecisionConvertTestsViaSetInput, Pr
                                 ::testing::ValuesIn(configs)),
                         PreprocessingPrecisionConvertTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_PreprocessingPrecisionConvertTestsViaGetBlob, PreprocessingPrecisionConvertTest,
+INSTANTIATE_TEST_CASE_P(smoke_PreprocessingPrecisionConvertTestsViaGetBlob, PreprocessingPrecisionConvertTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(4),       // Number of input tensor channels (blob_copy only supports 4d and 5d tensors)

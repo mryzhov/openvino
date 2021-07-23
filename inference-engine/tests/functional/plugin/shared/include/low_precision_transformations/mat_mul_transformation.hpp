@@ -25,7 +25,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::PartialShape,
+    ngraph::Shape,
     std::string,
     MatMulTransformationTestValues> MatMulTransformationParams;
 
@@ -39,6 +39,9 @@ public:
 protected:
     void SetUp() override;
     void Run() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

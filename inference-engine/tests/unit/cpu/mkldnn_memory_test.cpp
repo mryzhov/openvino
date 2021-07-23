@@ -11,9 +11,9 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 TEST(MemoryTest, SedDataCheck) {
-    GTEST_SKIP();
+    SKIP();
 }
 
 TEST(MemoryTest, SedDataWithAutoPadCheck) {
-    GTEST_SKIP();
+    SKIP();
 }

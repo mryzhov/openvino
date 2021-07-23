@@ -10,7 +10,6 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/op/util/variable_context.hpp"
 
 namespace ngraph
 {
@@ -234,9 +233,6 @@ namespace ngraph
     /// \brief Try to compute the maximum value of value
     /// \return (true, max_value) if can be determined, or (false, numeric_limits<uint64_t>::max())
     /// if not.
-    /// \deprecated Use evaluate_upper_bound instead
-    NGRAPH_DEPRECATED(
-        "Use evaluate_upper_bound: it would return HostTensorPtr to the value instead of a pair")
     NGRAPH_API std::pair<bool, uint64_t> maximum_value(const Output<Node>& value);
 
     /// \brief Evaluates outputs, treating values in value_map as already computed. value_map is
@@ -245,13 +241,9 @@ namespace ngraph
     /// function.
     /// \param output_tensor_map Tensors to use for particular outputs
     /// \param outputs Root set of values to try to compute
-    /// \param evaluation_context Storage of additional settings and attributes that can be used
-    /// when evaluating the function. This additional information can be shared across nodes.
-    NGRAPH_API void
-        evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
-                       std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                       const OutputVector& outputs,
-                       const EvaluationContext& evaluation_context = EvaluationContext());
+    NGRAPH_API void evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
+                                   std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
+                                   const OutputVector& outputs);
 
     /// \brief Evaluates lower value estimation of the output tensor. Traverses graph up to deduce
     /// estimation through it.

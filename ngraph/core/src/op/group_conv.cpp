@@ -286,7 +286,7 @@ shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVec
 //                        v1::GroupConvolutionBackpropData
 //------------------------------------------------------------------------------
 
-NGRAPH_RTTI_DEFINITION(op::v1::GroupConvolutionBackpropData, "GroupConvolutionBackpropData", 1);
+constexpr NodeTypeInfo op::v1::GroupConvolutionBackpropData::type_info;
 
 op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData()
     : Op()

@@ -2,7 +2,7 @@
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance. The Intel® Distribution of OpenVINO™ toolkit includes the Intel® Deep Learning Deployment Toolkit.  
 
-This guide provides device specifics for a Docker* image creation with Intel® Distribution of OpenVINO™ toolkit for Linux* and its further usage.
+This guide provides the steps for creating a Docker* image with Intel® Distribution of OpenVINO™ toolkit for Windows* and further installation.
 
 ## System Requirements
 
@@ -13,22 +13,19 @@ This guide provides device specifics for a Docker* image creation with Intel® D
 **Host Operating Systems**
 
 - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or later) editions
-- Windows Server* 2016 or higher
+- Windows Server* 2016 or higher 
 
 ## Prebuilt Images
 
 Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino).
 
-## Build a Docker* Image
+## Build a Docker* Image for CPU
 
-You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci). The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit.
-
-## Build and Run the Docker* Image for CPU
+You can use [available Dockerfiles](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles) or generate a Dockerfile with your setting via [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. 
+The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. 
 
 ## Install Additional Dependencies
-
 ### Install CMake
-
 To add CMake to the image, add the following commands to the Dockerfile:
 ~~~
 RUN powershell.exe -Command `
@@ -45,7 +42,6 @@ docker build . -t <image_name> `
 ~~~
 
 ### Install Microsoft Visual Studio* Build Tools
-
 You can add Microsoft Visual Studio Build Tools* to a Windows* OS Docker image. Available options are to use offline installer for Build Tools 
 (follow the [Instruction for the offline installer](https://docs.microsoft.com/en-us/visualstudio/install/create-an-offline-installation-of-visual-studio?view=vs-2019)) or 
 to use the online installer for Build Tools (follow [Instruction for the online installer](https://docs.microsoft.com/en-us/visualstudio/install/build-tools-container?view=vs-2019)).
@@ -83,7 +79,6 @@ docker run -itu ContainerAdministrator --rm <image_name> cmd /S /C "cd deploymen
 ## Build and Run the Docker* Image for GPU
 
 GPU Acceleration in Windows containers feature requires to meet Windows host, OpenVINO toolkit and Docker* requirements:
-
 * [Windows requirements](https://docs.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/gpu-acceleration):
   * The container host must be running Windows Server 2019 or Windows 10 of version 1809 or higher.
   * The container base image must be `mcr.microsoft.com/windows:1809` or higher. Windows Server Core and Nano Server container images are not currently supported.
@@ -147,4 +142,8 @@ If you got proxy issues, please setup proxy settings for Docker. See the Proxy s
 
 * [DockerHub CI Framework](https://github.com/openvinotoolkit/docker_ci) for Intel® Distribution of OpenVINO™ toolkit. The Framework can generate a Dockerfile, build, test, and deploy an image with the Intel® Distribution of OpenVINO™ toolkit. You can reuse available Dockerfiles, add your layer and customize the image of OpenVINO™ for your needs.
 
-* Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
+* Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)  
+
+* OpenVINO™ toolkit documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
+
+* Intel® Distribution of OpenVINO™ toolkit Docker Hub* home page: [https://hub.docker.com/u/openvino](https://hub.docker.com/u/openvino)

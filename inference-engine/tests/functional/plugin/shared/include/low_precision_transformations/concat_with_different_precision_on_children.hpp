@@ -19,7 +19,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::PartialShape,
+    ngraph::Shape,
     std::string, // target device: CPU, GPU
     ConcatWithDifferentChildrenTransformationParam,
     ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
@@ -35,6 +35,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

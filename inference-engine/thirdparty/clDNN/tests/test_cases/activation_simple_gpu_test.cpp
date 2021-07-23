@@ -2,18 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/activation.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/reorder.hpp>
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <cmath>
+#include <gtest/gtest.h>
 #include <algorithm>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/activation.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include <api/data.hpp>
+#include "test_utils/test_utils.h"
+#include "test_utils/float16.h"
+#include "api/reorder.hpp"
 
 using namespace cldnn;
-using namespace ::tests;
+using namespace tests;
 
 TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     //  Input:
@@ -28,9 +34,9 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     //  0, 0, 0, 1, 0,
     //  0, 0, 0, 0, 1
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
     { 1.0f, 0.0f, -3.0f, 4.0f, 5.0f,
       0.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -43,7 +49,7 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
         0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
 
     topology topology(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         activation("not", "input", activation_func::negation));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -52,8 +58,8 @@ TEST(activation_f32_fw_gpu, not_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -77,9 +83,9 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
     //  3 -3  3  0  1
     //  1  1  1 -1  0
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
                { 1.0f, 0.0f, -3.0f, 4.0f, 5.0f,
                  0.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -87,7 +93,7 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
                  1.0f, 1.0f, 1.0f, -1.0f, 0.0f });
 
     topology topology(
-            input_layout("input", input->get_layout()),
+            input_layout("input", input.get_layout()),
             activation("not", "input", activation_func::erf));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -96,9 +102,9 @@ TEST(activation_f32_fw_gpu, erf_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+    auto input_ptr = input.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -122,9 +128,9 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
     //  3 -3  3  0  1
     //  1  1  1 -1  0
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     activation_additional_params params = { 1.0f, 0.5f };
     set_values(input,
                { 1.0f, 0.0f, -3.0f, 4.0f, 5.0f,
@@ -133,7 +139,7 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
                  1.0f, 1.0f, 1.0f, -1.0f, 0.0f });
 
     topology topology(
-            input_layout("input", input->get_layout()),
+            input_layout("input", input.get_layout()),
             activation("not", "input", activation_func::hard_sigmoid, params));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -142,9 +148,9 @@ TEST(activation_f32_fw_gpu, hard_sigmoid_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+    auto input_ptr = input.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -169,9 +175,9 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
     //  3 -3  3  0  1
     //  1  1  1 -1  0
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
                { 1.0f, 0.3f, -3.0f, 4.0f, 5.0f,
                  21.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -179,7 +185,7 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
                  1.0f, 1.0f, 1.0f, -1.0f, 0.1f });
 
     topology topology(
-            input_layout("input", input->get_layout()),
+            input_layout("input", input.get_layout()),
             activation("not", "input", activation_func::reciprocal));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -188,9 +194,9 @@ TEST(activation_f32_fw_gpu, reciprocal_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+    auto input_ptr = input.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -215,9 +221,9 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
     //  3 -3  3  0  1
     //  1  1  1 -1  0
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     activation_additional_params params = { 1.0f, 0.5f };
     set_values(input,
                { 1.0f, 0.3f, -3.0f, 4.0f, 5.0f,
@@ -226,7 +232,7 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
                  1.0f, 1.0f, 1.0f, -1.0f, 0.1f });
 
     topology topology(
-            input_layout("input", input->get_layout()),
+            input_layout("input", input.get_layout()),
             activation("not", "input", activation_func::selu, params));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -235,9 +241,9 @@ TEST(activation_f32_fw_gpu, selu_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+    auto input_ptr = input.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -263,9 +269,9 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
     //  3 -3  3  0  1
     //  1  1  1 -1  0
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
                { 1.0f, 0.3f, -3.0f, 4.0f, 5.0f,
                  21.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -273,7 +279,7 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
                  1.0f, 1.0f, 1.0f, -1.0f, 0.1f });
 
     topology topology(
-            input_layout("input", input->get_layout()),
+            input_layout("input", input.get_layout()),
             activation("not", "input", activation_func::softplus));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -282,9 +288,9 @@ TEST(activation_f32_fw_gpu, softplus_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+    auto input_ptr = input.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -309,9 +315,9 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     //  3 -3  3  0  1
     //  1  1  1 -1  0
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
                { 1.0f, 0.3f, -3.0f, 4.0f, 5.0f,
                  21.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -319,7 +325,7 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
                  1.0f, 1.0f, 1.0f, -1.0f, 0.1f });
 
     topology topology(
-            input_layout("input", input->get_layout()),
+            input_layout("input", input.get_layout()),
             activation("not", "input", activation_func::softsign));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -328,9 +334,9 @@ TEST(activation_f32_fw_gpu, softsign_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+    auto input_ptr = input.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -355,9 +361,9 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
     //  3 -3  3  0  1
     //  1  1  1 -1  0
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
                { 1.0f, 0.0f, -3.0f, 4.0f, 5.0f,
                  21.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -365,7 +371,7 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
                  1.0f, 1.0f, 1.0f, -1.0f, 0.1f });
 
     topology topology(
-            input_layout("input", input->get_layout()),
+            input_layout("input", input.get_layout()),
             activation("not", "input", activation_func::sign));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -374,9 +380,9 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "not");
 
     auto output_memory = outputs.at("not").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+    auto input_ptr = input.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -395,15 +401,15 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
 }
 
 TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
     set_values(input,
     { 1.0f, 2.0f, 3.0f, 4.0f });
     VF<float> output_vec = { 1.0f, 4.0f, 9.0f, 16.0f };
 
     topology topology(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         activation("pow", "input", activation_func::pow, { 2.0f, 0.0f }));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -412,8 +418,8 @@ TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "pow");
 
     auto output_memory = outputs.at("pow").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -431,15 +437,15 @@ TEST(activation_f32_fw_gpu, pow_basic_yxfb) {
 }
 
 TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::yxfb, { 1, 1, 2, 2 } });
+    auto input = memory::allocate(engine, { data_types::f16, format::yxfb, { 1, 1, 2, 2 } });
     set_values(input,
         { FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.5f) });
     VF<FLOAT16> output_vec = { FLOAT16(1.0f), FLOAT16(8.0f), FLOAT16(27.0f), FLOAT16(91.125f) };
 
     topology topology(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         activation("pow", "input", activation_func::pow, { FLOAT16(3.0f), FLOAT16(0.0f) }));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -448,8 +454,8 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "pow");
 
     auto output_memory = outputs.at("pow").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<FLOAT16>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -481,9 +487,9 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
     //  3   -1.5  3    5    1
     //  1    1    1   -0.5  1
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
     { 1.0f, -2.0f, -3.0f, 4.0f, 5.0f,
       2.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -496,7 +502,7 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
         1.0f, 1.0f, 1.0f, -0.5f, 1.0f };
 
     topology topology(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -505,8 +511,8 @@ TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -549,9 +555,9 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
     //  1    2    1   -1    2
     //
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 1, 5, 4, 2 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 1, 1, 5, 4, 2 } });
     set_values(input,
     { 1.0f, -2.0f, -3.0f, 4.0f, 5.0f,
         2.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -572,7 +578,7 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
         1.0f, 2.0f, 1.0f, -1.0f, 2.0f };
 
     topology topology(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -581,8 +587,8 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
     EXPECT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
 
     int z_size = output_layout.size.spatial[2];
     int y_size = output_layout.size.spatial[1];
@@ -612,10 +618,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
     //  a: 0.5, b: 2.5
     //
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 5, 4 } });
-    auto input_params = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 2, 1, 1 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 5, 4 } });
+    auto input_params = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 2, 1, 1 } });
     set_values(input,
     { 0.0f, -2.0f, -3.0f, 4.0f, 5.0f,
         2.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -659,7 +665,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
     {
         for (auto func : funcs)
         {
-            topology topology(input_layout("input", input->get_layout()));
+            topology topology(input_layout("input", input.get_layout()));
 
             if (i == 0)
             {
@@ -678,9 +684,9 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
             EXPECT_EQ(outputs.begin()->first, "activation");
 
             auto output_memory = outputs.at("activation").get_memory();
-            auto output_layout = output_memory->get_layout();
-            cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-            cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+            auto output_layout = output_memory.get_layout();
+            auto output_ptr = output_memory.pointer<float>();
+            auto input_ptr = input.pointer<float>();
 
             int y_size = output_layout.size.spatial[1];
             int x_size = output_layout.size.spatial[0];
@@ -790,10 +796,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
 
 TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
 {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, 2, 4 } });
-    auto input_params = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 1, 2, 4 } });
+    auto input_params = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
 
     set_values(input, { FLOAT16(-4.5f), FLOAT16(-2.5f), FLOAT16(-1.5f), FLOAT16(0.5f),
                         FLOAT16(0.9f),  FLOAT16(1.5f),  FLOAT16(2.0f),  FLOAT16(2.5f) });
@@ -812,7 +818,7 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
 
     for (uint8_t i = 0 ; i < 2 ; i++) {
         for (auto func : funcs) {
-            topology topology(input_layout("input", input->get_layout()));
+            topology topology(input_layout("input", input.get_layout()));
 
             if (i == 0) {
                 topology.add(activation("activation", "input", func, params));
@@ -828,9 +834,9 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
             EXPECT_EQ(outputs.begin()->first, "activation");
 
             auto output_memory = outputs.at("activation").get_memory();
-            auto output_layout = output_memory->get_layout();
-            cldnn::mem_lock<FLOAT16> output_ptr(output_memory, get_test_stream());
-            cldnn::mem_lock<FLOAT16> input_ptr(input, get_test_stream());
+            auto output_layout = output_memory.get_layout();
+            auto output_ptr = output_memory.pointer<FLOAT16>();
+            auto input_ptr = input.pointer<FLOAT16>();
 
             int y_size = output_layout.size.spatial[1];
             int x_size = output_layout.size.spatial[0];
@@ -878,9 +884,9 @@ TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
 
 TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
 {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 4 } });
     set_values(input, { 0.12f, 0.56f, 0.45f, 0.789f, 0.546f, 0.999f, 0.7899f, 0.6677f});
 
     std::vector<activation_func> funcs = {
@@ -896,7 +902,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
 
     for (auto func : funcs)
     {
-        topology topology(input_layout("input", input->get_layout()));
+        topology topology(input_layout("input", input.get_layout()));
         topology.add(activation("activation", "input", func));
 
         network network(engine, topology);
@@ -906,9 +912,9 @@ TEST(activation_f32_fw_gpu, basic_yxfb_asin_acos_log_atan)
         EXPECT_EQ(outputs.begin()->first, "activation");
 
         auto output_memory = outputs.at("activation").get_memory();
-        auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-        cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+        auto output_layout = output_memory.get_layout();
+        auto output_ptr = output_memory.pointer<float>();
+        auto input_ptr = input.pointer<float>();
 
         int y_size = output_layout.size.spatial[1];
         int x_size = output_layout.size.spatial[0];
@@ -971,9 +977,9 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
     //
     //  Slope: 0.5
 
-    auto &engine = get_test_engine();
+    const auto &engine = get_test_engine();
 
-    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {1, 1, 5, 4}});
+    auto input = memory::allocate(engine, {data_types::f32, format::yxfb, {1, 1, 5, 4}});
 
     set_values(input,
                {1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
@@ -982,8 +988,8 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
                 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
 
     topology topology(
-            input_layout("input", input->get_layout()),
-            reorder("reorder", "input", input->get_layout().with_padding(padding{{0, 0, 2, 1}, 0})),
+            input_layout("input", input.get_layout()),
+            reorder("reorder", "input", input.get_layout().with_padding(padding{{0, 0, 2, 1}, 0})),
             activation("relu", "reorder", activation_func::acosh, {0.5f, 0.f}, padding{{0, 0, 0, 0}, 0}));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -991,9 +997,9 @@ TEST(activation_f32_fw_gpu, relu_basic_acosh_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-    cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+    auto input_ptr = input.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -1032,9 +1038,9 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     //  3   -1.5  3    5    1
     //  1    1    1   -0.5  1
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
 
     set_values(input,
     { 1.0f, -2.0f, -3.0f, 4.0f, 5.0f,
@@ -1048,8 +1054,8 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
          1.0f, 1.0f, 1.0f, -0.5f, 1.0f};
 
     topology topology(
-        input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
+        input_layout("input", input.get_layout()),
+        reorder("reorder", "input", input.get_layout().with_padding(padding{ { 0, 0, 2, 1 }, 0 })),
         activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1057,8 +1063,8 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -1110,9 +1116,9 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
     //  3   -1.5  3    5    1
     //  1    1    1   -0.5  1
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ 1, 1, 5, 4, 2 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 1, 1, 5, 4, 2 } });
     set_values(input,
     {
         1.0f, -2.0f, -3.0f, 4.0f, 5.0f,
@@ -1135,8 +1141,8 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
         1.0f, 1.0f, 1.0f, -0.5f, 1.0f };
 
     topology topology(
-        input_layout("input", input->get_layout()),
-        reorder("reorder", "input", input->get_layout().with_padding(padding{ { 0, 0, 2, 1, 0 }, 0 })),
+        input_layout("input", input.get_layout()),
+        reorder("reorder", "input", input.get_layout().with_padding(padding{ { 0, 0, 2, 1, 0 }, 0 })),
         activation("relu", "reorder", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 0, 0, 0 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1145,8 +1151,8 @@ TEST(activation_f32_fw_gpu, relu_basic_input_padding_bfzyx) {
 
     auto output_memory = outputs.at("relu").get_memory();
 
-    auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
 
     int z_size = output_layout.size.spatial[2];
     int y_size = output_layout.size.spatial[1];
@@ -1188,9 +1194,9 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
     //  0    0    0    0    0    0    0    0    0    0    0
     //  0    0    0    0    0    0    0    0    0    0    0
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
     { 1.0f, -2.0f, -3.0f, 4.0f, 5.0f,
         2.0f, 2.0f, 3.0f, 4.0f, -6.0f,
@@ -1209,7 +1215,7 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
         0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 
     topology topology(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         activation("relu", "input", activation_func::relu_negative_slope, { 0.5f, 0.f }, padding{ { 0, 0, 3, 3 }, 0 }));
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -1218,9 +1224,9 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
     EXPECT_EQ(outputs.begin()->first, "relu");
 
     auto output_memory = outputs.at("relu").get_memory();
-    auto output_layout = output_memory->get_layout();
+    auto output_layout = output_memory.get_layout();
     auto output_size = output_layout.get_buffer_size();
-    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+    auto output_ptr = output_memory.pointer<float>();
 
     int y_size = output_size.spatial[1];
     int x_size = output_size.spatial[0];
@@ -1239,9 +1245,9 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
 
 TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
 {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 4 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 4 } });
     set_values(input, { 0.01f, 0.99f, -0.01f, -0.99f, 1.1f, 1.0f, 0.0f, -1.1f });
 
     std::vector<activation_func> funcs = {
@@ -1251,7 +1257,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
 
     for (auto func : funcs)
     {
-        topology topology(input_layout("input", input->get_layout()));
+        topology topology(input_layout("input", input.get_layout()));
         topology.add(activation("activation", "input", func));
 
         network network(engine, topology);
@@ -1261,9 +1267,9 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
         EXPECT_EQ(outputs.begin()->first, "activation");
 
         auto output_memory = outputs.at("activation").get_memory();
-        auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
-        cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+        auto output_layout = output_memory.get_layout();
+        auto output_ptr = output_memory.pointer<float>();
+        auto input_ptr = input.pointer<float>();
 
         int y_size = output_layout.size.spatial[1];
         int x_size = output_layout.size.spatial[0];
@@ -1294,8 +1300,8 @@ TEST(activation_f32_fw_gpu, basic_yxfb_floor_ceil)
 
 TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
 {
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::i8, format::yxfb,{ 2, 2, 2, 2 } });
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::i8, format::yxfb,{ 2, 2, 2, 2 } });
 
     std::vector<int8_t> input_vec = {
         1,   0,  5,   1,
@@ -1315,7 +1321,7 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
     for (auto func : funcs)
     {
         topology topology;
-        topology.add(input_layout("input", input->get_layout()));
+        topology.add(input_layout("input", input.get_layout()));
         topology.add(activation("activation", "input", func));
 
         network network(engine, topology);
@@ -1326,12 +1332,14 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
         EXPECT_EQ(outputs.begin()->first, "activation");
 
         auto output_memory = outputs.at("activation").get_memory();
-        auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<int8_t> output_ptr(output_memory, get_test_stream());
-        cldnn::mem_lock<int8_t> input_ptr(input, get_test_stream());
+        auto output_layout = output_memory.get_layout();
+        auto output_ptr = output_memory.pointer<int8_t>();
+        auto input_ptr = input.pointer<int8_t>();
 
-        for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
-            switch (func) {
+        for (size_t i = 0; i < output_layout.get_linear_size(); ++i)
+        {
+            switch (func)
+            {
             case activation_func::none:
                 EXPECT_EQ((int8_t)input_ptr[i], output_ptr[i]);
                 break;
@@ -1348,9 +1356,10 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
     }
 }
 
-TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::i32, format::yxfb,{ 2, 2, 2, 2 } });
+TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::i32, format::yxfb,{ 2, 2, 2, 2 } });
 
     std::vector<int32_t> input_vec = {
         1,   0,  5,   1,
@@ -1369,10 +1378,11 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
         activation_func::clamp
     };
 
-    for (auto func : funcs) {
+    for (auto func : funcs)
+    {
         topology topology;
         activation_additional_params params = {0.0, 1.0};
-        topology.add(input_layout("input", input->get_layout()));
+        topology.add(input_layout("input", input.get_layout()));
         topology.add(activation("activation", "input", func, params));
 
         network network(engine, topology);
@@ -1383,12 +1393,14 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs) {
         EXPECT_EQ(outputs.begin()->first, "activation");
 
         auto output_memory = outputs.at("activation").get_memory();
-        auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<int32_t> output_ptr(output_memory, get_test_stream());
-        cldnn::mem_lock<int32_t> input_ptr(input, get_test_stream());
+        auto output_layout = output_memory.get_layout();
+        auto output_ptr = output_memory.pointer<int32_t>();
+        auto input_ptr = input.pointer<int32_t>();
 
-        for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
-            switch (func) {
+        for (size_t i = 0; i < output_layout.get_linear_size(); ++i)
+        {
+            switch (func)
+            {
             case activation_func::none:
                 EXPECT_EQ((int32_t)input_ptr[i], output_ptr[i]);
                 break;
@@ -1417,13 +1429,13 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
     constexpr int x = 2;
     constexpr int y = 2;
 
-    auto& eng = get_test_engine();
+    auto eng = get_test_engine();
 
     auto in_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(b, f, x, y));
     auto params_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, f, 1, 1));
 
-    auto in_mem = eng.allocate_memory(in_lay);
-    auto params_mem = eng.allocate_memory(params_lay);
+    auto in_mem = cldnn::memory::allocate(eng, in_lay);
+    auto params_mem = cldnn::memory::allocate(eng, params_lay);
 
     auto in_data = generate_random_4d<float>(b, f, y, x, -1, 1);
     auto params_data = generate_random_1d<float>(f, -1, 1);
@@ -1452,7 +1464,7 @@ TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
         }
     }
 
-    cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+    auto out_ptr = out_mem.pointer<float>();
     ASSERT_EQ(expected.size(), out_ptr.size());
 
     for (size_t i = 0; i < expected.size(); ++i) {

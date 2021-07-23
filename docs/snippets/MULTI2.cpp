@@ -1,4 +1,6 @@
-#include <ie_core.hpp>
+#include <inference_engine.hpp>
+#include <multi-device/multi_device_config.hpp>
+
 
 int main() {
 using namespace InferenceEngine;

@@ -6,7 +6,6 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
-#include <ngraph/op/constant.hpp>
 #include <string>
 
 namespace MKLDNNPlugin {
@@ -22,16 +21,19 @@ public:
     void createPrimitive() override;
     bool created() const override;
 
-    void withMeanImage();
-    MKLDNNMemoryCPtr getMemoryPtr() const;
+    void execute(mkldnn::stream strm) override;
+    void withMeanImage() {
+        isMeanImage = true;
+    }
+
+    const InferenceEngine::Blob::CPtr getConstBlob() const {
+        return constBlob;
+    }
 
 private:
-    void cloneBlobIfRequired();
-
-private:
-    std::shared_ptr<ngraph::op::Constant> constOp;
     InferenceEngine::Precision precision;
-    MKLDNNMemoryCPtr memoryPtr;
+
+    InferenceEngine::Blob::Ptr constBlob = nullptr;
     bool isMeanImage = false;
 };
 

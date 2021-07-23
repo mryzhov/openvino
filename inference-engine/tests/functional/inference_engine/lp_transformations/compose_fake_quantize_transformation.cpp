@@ -89,7 +89,7 @@ public:
 
 TEST_P(ComposeFakeQuantizeTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
-    auto res = compare_functions(referenceFunction, actualFunction, true, false, false);
+    auto res = compare_functions(referenceFunction, actualFunction, true, false, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -140,7 +140,7 @@ const std::vector<ComposeFakeQuantizeTransformationParams> testValues = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ComposeFakeQuantizeTransformation,
     ::testing::Combine(

@@ -9,22 +9,24 @@ upload memory measurment results to database and generate reports.
 """
 
 import argparse
+from glob import glob
 import json
 import logging
 import os
 import subprocess
 import sys
-from glob import glob
+from pathlib import Path
 
-from compare_memcheck_2_runs import compare_memcheck_2_runs, \
-    get_memcheck_records, get_db_memcheck_records
-# Database arguments
-from memcheck_upload import DATABASE, DB_COLLECTIONS
 from memcheck_upload import create_memcheck_records, \
     upload_memcheck_records, \
     create_memcheck_report, \
     metadata_from_manifest, \
     info_from_test_config
+from compare_memcheck_2_runs import compare_memcheck_2_runs, \
+    get_memcheck_records, get_db_memcheck_records
+
+# Database arguments
+from memcheck_upload import DATABASE, DB_COLLECTIONS
 
 
 def run(args, log=None, verbose=True):
@@ -140,12 +142,12 @@ def main():
         else:
             if list(glob(os.path.join(args.output_dir, '**', '*.log'), recursive=True)):
                 logging.error(
-                    'Output directory %s already has test logs.'
+                    'Output directory %s already has test logs.' \
                     'Please specify an empty directory for output logs',
                     args.output_dir)
                 sys.exit(1)
 
-    return_code, _ = run([sys.executable, args.gtest_parallel] +
+    returncode, _ = run([sys.executable, args.gtest_parallel] +
                         (['--output_dir', f'{args.output_dir}'] if args.output_dir else []) +
                         (['--workers', f'{args.workers}'] if args.workers else []) +
                         (['--timeout', f'{args.timeout}'] if args.timeout else []) +
@@ -187,11 +189,8 @@ def main():
 
         # create timeline report
         if args.timeline_report:
-            try:
-                create_memcheck_report(records, args.db_url, args.db_collection, args.timeline_report)
-                logging.info('Created memcheck timeline report %s', args.timeline_report)
-            except Exception as ex:
-                logging.warning(f'Failed to create timeline report: {ex}')
+            create_memcheck_report(records, args.db_url, args.db_collection, args.timeline_report)
+            logging.info('Created memcheck timeline report %s', args.timeline_report)
 
         # compare runs and prepare report
         if args.compare:
@@ -204,9 +203,9 @@ def main():
                                                      db_name=DATABASE, db_url=args.db_url)
             compare_retcode = compare_memcheck_2_runs(cur_values=records, references=references,
                                                       output_file=args.comparison_report)
-            return_code = return_code if return_code else compare_retcode
+            returncode = returncode if returncode else compare_retcode
 
-    sys.exit(return_code)
+    sys.exit(returncode)
 
 
 if __name__ == "__main__":

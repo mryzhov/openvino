@@ -4,9 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/permute.hpp"
+#include "api/permute.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 #include <memory>
 

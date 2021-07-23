@@ -955,8 +955,7 @@ class ObjectDetectionAPIDetectionOutputReplacement(FrontReplacementFromConfigFil
         detection_output_node.name = 'detection_output'
 
         if coordinates_swap_method == 'swap_weights':
-            swap_weights_xy(graph, backward_bfs_for_operation(detection_output_node.in_node(0), ['MatMul', 'Conv2D'],
-                                                              ['ShapeOf']))
+            swap_weights_xy(graph, backward_bfs_for_operation(detection_output_node.in_node(0), ['MatMul', 'Conv2D']))
 
         # when the use_matmul_crop_and_resize = True then the prior boxes were not swapped and we need to swap them from
         # YXYX to XYXY before passing to the DetectionOutput operation
@@ -1313,7 +1312,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
 
         # compared to the IE's DetectionOutput, the TF keeps the locations in YXYX, need to get back to the XYXY
         # for last convolutions that operate the locations need to swap the X and Y for output feature weights & biases
-        conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'], ['ShapeOf'])
+        conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'])
         swap_weights_xy(graph, conv_nodes)
 
         # As outputs are replaced with a postprocessing node, outgoing tensor names are no longer
@@ -1356,7 +1355,7 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
 
         node.old_infer(node)
 
-        conv_nodes = backward_bfs_for_operation(node.in_node(0), ['Conv2D'], ['ShapeOf'])
+        conv_nodes = backward_bfs_for_operation(node.in_node(0), ['Conv2D'])
         mark_squeeze_reshape_concat_before_detection_output(conv_nodes)
 
 

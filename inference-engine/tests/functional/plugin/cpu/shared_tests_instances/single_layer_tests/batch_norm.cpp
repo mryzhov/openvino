@@ -15,7 +15,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<double> epsilon = {
-    0.0,
     1e-6,
     1e-5,
     1e-4
@@ -40,7 +39,7 @@ const auto batchNormParams = testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         smoke_BatchNorm,
         BatchNormLayerTest,
         batchNormParams,

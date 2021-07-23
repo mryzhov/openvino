@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
+#include <gtest/gtest.h>
+#include <api/tensor.hpp>
 
 TEST(tensor_api, order_new_notation)
 {

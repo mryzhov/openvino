@@ -8,7 +8,7 @@
 #include "ngraph/op/split.hpp"
 #include "ngraph/op/variadic_split.hpp"
 
-#include "cldnn/primitives/crop.hpp"
+#include "api/crop.hpp"
 
 namespace CLDNNPlugin {
 

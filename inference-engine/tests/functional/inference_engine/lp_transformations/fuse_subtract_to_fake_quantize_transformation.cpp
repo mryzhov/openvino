@@ -19,6 +19,7 @@
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
+
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -28,58 +29,39 @@ class FuseSubtractToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        FakeQuantizeOnData fakeQuantizeOnData;
         DequantizationOperations dequantization;
-        FakeQuantizeOnDataWithConstant fakeQuantizeOnData2;
+        FakeQuantizeOnData fakeQuantizeOnData2;
         DequantizationOperations dequantization2;
     };
 
     class Expected {
     public:
-        FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        FakeQuantizeOnData fakeQuantizeOnData;
         DequantizationOperations dequantization;
-        FakeQuantizeOnDataWithConstant fakeQuantizeOnData2;
+        FakeQuantizeOnData fakeQuantizeOnData2;
         DequantizationOperations dequantization2;
     };
 
-    TestTransformationParams params;
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
 };
 
-typedef std::tuple<
-    size_t,
-    ngraph::PartialShape,
-    FuseSubtractToFakeQuantizeTransformationTestValues> FuseSubtractToFakeQuantizeTransformationTestParams;
-
 class FuseSubtractToFakeQuantizeTransformation : public LayerTransformation,
-    public testing::WithParamInterface<FuseSubtractToFakeQuantizeTransformationTestParams> {
+    public testing::WithParamInterface<FuseSubtractToFakeQuantizeTransformationTestValues> {
 public:
     void SetUp() override {
-        const size_t quantizationLevel = std::get<0>(GetParam());
-        const ngraph::PartialShape inputShape = std::get<1>(GetParam());
-        FuseSubtractToFakeQuantizeTransformationTestValues testValues = std::get<2>(GetParam());
-
-        if (!testValues.actual.fakeQuantizeOnData.empty()) {
-            testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
-        }
-        if (!testValues.actual.fakeQuantizeOnData2.empty()) {
-            testValues.actual.fakeQuantizeOnData2.quantizationLevel = quantizationLevel;
-        }
-        if (!testValues.expected.fakeQuantizeOnData.empty()) {
-            testValues.expected.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
-        }
-        if (!testValues.expected.fakeQuantizeOnData2.empty()) {
-            testValues.expected.fakeQuantizeOnData2.quantizationLevel = quantizationLevel;
-        }
+        const FuseSubtractToFakeQuantizeTransformationTestValues testValues = GetParam();
 
         actualFunction = testValues.actual.fakeQuantizeOnData2.empty() ?
             ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
-                inputShape,
+                testValues.inputShape,
                 testValues.actual.fakeQuantizeOnData,
                 testValues.actual.dequantization) :
             ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
-                inputShape,
+                testValues.inputShape,
                 testValues.actual.fakeQuantizeOnData,
                 testValues.actual.dequantization,
                 testValues.actual.fakeQuantizeOnData2,
@@ -91,38 +73,22 @@ public:
 
         referenceFunction = testValues.expected.fakeQuantizeOnData2.empty() ?
             ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
-                inputShape,
+                testValues.inputShape,
                 testValues.expected.fakeQuantizeOnData,
                 testValues.expected.dequantization) :
             ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
-                inputShape,
+                testValues.inputShape,
                 testValues.expected.fakeQuantizeOnData,
                 testValues.expected.dequantization,
                 testValues.expected.fakeQuantizeOnData2,
                 testValues.expected.dequantization2);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationTestParams> obj) {
-        const size_t quantizationLevel = std::get<0>(obj.param);
-        const ngraph::PartialShape inputShape = std::get<1>(obj.param);
-        FuseSubtractToFakeQuantizeTransformationTestValues testValues = std::get<2>(obj.param);
-
-        if (!testValues.actual.fakeQuantizeOnData.empty()) {
-            testValues.actual.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
-        }
-        if (!testValues.actual.fakeQuantizeOnData2.empty()) {
-            testValues.actual.fakeQuantizeOnData2.quantizationLevel = quantizationLevel;
-        }
-        if (!testValues.expected.fakeQuantizeOnData.empty()) {
-            testValues.expected.fakeQuantizeOnData.quantizationLevel = quantizationLevel;
-        }
-        if (!testValues.expected.fakeQuantizeOnData2.empty()) {
-            testValues.expected.fakeQuantizeOnData2.quantizationLevel = quantizationLevel;
-        }
+    static std::string getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationTestValues> obj) {
+        const FuseSubtractToFakeQuantizeTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
-        result << inputShape << "_" <<
-            testValues.params.updatePrecisions << "_" <<
+        result << testValues.params.updatePrecisions << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.actual.fakeQuantizeOnData << "_" <<
             testValues.expected.dequantization << "_" <<
@@ -138,16 +104,9 @@ TEST_P(FuseSubtractToFakeQuantizeTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<size_t> quantizationLevels = { 256ul, 128ul };
-
-namespace testValues1 {
-const std::vector<ngraph::PartialShape> inputShapes = {
-    {1, 4, 16, 16},
-    {Dimension::dynamic(), 4, Dimension::dynamic(), Dimension::dynamic()}
-};
-
 const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
     {
+        Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
@@ -163,6 +122,7 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         }
     },
     {
+        Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
@@ -178,6 +138,7 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         }
     },
     {
+        Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
@@ -193,6 +154,7 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         }
     },
     {
+        Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::i8 },
@@ -208,6 +170,7 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
         }
     },
     {
+        Shape{1, 4, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
@@ -222,115 +185,12 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
             { {}, {}, {} },
         }
     },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, {{128.f, 64.f, 32.f, 16.f}}, {} },
-            {},
-            {}
-        },
-        {
-            { 256ul,
-                {{}, {}, {1, 4, 1, 1}, {1, 4, 1, 1}},
-                { 0.f }, { 2.55f },
-                { -128.f, -64.f, -32.f, -16.f }, { 127.f, 191.f, 223.f, 239.f }
-            },
-            { {}, {}, {} },
-            {},
-            {}
-        }
-    },
 };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FuseSubtractToFakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(quantizationLevels),
-        ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn(testValues)),
+    ::testing::ValuesIn(testValues),
     FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
-} // namespace testValues1
 
-namespace testValues2 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicChannels = {
-    {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()},
-};
-
-const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, { 128.f }, {} },
-            {},
-            {}
-        },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { -128.f }, { 127.f } },
-            { {}, {}, {} },
-            {},
-            {}
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, {{128.f, 64.f, 32.f, 16.f}}, {} },
-            {},
-            {}
-        },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, {{128.f, 64.f, 32.f, 16.f}}, {} },
-            {},
-            {}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FuseSubtractToFakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(quantizationLevels),
-        ::testing::ValuesIn(inputShapesWithDynamicChannels),
-        ::testing::ValuesIn(testValues)),
-    FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
-} // namespace testValues2
-
-namespace testValues3 {
-const std::vector<ngraph::PartialShape> inputShapesWithDynamicRank = {
-    PartialShape::dynamic()
-};
-
-const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, { 128.f }, {} },
-            {},
-            {}
-        },
-        {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f }, element::u8 },
-            { {element::f32}, { 128.f }, {} },
-            {},
-            {}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    FuseSubtractToFakeQuantizeTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(quantizationLevels),
-        ::testing::ValuesIn(inputShapesWithDynamicRank),
-        ::testing::ValuesIn(testValues)),
-    FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
-} // namespace testValues3
 } // namespace

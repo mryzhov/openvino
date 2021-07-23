@@ -4,14 +4,18 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "test_utils.h"
-
-#include <cldnn/primitives/input_layout.hpp>
-#include "cldnn/primitives/concatenation.hpp"
-#include <cldnn/primitives/data.hpp>
+#include <gtest/gtest.h>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/concatenation.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include <api/data.hpp>
+#include "test_utils/test_utils.h"
 
 using namespace cldnn;
-using namespace ::tests;
+using namespace tests;
 
 /*
     This set of tests has been designed to check the correctness of trim_to_outputs optimization pass
@@ -25,14 +29,14 @@ using namespace ::tests;
                             ---> conv2 (to be eliminated)
 */
 TEST(trim_to_outputs, one_node_to_eliminate_case1) {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
     build_options build_opt;
     build_opt.set_option(cldnn::build_option::outputs({ "conv1" }));
     build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 1, 1 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-    auto bias = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 1, 1, 1 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto bias = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
 
     set_values(input, { 1.1f });
     set_values(weights, { 2.1f });
@@ -41,7 +45,7 @@ TEST(trim_to_outputs, one_node_to_eliminate_case1) {
     std::vector<float> out_data = { 3.91f };
 
     topology topology;
-    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input", input.get_layout()));
     topology.add(data("weights", weights));
     topology.add(data("bias", bias));
     topology.add(cldnn::convolution("conv1", { "input" }, { "weights" }, { "bias" }));
@@ -57,7 +61,7 @@ TEST(trim_to_outputs, one_node_to_eliminate_case1) {
 
     for (auto& it : outputs)
     {
-        cldnn::mem_lock<float> output_ptr(it.second.get_memory(), get_test_stream());
+        auto output_ptr = it.second.get_memory().pointer<float>();
         for (size_t cntr = 0; cntr < out_data.size(); cntr++)
         {
             EXPECT_NEAR(output_ptr[cntr], out_data[cntr], 1e-4);
@@ -74,16 +78,16 @@ Network structure:  input  -> conv1 (output)
                          ---> conv2 (to be eliminated along with its weights and bias)
 */
 TEST(trim_to_outputs, one_node_to_eliminate_case2) {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
     build_options build_opt;
     build_opt.set_option(cldnn::build_option::outputs({ "conv1" }));
     build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 1, 1 } });
-    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto weights2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto bias1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto bias2 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 1, 1 } });
+    auto weights1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto weights2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto bias1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto bias2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.1f });
     set_values(weights1, { 2.1f });
@@ -94,7 +98,7 @@ TEST(trim_to_outputs, one_node_to_eliminate_case2) {
     std::vector<float> out_data = { 3.91f };
 
     topology topology;
-    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input", input.get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("bias1", bias1));
     topology.add(cldnn::convolution("conv1", { "input" }, { "weights1" }, { "bias1" }));
@@ -112,7 +116,7 @@ TEST(trim_to_outputs, one_node_to_eliminate_case2) {
 
     for (auto& it : outputs)
     {
-        cldnn::mem_lock<float> output_ptr(it.second.get_memory(), get_test_stream());
+        auto output_ptr = it.second.get_memory().pointer<float>();
 
         for (size_t cntr = 0; cntr < out_data.size(); cntr++)
         {
@@ -131,16 +135,16 @@ Network structure:  input ---> conv1 --- ---> conv4 (output)
 Convolutions conv2, conv3 should be optimized out along with weights23 shered by conv2 and conv3.
 */
 TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
     build_options build_opt;
     build_opt.set_option(cldnn::build_option::outputs({ "conv4" }));
     build_opt.set_option(build_option::optimize_data(false));             // to avoid adding reorders
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 1, 1 } });
-    auto weights1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto weights23 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto weights4 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-    auto bias = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 1, 1 } });
+    auto weights1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto weights23 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto weights4 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto bias = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.1f });
     set_values(weights1, { 2.1f });
@@ -151,7 +155,7 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
     std::vector<float> out_data = { 9.42f };
 
     topology topology;
-    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input", input.get_layout()));
     topology.add(data("weights1", weights1));
     topology.add(data("bias", bias));
     topology.add(cldnn::convolution("conv1", { "input" }, { "weights1" }, { "bias" }));
@@ -171,7 +175,7 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
 
     for (auto& it : outputs)
     {
-        cldnn::mem_lock<float> output_ptr(it.second.get_memory(), get_test_stream());
+        auto output_ptr = it.second.get_memory().pointer<float>();
 
         for (size_t cntr = 0; cntr < out_data.size(); cntr++)
         {
@@ -180,3 +184,4 @@ TEST(trim_to_outputs, two_nodes_to_eliminate_case1) {
         EXPECT_EQ(it.first, "conv4");
     }
 }
+

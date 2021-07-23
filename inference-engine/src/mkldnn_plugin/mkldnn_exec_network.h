@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 
 #include "mkldnn_graph.h"
 #include "mkldnn_extension_mngr.h"
@@ -23,14 +22,16 @@ class MKLDNNExecNetwork: public InferenceEngine::ExecutableNetworkThreadSafeDefa
 public:
     typedef std::shared_ptr<MKLDNNExecNetwork> Ptr;
 
-    std::shared_ptr<InferenceEngine::IInferRequestInternal>
+    InferenceEngine::IInferRequestInternal::Ptr
     CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                           InferenceEngine::OutputsDataMap networkOutputs) override;
+              InferenceEngine::OutputsDataMap networkOutputs) override;
 
     InferenceEngine::IInferRequestInternal::Ptr CreateInferRequest() override;
 
     MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
                       const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);
+
+    ~MKLDNNExecNetwork() override = default;
 
     void setProperty(const std::map<std::string, std::string> &properties);
 

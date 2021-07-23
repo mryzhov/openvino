@@ -9,25 +9,48 @@
 #include "ie_remote_context.hpp"
 
 #include "cpp/ie_infer_request.hpp"
-#include "cpp/exception2status.hpp"
 #include "ie_infer_async_request_base.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 
 namespace InferenceEngine {
 
+#define CATCH_IE_EXCEPTION(ExceptionType) catch (const InferenceEngine::ExceptionType& e) {throw e;}
+
+#define CATCH_IE_EXCEPTIONS                     \
+        CATCH_IE_EXCEPTION(GeneralError)        \
+        CATCH_IE_EXCEPTION(NotImplemented)      \
+        CATCH_IE_EXCEPTION(NetworkNotLoaded)    \
+        CATCH_IE_EXCEPTION(ParameterMismatch)   \
+        CATCH_IE_EXCEPTION(NotFound)            \
+        CATCH_IE_EXCEPTION(OutOfBounds)         \
+        CATCH_IE_EXCEPTION(Unexpected)          \
+        CATCH_IE_EXCEPTION(RequestBusy)         \
+        CATCH_IE_EXCEPTION(ResultNotReady)      \
+        CATCH_IE_EXCEPTION(NotAllocated)        \
+        CATCH_IE_EXCEPTION(InferNotStarted)     \
+        CATCH_IE_EXCEPTION(NetworkNotRead)      \
+        CATCH_IE_EXCEPTION(InferCancelled)
+
 #define INFER_REQ_CALL_STATEMENT(...)                                                              \
-    if (_impl == nullptr) IE_THROW(NotAllocated) << "Inference Request is not initialized";        \
+    if (_impl == nullptr) IE_THROW() << "Inference Request is not initialized";                    \
     try {                                                                                          \
         __VA_ARGS__                                                                                \
-    } catch(...) {details::Rethrow();}
+    } CATCH_IE_EXCEPTIONS catch (const std::exception& ex) {                                       \
+        IE_THROW() << ex.what();                                                                   \
+    } catch (...) {                                                                                \
+        IE_THROW(Unexpected);                                                                      \
+    }
 
-InferRequest::InferRequest(const details::SharedObjectLoader& so,
-                           const IInferRequestInternal::Ptr&  impl)
-    : _so(so), _impl(impl) {
-    IE_ASSERT(_impl != nullptr);
+InferRequest::InferRequest(const std::shared_ptr<IInferRequestInternal>&        impl,
+                           const std::shared_ptr<details::SharedObjectLoader>&  so) :
+    _impl{impl},
+    _so{so} {
+    if (_impl == nullptr) IE_THROW() << "Inference Requst is not initialized";
 }
 
-IE_SUPPRESS_DEPRECATED_START
+InferRequest::~InferRequest() {
+    _impl = {};
+}
 
 void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
     INFER_REQ_CALL_STATEMENT(_impl->SetBlob(name, data);)
@@ -92,13 +115,14 @@ StatusCode InferRequest::Wait(int64_t millis_timeout) {
     INFER_REQ_CALL_STATEMENT(return _impl->Wait(millis_timeout);)
 }
 
-void InferRequest::SetCompletionCallbackImpl(std::function<void()> callbackToSet) {
+void InferRequest::SetCompletionCallbackImpl(std::function<void()> callback) {
     INFER_REQ_CALL_STATEMENT(
-        _impl->SetCallback([callbackToSet] (std::exception_ptr) {
-            callbackToSet();
+        _impl->SetCallback([callback] (std::exception_ptr) {
+            callback();
         });
     )
 }
+
 
 #define CATCH_IE_EXCEPTION_RETURN(StatusCode, ExceptionType) catch (const ExceptionType&) {return StatusCode;}
 
@@ -118,10 +142,10 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void()> callbackToSet
         CATCH_IE_EXCEPTION_RETURN(INFER_CANCELLED, InferCancelled)
 
 
-void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)> callbackToSet) {
+void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, StatusCode)> callback) {
     INFER_REQ_CALL_STATEMENT(
-        auto weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}};
-        _impl->SetCallback([callbackToSet, weakThis] (std::exception_ptr exceptionPtr) {
+        auto weakThis = InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}, _so};
+        _impl->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
                 statusCode = [&] {
@@ -134,15 +158,17 @@ void InferRequest::SetCompletionCallbackImpl(std::function<void(InferRequest, St
                     }
                 } ();
             }
-            callbackToSet(weakThis, statusCode);
+            callback(weakThis, statusCode);
         });
     )
 }
 
-void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callbackToSet) {
+IE_SUPPRESS_DEPRECATED_START
+
+void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback callback) {
     INFER_REQ_CALL_STATEMENT(
-        IInferRequest::Ptr weakThis = InferRequest{_so, std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}};
-        _impl->SetCallback([callbackToSet, weakThis] (std::exception_ptr exceptionPtr) {
+        IInferRequest::Ptr weakThis = InferRequest{std::shared_ptr<IInferRequestInternal>{_impl.get(), [](IInferRequestInternal*){}}, _so};
+        _impl->SetCallback([callback, weakThis] (std::exception_ptr exceptionPtr) {
             StatusCode statusCode = StatusCode::OK;
             if (exceptionPtr != nullptr) {
                 statusCode = [&] {
@@ -155,7 +181,7 @@ void InferRequest::SetCompletionCallbackImpl(IInferRequest::CompletionCallback c
                     }
                 } ();
             }
-            callbackToSet(weakThis, statusCode);
+            callback(weakThis, statusCode);
         });
     )
 }
@@ -166,11 +192,13 @@ InferRequest::operator IInferRequest::Ptr () {
     )
 }
 
+IE_SUPPRESS_DEPRECATED_END
+
 std::vector<VariableState> InferRequest::QueryState() {
     std::vector<VariableState> controller;
     INFER_REQ_CALL_STATEMENT(
         for (auto&& state : _impl->QueryState()) {
-            controller.emplace_back(VariableState{_so, state});
+            controller.emplace_back(VariableState(state, _so));
         }
     )
     return controller;
@@ -181,15 +209,6 @@ bool InferRequest::operator!() const noexcept {
 }
 
 InferRequest::operator bool() const noexcept {
-    return (!!_impl);
+    return !!_impl;
 }
-
-bool InferRequest::operator!=(const InferRequest& r) const noexcept {
-    return !(r == *this);
-}
-
-bool InferRequest::operator==(const InferRequest& r) const noexcept {
-    return r._impl == _impl;
-}
-
 }  // namespace InferenceEngine

@@ -13,11 +13,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "TEMPLATE"
               SOURCES ${SOURCES} ${HEADERS}
               SKIP_INSTALL # ATTENTION: uncomment to install component
-              VERSION_DEFINES_FOR template_plugin.cpp
-              ADD_CLANG_FORMAT)
-
-# Enable support of CC for the plugin
-ie_mark_target_as_cc(${TARGET_NAME})
+              VERSION_DEFINES_FOR template_plugin.cpp)
 
 target_include_directories(${TARGET_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -31,13 +27,16 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
 # Link inference backend library to plugin. Here we use ngraph interpreter_backend as example
 target_link_libraries(${TARGET_NAME} PRIVATE
+    IE::ngraph_backend
     IE::interpreter_backend)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # ATTENTION: uncomment to register a plugin in the plugins.xml file
-# ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-#                     POSSIBLE_PLUGINS ${TARGET_NAME})
+if(ENABLE_TEMPLATE_PLUGIN)
+    ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
+                        POSSIBLE_PLUGINS ${TARGET_NAME})
+endif()
 # [cmake:plugin]
 
 # ATTENTION: uncomment to install component
@@ -48,5 +47,6 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # install(TARGETS ${TARGET_NAME}
 #         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
+#         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH}
 #         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
 #         COMPONENT ${component_name})

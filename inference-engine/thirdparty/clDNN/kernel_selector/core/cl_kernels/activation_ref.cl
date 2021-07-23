@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "include/common.cl"
 #include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/fetch.cl"
 
 #ifdef PARAMETERIZED
 #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX_SAFE)(idx_order)

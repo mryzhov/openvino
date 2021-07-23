@@ -17,23 +17,23 @@ namespace subgraph {
 class ClampFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::PartialShape& inputShape,
+        const ngraph::Shape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantization);
 
     static std::shared_ptr<ngraph::Function> getWithNonDequantizationMultiply(
-        const ngraph::PartialShape& inputShape,
+        const ngraph::Shape& inputShape,
         const ngraph::element::Type precision);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,
-        const ngraph::PartialShape& inputShape,
+        const ngraph::Shape& inputShape,
         const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
         const double clampLowConst,
         const double clampHighConst);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::PartialShape& inputShape,
+        const ngraph::Shape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,

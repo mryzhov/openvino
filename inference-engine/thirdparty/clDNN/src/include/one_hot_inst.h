@@ -4,9 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/one_hot.hpp"
-#include "primitive_inst.h"
 
+#include <api/one_hot.hpp>
+
+#include "primitive_inst.h"
 #include <string>
 #include <memory>
 

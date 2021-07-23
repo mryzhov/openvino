@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <ngraph/node.hpp>
 #include <utility>
+
+#include "ngraph/op/op.hpp"
 
 namespace ngraph
 {
@@ -14,12 +15,6 @@ namespace ngraph
         PartialShape data_shape;
         element::Type data_type;
         std::string variable_id;
-
-        inline bool operator==(const VariableInfo& other) const
-        {
-            return data_shape == other.data_shape && data_type == other.data_type &&
-                   variable_id == other.variable_id;
-        }
     };
 
     class NGRAPH_API Variable
@@ -32,14 +27,12 @@ namespace ngraph
         {
         }
 
-        VariableInfo get_info() const { return m_info; }
+        VariableInfo get_info() { return m_info; }
         void update(const VariableInfo& variable_info) { m_info = variable_info; }
 
     private:
         VariableInfo m_info;
     };
-    using VariablePtr = std::shared_ptr<Variable>;
-    using VariableVector = std::vector<VariablePtr>;
 
     template <>
     class NGRAPH_API AttributeAdapter<std::shared_ptr<Variable>>

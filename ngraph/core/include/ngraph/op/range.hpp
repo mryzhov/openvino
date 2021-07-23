@@ -42,10 +42,6 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
-                void set_output_type(element::Type output_type) { m_output_type = output_type; }
-                // Overload collision with method on Node
-                using Node::set_output_type;
 
             private:
                 element::Type m_output_type;
@@ -57,8 +53,8 @@ namespace ngraph
             class NGRAPH_API Range : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"Range", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs an unitialized range operation.
                 Range() = default;
 
@@ -81,7 +77,6 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
             };
         } // namespace v0
         using v0::Range;

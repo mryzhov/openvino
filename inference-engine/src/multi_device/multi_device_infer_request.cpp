@@ -10,20 +10,18 @@
 #include <blob_factory.hpp>
 
 namespace MultiDevicePlugin {
-
-using namespace InferenceEngine;
-
+    using namespace InferenceEngine;
 // ------------------------------MultiDeviceInferRequest----------------------------
 MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkInputs,
                                                  const OutputsDataMap&  networkOutputs,
-                                                 const SoIInferRequestInternal & request_to_share_blobs_with)
+                                                 InferRequest request_to_share_blobs_with)
         : IInferRequestInternal(networkInputs, networkOutputs) {
     if (request_to_share_blobs_with) {
         // borrow device-friendly blobs from the request
         for (const auto &it : _networkInputs)
-            _inputs[it.first] = request_to_share_blobs_with->GetBlob(it.first);
+            _inputs[it.first] = request_to_share_blobs_with.GetBlob(it.first);
         for (const auto &it : _networkOutputs)
-            _outputs[it.first] = request_to_share_blobs_with->GetBlob(it.first);
+            _outputs[it.first] = request_to_share_blobs_with.GetBlob(it.first);
         return;
     }
     // Allocate all input blobs
@@ -48,20 +46,20 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
     }
 }
 
-void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInternal& req) {
+void MultiDeviceInferRequest::SetBlobsToAnotherRequest(InferRequest& req) {
     for (const auto &it : _networkInputs) {
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         auto blob = GetBlob(name);
-        if (req->GetBlob(name) != blob)
-            req->SetBlob(name, blob);
+        if (req.GetBlob(name) != blob)
+            req.SetBlob(name, blob);
     }
     for (const auto &it : _networkOutputs) {
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         auto blob = GetBlob(name);
-        if (req->GetBlob(name) != blob)
-            req->SetBlob(name, blob);
+        if (req.GetBlob(name) != blob)
+            req.SetBlob(name, blob);
     }
 }
 

@@ -1,6 +1,6 @@
-#include <ie_core.hpp>
+#include <inference_engine.hpp>
 #include <gpu/gpu_context_api_va.hpp>
-#include <gpu/gpu_config.hpp>
+#include <cldnn/cldnn_config.hpp>
 
 
 int main() {
@@ -28,7 +28,7 @@ auto shared_va_context = gpu::make_shared_context(ie, "GPU", disp);
 // compile network within a shared context
 ExecutableNetwork executable_network = ie.LoadNetwork(network,
                                                       shared_va_context,
-                                                      { { GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS,
+                                                      { { CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS,
                                                           PluginConfigParams::YES } });
 
 

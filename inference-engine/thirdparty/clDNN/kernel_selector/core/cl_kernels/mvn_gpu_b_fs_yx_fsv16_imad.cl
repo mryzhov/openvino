@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/fetch_data.cl"
+#include "include/fetch.cl"
 #include "include/imad.cl"
 #include "include/data_types.cl"
+#include "include/common.cl"
+#include "include/mmad.cl"
 
 #include "mvn_gpu_b_fs_yx_fsv16_imad_accumulate.cl"
 #include "mvn_gpu_b_fs_yx_fsv16_imad_reduce.cl"

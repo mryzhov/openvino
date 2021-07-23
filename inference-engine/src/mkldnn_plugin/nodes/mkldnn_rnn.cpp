@@ -457,17 +457,17 @@ void MKLDNNRNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t
     const size_t ie_r_vec_size = getParentEdgesAtPort(rIdx)[0]->getDims().size();
 
     auto *wInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(wIdx)[0]->getParent().get());
-    auto wConstBlob = wInputNode->getMemoryPtr();
+    auto wConstBlob = wInputNode->getConstBlob();
 
     auto *rInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(rIdx)[0]->getParent().get());
-    auto rConstBlob = rInputNode->getMemoryPtr();
+    auto rConstBlob = rInputNode->getConstBlob();
 
     std::vector<Prec> ie_w_vec(ie_w_vec_size), ie_r_vec(ie_r_vec_size);
 
     auto ie_w_ptr = ie_w_vec.data();
     auto ie_r_ptr = ie_r_vec.data();
-    cpu_convert(wConstBlob->GetPtr(), ie_w_ptr, weightPrec, runtimePrecision, ie_w_vec_size);
-    cpu_convert(rConstBlob->GetPtr(), ie_r_ptr, weightPrec, runtimePrecision, ie_r_vec_size);
+    cpu_convert(wConstBlob->cbuffer().as<int8_t *>(), ie_w_ptr, weightPrec, runtimePrecision, ie_w_vec_size);
+    cpu_convert(rConstBlob->cbuffer().as<int8_t *>(), ie_r_ptr, weightPrec, runtimePrecision, ie_r_vec_size);
 
     auto w_ptr = static_cast<Prec*>(w_data_mem->GetData());
     auto r_ptr = static_cast<Prec*>(w_state_mem->GetData());
@@ -508,15 +508,11 @@ void MKLDNNRNN::fillBiases(const int *gate_map) {
     internalBlobMemory.push_back(w_bias_mem);
 
     auto *constInputNode = dynamic_cast<MKLDNNInputNode *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
-    auto constBlob = constInputNode->getMemoryPtr();
-    auto const elementsCount = constBlob->GetElementsCount();
+    auto constBlob = constInputNode->getConstBlob();
+    auto srtPtr = constBlob->cbuffer().as<int8_t *>();
 
-    std::vector<dataType> ie_b_vec(elementsCount);
-    cpu_convert(constBlob->GetPtr(),
-                &ie_b_vec[0],
-                MKLDNNExtensionUtils::DataTypeToIEPrecision(constBlob->GetDataType()),
-                Prec,
-                elementsCount);
+    std::vector<dataType> ie_b_vec(constBlob->size());
+    cpu_convert(srtPtr, &ie_b_vec[0], constBlob->getTensorDesc().getPrecision(), Prec, constBlob->size());
 
     auto b_ptr = static_cast<dataType*>(w_bias_mem->GetData());
     for (int g = 0; g < Gb; g++) {

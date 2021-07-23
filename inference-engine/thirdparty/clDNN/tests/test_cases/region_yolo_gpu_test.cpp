@@ -2,16 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
+///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <gtest/gtest.h>
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/region_yolo.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/graph/topology.hpp>
-#include <cldnn/graph/network.hpp>
-#include <cldnn/runtime/memory.hpp>
+#include <api/input_layout.hpp>
+#include <api/memory.hpp>
+#include <api/region_yolo.hpp>
+#include <api/reorder.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
 
 #include <cstddef>
+#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -184,26 +186,26 @@ namespace internal
 template <typename T>
 static void runRegionTest(internal::region_yolo_test_params& params)
 {
-    auto& engine = get_test_engine();
+    engine eng;
     const tensor kInputTensor(params.tensor[0], params.tensor[1], params.tensor[2], params.tensor[3]);
     auto inputData = generate_random_1d<T>(params.tensor[0] * params.tensor[1] * params.tensor[2] * params.tensor[3], -1, 1);
 
-    auto inputPrim = engine.allocate_memory({ params.dataType, format::bfyx, kInputTensor });
+    auto inputPrim = memory::allocate(eng, { params.dataType, format::bfyx, kInputTensor });
     set_values(inputPrim, inputData);
 
     topology topology;
-    topology.add(input_layout("InputData", inputPrim->get_layout()));
+    topology.add(input_layout("InputData", inputPrim.get_layout()));
     topology.add(reorder("reorder_pre", "InputData", params.fmt, params.dataType));
     topology.add(region_yolo("region_yolo", "reorder_pre", params.coords, params.classes,
             params.regionNum, static_cast<uint32_t>(params.mask.size()), params.softMax));
     topology.add(reorder("reorder_post", "region_yolo", format::bfyx, params.dataType));
 
-    network network(engine, topology);
+    network network(eng, topology);
     network.set_input_data("InputData", inputPrim);
 
     auto outputs = network.execute();
     auto output = outputs.at("reorder_post").get_memory();
-    cldnn::mem_lock<T> outputData(output, get_test_stream());
+    auto outputData = output.pointer<T>();
 
     /// reference value
     std::vector<T> refOutputData(inputData.size());

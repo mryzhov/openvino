@@ -18,8 +18,8 @@ namespace ngraph
             class NGRAPH_API Tile : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"Tile", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 Tile() = default;
                 /// \brief Perform dynamic padding of a tensor
                 ///
@@ -35,7 +35,6 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
 
             private:
                 bool evaluate_tile(const HostTensorVector& outputs,

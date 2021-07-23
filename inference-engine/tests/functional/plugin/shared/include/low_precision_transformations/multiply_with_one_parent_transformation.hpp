@@ -19,7 +19,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::PartialShape,
+    ngraph::Shape,
     std::string,
     MultiplyWithOneParentTransformationValues
 > MultiplyWithOneParentTransformationParams;

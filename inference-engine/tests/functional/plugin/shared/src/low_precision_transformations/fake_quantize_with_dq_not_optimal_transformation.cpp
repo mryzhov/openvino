@@ -17,7 +17,7 @@ namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
     ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ngraph::Shape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeWithNotOptimalTransformationTestValues testValues;
@@ -29,7 +29,7 @@ std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(testing::T
 }
 
 void FakeQuantizeWithNotOptimalTransformation::SetUp() {
-    ngraph::PartialShape inputShape;
+    ngraph::Shape inputShape;
     ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizeWithNotOptimalTransformationTestValues testValues;

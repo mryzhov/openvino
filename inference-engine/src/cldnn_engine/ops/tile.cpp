@@ -7,7 +7,7 @@
 
 #include "ngraph/op/tile.hpp"
 
-#include "cldnn/primitives/tile.hpp"
+#include "api/tile.hpp"
 
 namespace CLDNNPlugin {
 

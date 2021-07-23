@@ -389,7 +389,6 @@ namespace ngraph
             {
                 auto info = helper.get_info_for_linear_mode();
 
-                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
 
@@ -425,7 +424,6 @@ namespace ngraph
                         out[output_transform.index(output_coord)] = static_cast<T>(summa / wsum);
                     }
                 }
-                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>
@@ -588,7 +586,6 @@ namespace ngraph
                 size_t input_rank = m_input_data_shape.size();
                 size_t num_of_axes = m_axes.size();
 
-                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
                 Shape indices_shape{std::vector<size_t>(num_of_axes, 4)};
@@ -634,13 +631,11 @@ namespace ngraph
 
                     out[output_transform.index(output_coord)] = static_cast<T>(summa);
                 }
-                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>
             void InterpolateEval<T>::nearest_func(const T* input_data, T* out)
             {
-                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform output_transform(m_out_shape);
                 CoordinateTransform input_transform(m_input_data_shape);
 
@@ -650,7 +645,6 @@ namespace ngraph
                     out[output_transform.index(output_coord)] =
                         input_data[input_transform.index(input_coord)];
                 }
-                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             template <typename T>

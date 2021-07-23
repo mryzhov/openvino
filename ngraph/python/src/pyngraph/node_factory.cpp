@@ -75,7 +75,6 @@ namespace
                 {"opset5", OpsetFunction(ngraph::get_opset5)},
                 {"opset6", OpsetFunction(ngraph::get_opset6)},
                 {"opset7", OpsetFunction(ngraph::get_opset7)},
-                {"opset8", OpsetFunction(ngraph::get_opset8)},
             };
 
             auto it = s_opsets.find(opset_ver);
@@ -86,7 +85,7 @@ namespace
             return it->second();
         }
 
-        const ngraph::OpSet& m_opset = ngraph::get_opset8();
+        const ngraph::OpSet& m_opset = ngraph::get_opset7();
         std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> m_variables;
     };
 } // namespace

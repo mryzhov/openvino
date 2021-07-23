@@ -23,7 +23,6 @@ namespace {
 
 using namespace testing;
 using namespace ngraph::pass;
-using namespace ngraph;
 
 class PReluTransformationTestValues {
 public:
@@ -41,23 +40,19 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    TestTransformationParams params;
+    ngraph::Shape shape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
 };
 
-typedef std::tuple<
-    ngraph::PartialShape,
-    PReluTransformationTestValues> PReluTransformationParams;
-
-class PReluTransformation : public LayerTransformation, public testing::WithParamInterface<PReluTransformationParams> {
+class PReluTransformation : public LayerTransformation, public testing::WithParamInterface<PReluTransformationTestValues> {
 public:
     void SetUp() override {
-        const auto inputShape = std::get<0>(GetParam());
-        const auto testValues = std::get<1>(GetParam());
+        const PReluTransformationTestValues testValues = GetParam();
 
         actualFunction = ngraph::builder::subgraph::PReluFunction::getOriginal(
-            inputShape,
+            testValues.shape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
 
@@ -66,20 +61,19 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::PReluFunction::getReference(
-            inputShape,
+            testValues.shape,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
             testValues.expected.dequantizationAfter);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<PReluTransformationParams> obj) {
-        const auto inputShape = std::get<0>(obj.param);
-        const auto testValues = std::get<1>(obj.param);
+    static std::string getTestCaseName(testing::TestParamInfo<PReluTransformationTestValues> obj) {
+        const PReluTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
         result <<
-            inputShape << "_" <<
+            testValues.shape << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.expected.dequantizationBefore;
@@ -98,15 +92,14 @@ TEST_P(PReluTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-namespace testValues1 {
-const std::vector<ngraph::PartialShape> shapes = {
-    { 1, 3, 16, 16 },
-    { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
+const std::vector<ngraph::Shape> shapes = {
+    { 1, 3, 16, 16 }
 };
 
 const std::vector<PReluTransformationTestValues> testValues = {
     // U8: no subtract
     {
+        ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -121,6 +114,7 @@ const std::vector<PReluTransformationTestValues> testValues = {
     },
     // I8: no subtract
     {
+        ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -135,6 +129,7 @@ const std::vector<PReluTransformationTestValues> testValues = {
     },
     // U8: with positive subtract value
     {
+        ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
         {
             ngraph::element::u8,
@@ -149,6 +144,7 @@ const std::vector<PReluTransformationTestValues> testValues = {
     },
     // I8: with positive subtract value
     {
+        ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
@@ -163,86 +159,10 @@ const std::vector<PReluTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     PReluTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
+    ::testing::ValuesIn(testValues),
     PReluTransformation::getTestCaseName);
-} // namespace testValues1
-
-namespace testValues2 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicChannels = {
-    { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-};
-
-const std::vector<PReluTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
-        },
-        {
-            ngraph::element::u8,
-            {{}, {}, {}},
-            ngraph::element::f32,
-            {{}, {}, {0.1f}}
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
-        },
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}},
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    PReluTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(shapesWithDynamicChannels),
-        ::testing::ValuesIn(testValues)),
-    PReluTransformation::getTestCaseName);
-} // namespace testValues2
-
-namespace testValues3 {
-const std::vector<ngraph::PartialShape> shapesWithDynamicRank = {
-    PartialShape::dynamic()
-};
-
-const std::vector<PReluTransformationTestValues> testValues = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}}
-        },
-        {
-            ngraph::element::u8,
-            {{ngraph::element::f32}, {}, {0.1f}},
-            ngraph::element::f32,
-            {{}, {}, {}}
-        }
-    }
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    PReluTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(shapesWithDynamicRank),
-        ::testing::ValuesIn(testValues)),
-    PReluTransformation::getTestCaseName);
-} // namespace testValues3
 
 } // namespace

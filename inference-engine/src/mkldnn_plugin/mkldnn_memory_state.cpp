@@ -10,8 +10,20 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
+std::string  MKLDNNVariableState::GetName() const {
+    return name;
+}
+
 void  MKLDNNVariableState::Reset() {
-    std::memset(state->buffer(), 0, state->byteSize());
+    std::memset(this->storage->buffer(), 0, storage->byteSize());
+}
+
+void  MKLDNNVariableState::SetState(Blob::Ptr newState) {
+    storage = newState;
+}
+
+InferenceEngine::Blob::CPtr MKLDNNVariableState::GetState() const {
+    return storage;
 }
 
 }  // namespace MKLDNNPlugin

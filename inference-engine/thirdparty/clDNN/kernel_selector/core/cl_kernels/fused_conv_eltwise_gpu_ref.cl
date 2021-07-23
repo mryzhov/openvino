@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/fetch_data.cl"
-#include "include/fetch_weights.cl"
+#include "include/common.cl"
+#include "include/fetch.cl"
 
 KERNEL(kernel_name)(
     const __global INPUT0_TYPE *conv_input,

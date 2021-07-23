@@ -21,8 +21,6 @@ namespace ngraph
                 : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
                 // Fused op decomposition can be performed in the presence of
                 // partial shapes
                 virtual bool can_decompose_with_partial_shapes() { return false; }

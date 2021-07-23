@@ -133,9 +133,8 @@ testing::AssertionResult
         if (expected_shape != result_shape)
         {
             comparison_result = testing::AssertionFailure();
-            comparison_result << "Computed data shape(" << result_shape
-                              << ") does not match the expected shape(" << expected_shape
-                              << ") for output " << i << std::endl;
+            comparison_result << "Computed data shape does not match the expected shape for output "
+                              << i << std::endl;
             break;
         }
 
@@ -176,9 +175,8 @@ testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t 
         if (expected_shape != result_shape)
         {
             comparison_result = testing::AssertionFailure();
-            comparison_result << "Computed data shape(" << result_shape
-                              << ") does not match the expected shape(" << expected_shape
-                              << ") for output " << i << std::endl;
+            comparison_result << "Computed data shape does not match the expected shape for output "
+                              << i << std::endl;
             break;
         }
 

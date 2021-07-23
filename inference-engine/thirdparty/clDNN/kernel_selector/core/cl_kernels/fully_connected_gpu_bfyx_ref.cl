@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
-#include "include/fetch_weights.cl"
+#include "include/include_all.cl"
 
 KERNEL(fc)(
     const __global INPUT0_TYPE* input,

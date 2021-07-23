@@ -177,7 +177,6 @@ VPU_DECLARE_ENUM(StageType,
     GatherElements = 139,
     Round = 140,
     CTCGreedyDecoderSeqLen = 141,
-    Abs = 142,
 )
 
 //
@@ -401,9 +400,7 @@ class StageNode :
     // Bindings with IE
     //
 
-    IE_SUPPRESS_DEPRECATED_START
     VPU_MODEL_ATTRIBUTE(ie::CNNLayerPtr, origLayer, nullptr)
-    IE_SUPPRESS_DEPRECATED_END
 
     //
     // Edges
@@ -576,9 +573,7 @@ public:
     //
 
     inline std::string origLayerName() const {
-        IE_SUPPRESS_DEPRECATED_START
         return _origLayer != nullptr ? _origLayer->name : std::string();
-        IE_SUPPRESS_DEPRECATED_END
     }
 
     //

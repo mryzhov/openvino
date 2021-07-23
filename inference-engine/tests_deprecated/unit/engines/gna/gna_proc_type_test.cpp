@@ -5,7 +5,7 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <gmock/gmock.h>
+#include <gmock/gmock-generated-actions.h>
 #include <gna/gna_config.hpp>
 #include "gna_plugin.hpp"
 #include "gna_mock_api.hpp"

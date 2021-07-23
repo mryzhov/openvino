@@ -27,6 +27,7 @@
 #include "backend/gna_limitations.hpp"
 #include "gna_device.hpp"
 #include "gna_data_types.hpp"
+#include "gna_plugin_policy.hpp"
 
 namespace GNAPluginNS {
 class GNAGraphCompiler {
@@ -35,6 +36,7 @@ private:
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
     std::shared_ptr<GNAPluginNS::InputDesc> inputDesc;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
+    Policy policy;
 
     // layers with extra storage for connections and additional
     // non trivial processing
@@ -111,7 +113,7 @@ public:
     void CreateLayerPrimitive(InferenceEngine::CNNLayerPtr);
 
     void AffinePrimitive(InferenceEngine::CNNLayerPtr, bool isDiag = false);
-    void ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr);
+    void AffineFilterPrimitive(InferenceEngine::CNNLayerPtr);
     void ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr);
     void DiagonalPrimitive(InferenceEngine::CNNLayerPtr);
     void ConstPrimitive(InferenceEngine::CNNLayerPtr);
@@ -127,7 +129,6 @@ public:
     void PWLPrimitive(InferenceEngine::CNNLayerPtr);
     void FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr);
     void CopyPrimitive(InferenceEngine::CNNLayerPtr);
-    void GemmPrimitive(InferenceEngine::CNNLayerPtr);
 
     void finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerPtr,
         uint32_t in_batch, uint32_t in_channels, uint32_t in_width,

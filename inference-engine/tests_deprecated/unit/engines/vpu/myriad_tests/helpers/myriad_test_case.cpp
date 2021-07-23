@@ -3,7 +3,6 @@
 //
 
 #include "myriad_test_case.h"
-#include "ie_plugin_config.hpp"
 
 //------------------------------------------------------------------------------
 // Implementation of methods of class MyriadEngineTest

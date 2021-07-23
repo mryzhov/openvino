@@ -28,6 +28,7 @@ IE_SUPPRESS_DEPRECATED_START
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl) final : public ICNNNetwork {
 public:
     CNNNetworkImpl();
+    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl);
     explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl);
     ~CNNNetworkImpl();
 
@@ -120,12 +121,6 @@ public:
                        ResponseDesc* resp) noexcept override;
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
-        noexcept override;
-
-    StatusCode serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
-        noexcept override;
-
-    StatusCode serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
         noexcept override;
 
 protected:

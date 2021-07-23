@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "resample_inst.h"
 #include "primitive_type_base.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "error_handler.h"
 #include <string>
 #include <src/include/json_object.h>
 

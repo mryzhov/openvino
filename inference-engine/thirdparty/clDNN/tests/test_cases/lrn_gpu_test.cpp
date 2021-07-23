@@ -3,12 +3,16 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <gtest/gtest.h>
 
-#include "test_utils.h"
+#include <api/data.hpp>
+#include <api/lrn.hpp>
+#include <api/input_layout.hpp>
+#include <api/memory.hpp>
+#include <api/network.hpp>
+#include <api/topology.hpp>
 
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/lrn.hpp>
-#include <cldnn/primitives/input_layout.hpp>
+#include <tests/test_utils/test_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -16,14 +20,14 @@ using namespace ::tests;
 TEST(lrn_fp32_gpu, basic) {
     //  input : 1x16x1x1
     //  Output : 1x16x1x1
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
     const size_t b = 1;
     const size_t f = 16;
     const size_t y = 1;
     const size_t x = 1;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
     std::vector<float> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
         static float n = 0;
@@ -33,7 +37,7 @@ TEST(lrn_fp32_gpu, basic) {
     set_values(input, inputVals);
 
     topology topology;
-    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input", input.get_layout()));
     uint32_t size = 2;
     float k = 0.5f;
     float alpha = 9.9e-05f;
@@ -47,7 +51,7 @@ TEST(lrn_fp32_gpu, basic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("lrn").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<float>();
 
     std::vector<float> expected_results = {
         0.f, 1.99901f, 3.99486f, 5.98519f,
@@ -65,14 +69,14 @@ TEST(lrn_fp32_gpu, basic) {
 TEST(lrn_fp32_gpu, basic2) {
     //  input : 1x16x1x1
     //  Output : 1x16x1x1
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
     const size_t b = 1;
     const size_t f = 16;
     const size_t y = 1;
     const size_t x = 1;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
     std::vector<float> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
         static float n = 0;
@@ -82,7 +86,7 @@ TEST(lrn_fp32_gpu, basic2) {
     set_values(input, inputVals);
 
     topology topology;
-    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input", input.get_layout()));
     uint32_t size = 5;
     float k = 0.5f;
     float alpha = 9.9e-05f;
@@ -96,7 +100,7 @@ TEST(lrn_fp32_gpu, basic2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("lrn").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<float>();
 
     std::vector<float> expected_results = {
         0.f, 1.99889f, 3.99525f, 5.98696f,
@@ -114,14 +118,14 @@ TEST(lrn_fp32_gpu, basic2) {
 TEST(lrn_fp16_gpu, basic1) {
     //  input : 1x16x1x1
     //  Output : 1x16x1x1
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
     const size_t b = 1;
     const size_t f = 16;
     const size_t y = 1;
     const size_t x = 1;
 
-    auto input = engine.allocate_memory({ data_types::f16, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = memory::allocate(engine, { data_types::f16, format::b_fs_yx_fsv16, { b, f, x, y } });
     std::vector<half_t> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
         static float n = 0;
@@ -131,7 +135,7 @@ TEST(lrn_fp16_gpu, basic1) {
     set_values(input, inputVals);
 
     topology topology;
-    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input", input.get_layout()));
     uint32_t size = 5;
     float k = 0.5f;
     float alpha = 9.9e-05f;
@@ -145,7 +149,7 @@ TEST(lrn_fp16_gpu, basic1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("lrn").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<uint16_t>();
 
     std::vector<float> expected_results = {
         0.f, 1.99889f, 3.99525f, 5.98696f,
@@ -163,14 +167,14 @@ TEST(lrn_fp16_gpu, basic1) {
 TEST(lrn_fp32_gpu, basic3) {
     //  input : 2x16x4x4
     //  Output : 2x16x4x4
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
     const size_t b = 2;
     const size_t f = 16;
     const size_t y = 4;
     const size_t x = 4;
 
-    auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
+    auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
     std::vector<float> inputVals(b * f * y * x);
     std::generate(inputVals.begin(), inputVals.end(), []() {
         static float n = 0;
@@ -180,7 +184,7 @@ TEST(lrn_fp32_gpu, basic3) {
     set_values(input, inputVals);
 
     topology topology;
-    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("input", input.get_layout()));
     uint32_t size = 5;
     float k = 1.f;
     float alpha = 9.89999971e-05f;
@@ -194,7 +198,7 @@ TEST(lrn_fp32_gpu, basic3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("lrn").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<float>();
 
     std::vector<float> expected_results = {
         0.f,      0.999792f, 1.99911f, 2.99755f, 3.99466f, 4.99f,    5.98313f, 6.97361f, 7.96102f, 8.94493f, 9.92493f,

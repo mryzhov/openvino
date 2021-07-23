@@ -39,7 +39,6 @@ std::vector<std::string> filterFilesByExtensions(const std::vector<std::string>&
     return filtered;
 }
 
-template <typename T>
 void fillBlobImage(Blob::Ptr& inputBlob, const std::vector<std::string>& filePaths, const size_t& batchSize, const benchmark_app::InputInfo& app_info,
                    const size_t& requestId, const size_t& inputId, const size_t& inputSize) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
@@ -51,7 +50,7 @@ void fillBlobImage(Blob::Ptr& inputBlob, const std::vector<std::string>& filePat
     // locked memory holder should be alive all time while access to its buffer
     // happens
     auto minputHolder = minput->wmap();
-    auto inputBlobData = minputHolder.as<T*>();
+    auto inputBlobData = minputHolder.as<uint8_t*>();
 
     /** Collect images data ptrs **/
     std::vector<std::shared_ptr<uint8_t>> vreader;
@@ -91,7 +90,7 @@ void fillBlobImage(Blob::Ptr& inputBlob, const std::vector<std::string>& filePat
                     size_t offset = imageId * numChannels * width * height + (((app_info.layout == "NCHW") || (app_info.layout == "CHW"))
                                                                                   ? (ch * width * height + h * width + w)
                                                                                   : (h * width * numChannels + w * numChannels + ch));
-                    inputBlobData[offset] = static_cast<T>(vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch]);
+                    inputBlobData[offset] = vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch];
                 }
             }
         }
@@ -143,7 +142,7 @@ using uniformDistribution =
                               typename std::conditional<std::is_integral<T>::value, std::uniform_int_distribution<T>, void>::type>::type;
 
 template <typename T, typename T2>
-void fillBlobRandom(Blob::Ptr& inputBlob, T rand_min = std::numeric_limits<uint8_t>::min(), T rand_max = std::numeric_limits<uint8_t>::max()) {
+void fillBlobRandom(Blob::Ptr& inputBlob, T rand_min = std::numeric_limits<T>::min(), T rand_max = std::numeric_limits<T>::max()) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
         IE_THROW() << "We expect inputBlob to be inherited from MemoryBlob in "
@@ -271,19 +270,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles, const size_t& batchSi
             if (app_info.isImage()) {
                 if (!imageFiles.empty()) {
                     // Fill with Images
-                    if (precision == InferenceEngine::Precision::FP32) {
-                        fillBlobImage<float>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
-                    } else if (precision == InferenceEngine::Precision::FP16) {
-                        fillBlobImage<short>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
-                    } else if (precision == InferenceEngine::Precision::I32) {
-                        fillBlobImage<int32_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
-                    } else if (precision == InferenceEngine::Precision::I64) {
-                        fillBlobImage<int64_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
-                    } else if (precision == InferenceEngine::Precision::U8) {
-                        fillBlobImage<uint8_t>(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
-                    } else {
-                        IE_THROW() << "Input precision is not supported for " << item.first;
-                    }
+                    fillBlobImage(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
                     continue;
                 }
             } else {

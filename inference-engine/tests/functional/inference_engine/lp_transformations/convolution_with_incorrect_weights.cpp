@@ -11,8 +11,6 @@
 #include <transformations/init_node_info.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/fake_quantize_decomposition.hpp>
-#include <low_precision/fold_fake_quantize.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
@@ -24,7 +22,7 @@
 
 
 namespace {
-class ConvolutionWithIncorrectWeightsTestValues {
+class ConvolutionWIthIncorrectWeightsTestValues {
 public:
     class Actual {
     public:
@@ -42,18 +40,18 @@ public:
 
     ngraph::element::Type inputPrecision;
     ngraph::Shape inputShape;
-    TestTransformationParams params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     bool isCorrect;
     Actual actual;
     Expected expected;
 };
 
-class ConvolutionWithIncorrectWeightsTransformation :
+class ConvolutionWIthIncorrectWeightsTransformation :
     public LayerTransformation,
-    public testing::WithParamInterface<ConvolutionWithIncorrectWeightsTestValues> {
+    public testing::WithParamInterface<ConvolutionWIthIncorrectWeightsTestValues> {
 public:
     void SetUp() override {
-        const ConvolutionWithIncorrectWeightsTestValues testValues = GetParam();
+        const ConvolutionWIthIncorrectWeightsTestValues testValues = GetParam();
 
         actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
             testValues.inputShape,
@@ -67,22 +65,18 @@ public:
         transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transform.transform(actualFunction);
 
-        ngraph::pass::Manager cleanupManager;
-        cleanupManager.register_pass<ngraph::pass::low_precision::FoldFakeQuantizeTransformation>();
-        cleanupManager.register_pass<ngraph::pass::ConstantFolding>();
-        cleanupManager.run_passes(actualFunction);
-
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReferenceWithIncorrectWeights(
             testValues.inputShape,
             testValues.inputPrecision,
             testValues.expected.dequantizationBefore,
             testValues.expected.weightsPrecision,
             testValues.expected.weightsValues,
-            testValues.expected.dequantizationAfter);
+            testValues.expected.dequantizationAfter,
+            testValues.isCorrect);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<ConvolutionWithIncorrectWeightsTestValues> obj) {
-        const ConvolutionWithIncorrectWeightsTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<ConvolutionWIthIncorrectWeightsTestValues> obj) {
+        const ConvolutionWIthIncorrectWeightsTestValues testValues = obj.param;
 
         std::ostringstream result;
         result << toString(testValues.params) <<
@@ -91,7 +85,7 @@ public:
     }
 };
 
-TEST_P(ConvolutionWithIncorrectWeightsTransformation, CompareFunctions) {
+TEST_P(ConvolutionWIthIncorrectWeightsTransformation, CompareFunctions) {
     ngraph::pass::InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
@@ -99,7 +93,7 @@ TEST_P(ConvolutionWithIncorrectWeightsTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ConvolutionWithIncorrectWeightsTestValues> testValues = {
+const std::vector<ConvolutionWIthIncorrectWeightsTestValues> testValues = {
     // incorrect weights
     {
         ngraph::element::u8,
@@ -113,7 +107,7 @@ const std::vector<ConvolutionWithIncorrectWeightsTestValues> testValues = {
         {
             {ngraph::element::f32, {}, {0.1f}},
             ngraph::element::f32,
-            {-129.f},
+            {-126.f},
             {}
         },
     },
@@ -136,10 +130,10 @@ const std::vector<ConvolutionWithIncorrectWeightsTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
-    ConvolutionWithIncorrectWeightsTransformation,
+    ConvolutionWIthIncorrectWeightsTransformation,
     ::testing::ValuesIn(testValues),
-    ConvolutionWithIncorrectWeightsTransformation::getTestCaseName);
+    ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName);
 
 } // namespace

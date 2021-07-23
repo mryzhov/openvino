@@ -18,10 +18,10 @@ public:
     bool IsScaleSet() const {
         return scale_set;
     }
-    void SetLevels(size_t l) {
+    void SetLevels(int32_t l) {
         levels = l;
     }
-    size_t GetLevels() const {
+    int32_t GetLevels() const {
         return levels;
     }
     bool IsStatsSet() const {
@@ -70,7 +70,7 @@ public:
 private:
     float scale = 1.0f;
     bool scale_set = false;
-    size_t levels = 0;
+    int32_t levels = 0;
     std::vector<float> input_min_values;
     std::vector<float> input_max_values;
     std::vector<float> output_min_values;

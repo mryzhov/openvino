@@ -11,7 +11,6 @@
 #include <ie_preprocess.hpp>
 #include <ie_compound_blob.h>
 #include <ie_algorithm.hpp>
-#include <ie_remote_context.hpp>
 #include <debug.h>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
@@ -22,10 +21,9 @@ namespace InferenceEngine {
 
 IInferRequestInternal::~IInferRequestInternal() {}
 
-IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs) :
-    // We should copy maps since they can be overriden in SetBlob with preprocess
-    _networkInputs{copyInfo(networkInputs)},
-    _networkOutputs{copyInfo(networkOutputs)} {
+IInferRequestInternal::IInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs) {
+    // // We should copy maps since they can be overriden in SetBlob with preprocess
+    copyInputOutputInfo(networkInputs, networkOutputs, _networkInputs, _networkOutputs);
 }
 
 void IInferRequestInternal::Infer() {
@@ -63,8 +61,6 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
     DataPtr foundOutput;
     size_t dataSize = userBlob->size();
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        // ilavreno: the condition below is obsolete, but we need an exact list of precisions
-        // which are supports by G-API preprocessing
         if (foundInput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user input precision";
         }
@@ -100,11 +96,6 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& us
         if (foundOutput->getPrecision() != userBlob->getTensorDesc().getPrecision()) {
             IE_THROW(ParameterMismatch) << "Failed to set Blob with precision not corresponding to user output precision";
         }
-        // ilavreno: this condition is valid for most plugins except MYRIAD
-        // it is able to perform layout conversion for output blob dynamically
-        // if (foundOutput->getLayout() != userBlob->getTensorDesc().getLayout()) {
-        //     IE_THROW(ParameterMismatch) << "Failed to set Blob with layout not corresponding to user output layout";
-        // }
         _outputs[name] = userBlob;
     }
 }
@@ -147,7 +138,7 @@ void IInferRequestInternal::SetBlob(const std::string& name, const Blob::Ptr& da
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-       foundInput->getPreProcess() = copyPreProcess(info);
+        copyPreProcess(info, foundInput->getPreProcess());
     } else {
         IE_THROW() << "Pre-process can't be set to output blob";
     }
@@ -215,18 +206,16 @@ bool IInferRequestInternal::findInputAndOutputBlobByName(const std::string& name
                                         [&](const std::pair<std::string, DataPtr>& pair) {
                                             return pair.first == name;
                                         });
-    bool retVal;
-
-    if (foundInputPair != std::end(_networkInputs)) {
-        foundInput = foundInputPair->second;
-        retVal = true;
-    } else if (foundOutputPair != std::end(_networkOutputs)) {
-        foundOutput = foundOutputPair->second;
-        retVal = false;
-    } else {
+    if (foundOutputPair == std::end(_networkOutputs) && (foundInputPair == std::end(_networkInputs))) {
         IE_THROW(NotFound) << "Failed to find input or output with name: \'" << name << "\'";
     }
-    return retVal;
+    if (foundInputPair != std::end(_networkInputs)) {
+        foundInput = foundInputPair->second;
+        return true;
+    } else {
+        foundOutput = foundOutputPair->second;
+        return false;
+    }
 }
 
 void IInferRequestInternal::checkBlob(const Blob::Ptr& blob, const std::string& name, bool isInput, const SizeVector& refDims) const {
@@ -332,13 +321,5 @@ void IInferRequestInternal::addInputPreProcessingFor(const std::string& name, Bl
     // Stores the given blob as ROI blob. It will be used to fill in network input
     // during pre-processing
     preproc_ptr->setRoiBlob(from);
-}
-
-void* IInferRequestInternal::GetUserData() noexcept {
-    return _userData;
-}
-
-void IInferRequestInternal::SetUserData(void* userData) noexcept {
-    _userData = userData;
 }
 }  // namespace InferenceEngine

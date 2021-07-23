@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::RegionYolo, "RegionYolo", 0);
+constexpr NodeTypeInfo op::RegionYolo::type_info;
 
 op::RegionYolo::RegionYolo(const Output<Node>& input,
                            const size_t coords,

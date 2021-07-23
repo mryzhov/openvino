@@ -23,8 +23,8 @@ namespace ngraph
                     CENTER
                 };
 
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"NonMaxSuppression", 1};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 NonMaxSuppression() = default;
 
                 /// \brief Constructs a NonMaxSuppression operation.

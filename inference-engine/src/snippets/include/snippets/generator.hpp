@@ -10,12 +10,48 @@
 
 #include <transformations_visibility.hpp>
 #include "snippets_isa.hpp"
-#include "emitter.hpp"
 
 namespace ngraph {
 namespace snippets {
 
+using code = const uint8_t *;
+using RegInfo = std::pair<std::vector<size_t>, std::vector<size_t>>;
+
 TRANSFORMATIONS_API auto getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngraph::snippets::RegInfo;
+
+/**
+ * @interface Emitter
+ * @brief Base class for all target specific code emitters used by generator.
+ * @ingroup snippets
+ */
+class TRANSFORMATIONS_API Emitter {
+public:
+    /**
+     * @brief Default constructor
+     */
+    Emitter(const std::shared_ptr<ngraph::Node>& n) {
+    }
+
+    /**
+     * @brief called by generator to generate code to produce target code for a specific operation
+     * @param in vector of vector argument registers
+     * @param out vector of vector resulting registers
+     * @param pool optional vector of free vector registers which might be used inside method
+     * @param gpr vector of free generam puproce registers which might be used inside method
+     * @return void
+     */
+    virtual void emit_code(const std::vector<size_t>& in,
+                           const std::vector<size_t>& out,
+                           const std::vector<size_t>& pool = {},
+                           const std::vector<size_t>& gpr  = {}) const = 0;
+
+    /**
+     * @brief called by generator to generate data section, if needed for a specific operation
+     * @return void
+     */
+    virtual void emit_data() const {
+    }
+};
 
 /**
  * @interface TargetMachine
@@ -25,45 +61,12 @@ TRANSFORMATIONS_API auto getRegisters(std::shared_ptr<ngraph::Node>& n) -> ngrap
 class TRANSFORMATIONS_API TargetMachine {
 public:
     /**
-     * @brief checks if target is natively supported
-     * @return true, if supported
-     */
-    virtual bool is_supported() const = 0;
-
-    /**
-     * @brief finalizes code generation
-     * @return generated kernel binary
-     */
-    virtual code get_snippet() const = 0;
-
-    /**
-     * @brief gets number of lanes supported by target's vector ISA
-     * @return number of lanes
-     */
-    virtual size_t get_lanes() const = 0;
-
-    /**
-     * @brief called by generator to all the emittor for a target machine
+     * @brief called by generator to all the emittors available for a target machine
      * @return a map by node's type info with callbacks to create an instance of emmitter for corresponding operation type
      */
-    std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)> get(const ngraph::DiscreteTypeInfo type) const {
-        auto jitter = jitters.find(type);
-        if (jitter == jitters.end()) {
-            throw ngraph_error(std::string("Target code emitter is not available for ") + type.name + " operation.");
-        }
-        return jitter->second;
+    virtual auto getJitters() -> std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>>{
+        return {};
     }
-
-    /**
-     * @brief checks if emitter for a specific operation is supported
-     * @return true, if supported
-     */
-    bool has(const ngraph::DiscreteTypeInfo type) const {
-        return jitters.find(type) != jitters.end();
-    }
-
-protected:
-    std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>> jitters;
 };
 
 /**
@@ -84,12 +87,6 @@ public:
      * @param p pointer to generated code
      */
     Schedule(const Shape& ws, bool f, code p) : work_size(ws), is_flat(f), ptr(p) {}
-    /**
-     * @brief Returns callable instanse of code pointer
-     */
-    template<typename K> K get_callable() const {
-        return reinterpret_cast<K>(const_cast<unsigned char*>(ptr));
-    }
 
     Shape work_size {};
     bool is_flat {false};
@@ -106,7 +103,7 @@ public:
     /**
      * @brief Default constructor
      */
-    Generator(const std::shared_ptr<TargetMachine>& t) : target(t) {}
+    Generator() = default;
     /**
      * @brief Default destructor
      */
@@ -116,10 +113,10 @@ public:
      * @param f runction in canonical for for table-based code generation
      * @return pointer to generated code
      */
-    code generate(std::shared_ptr<Function>& f) const;
+    virtual code generate(std::shared_ptr<Function>& f) const = 0;
 
 protected:
-    std::shared_ptr<TargetMachine> target;
+    mutable std::map<const ngraph::DiscreteTypeInfo, std::function<std::shared_ptr<Emitter>(std::shared_ptr<ngraph::Node>)>> jitters;
 };
 
 } // namespace snippets

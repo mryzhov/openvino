@@ -13,23 +13,12 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T,
-                      typename std::enable_if<!std::is_integral<T>::value, bool>::type = true>
+            template <typename T>
             void asinh(const T* arg, T* out, size_t count)
             {
                 for (size_t i = 0; i < count; i++)
                 {
                     out[i] = std::asinh(arg[i]);
-                }
-            }
-
-            template <typename T,
-                      typename std::enable_if<std::is_integral<T>::value, bool>::type = true>
-            void asinh(const T* arg, T* out, size_t count)
-            {
-                for (size_t i = 0; i < count; i++)
-                {
-                    out[i] = std::roundl(std::asinh(arg[i]));
                 }
             }
         } // namespace reference

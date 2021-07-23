@@ -13,13 +13,14 @@
   * **Description**: the output tensor type
   * **Range of values**: any numeric type
   * **Type**: string
-  * **Required**: *yes*
+  * **Default value**: None
+  * **Required**: *Yes*
 
 **Inputs**:
 
-* **1**: "start" - A scalar of type *T1*. **Required.**
-* **2**: "stop" - A scalar of type *T2*. **Required.**
-* **3**: "step" - A scalar of type *T3*. If `step` is equal to zero after casting to `output_type`, behavior is undefined. **Required.**
+* **1**: "start" - A scalar of type T1. **Required.**
+* **2**: "stop" - A scalar of type T2. **Required.**
+* **3**: "step" - A scalar of type T3. If `step` is equal to zero after casting to `output_type`, behavior is undefined. **Required.**
 
 **Outputs**:
 
@@ -51,7 +52,7 @@ the i-th element is calculated by the following formula:
 val[i+1]=val[i]+step.
 \f]
 
-The calculations are done after casting all values to `accumulate_type(output_type)`. `accumulate_type` is a type that have better or equal accuracy for accumulation than `output_type` on current hardware, e.g. `fp64` for `fp16`. The number of elements is calculated in the floating-point type according to the following formula:
+The calculations are done after casting all values to `accumulate_type(output_type)`. `accumulate_type` is a type that have better or equal accuracy for accumulation than `output_type` on current hardware, e.g. `fp64` for `fp16`. The number of elements is calculated in the floating point type according to the following formula:
 
 \f[
 max(ceil((end − start) / step), 0)
@@ -103,7 +104,7 @@ This is aligned with PyTorch's operation `torch.arange`, to align with tensorflo
 </layer>
 ```
 
-*Example 3: floating-point*
+*Example 3: floating point*
 
 ```xml
 <layer ... type="Range">
@@ -123,3 +124,4 @@ This is aligned with PyTorch's operation `torch.arange`, to align with tensorflo
     </output>
 </layer>
 ```
+

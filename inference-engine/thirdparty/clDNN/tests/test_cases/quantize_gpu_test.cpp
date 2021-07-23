@@ -3,25 +3,31 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <gtest/gtest.h>
 
-#include "test_utils.h"
+#include <api/engine.hpp>
+#include <api/input_layout.hpp>
+#include <api/memory.hpp>
+#include <api/quantize.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
 
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/quantize.hpp>
-#include <cldnn/primitives/data.hpp>
+#include "test_utils/test_utils.h"
 
 #include <cstddef>
+#include <api/data.hpp>
+#include <src/include/to_string_utils.h>
 
 using namespace cldnn;
 using namespace ::tests;
 
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 16, 2, 2}});
+    auto input_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
+    auto input_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
+    auto output_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -77,7 +83,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
 
     topology topology;
     topology.add(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         data("input_low", input_low),
         data("input_high", input_high),
         data("output_low", output_low),
@@ -90,13 +96,13 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<float>();
 
     // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), (size_t)64);
-    ASSERT_EQ(output->get_layout().count(), (size_t)64);
+    ASSERT_EQ(output.count(), (size_t)64);
+    ASSERT_EQ(output.get_layout().count(), (size_t)64);
 
-    ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
+    ASSERT_EQ(output.size(), ref_data.size() * sizeof(uint32_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
@@ -104,11 +110,11 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1) {
 }
 
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 8, 2, 2}});
-    auto input_thresh = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 8, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 8, 2, 2}});
+    auto input_thresh = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 8, 1, 1 } });
+    auto output_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -141,7 +147,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
 
     topology topology;
     topology.add(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         data("input_low", input_thresh),
         data("input_high", input_thresh),
         data("output_low", output_low),
@@ -154,13 +160,13 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<float>();
 
     // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), (size_t)32);
-    ASSERT_EQ(output->get_layout().count(), (size_t)32);
+    ASSERT_EQ(output.count(), (size_t)32);
+    ASSERT_EQ(output.get_layout().count(), (size_t)32);
 
-    ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
+    ASSERT_EQ(output.size(), ref_data.size() * sizeof(uint32_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
@@ -168,11 +174,11 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8) {
 }
 
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) {
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 8, 2, 2}});
-    auto input_thresh = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 8, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 8, 2, 2}});
+    auto input_thresh = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 8, 1, 1 } });
+    auto output_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -204,7 +210,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
 
     topology topology;
     topology.add(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         data("input_low", input_thresh),
         data("input_high", input_thresh),
         data("output_low", output_low),
@@ -220,13 +226,13 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<float>();
 
     // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), (size_t)32);
-    ASSERT_EQ(output->get_layout().count(), (size_t)32);
+    ASSERT_EQ(output.count(), (size_t)32);
+    ASSERT_EQ(output.get_layout().count(), (size_t)32);
 
-    ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
+    ASSERT_EQ(output.size(), ref_data.size() * sizeof(uint32_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
@@ -234,12 +240,12 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_1_ch8_binary_pack) 
 }
 
 TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
-    cldnn::engine& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    const cldnn::engine& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 16, 2, 2}});
+    auto input_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto input_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -285,7 +291,7 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
 
     topology topology;
     topology.add(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         data("input_low", input_low),
         data("input_high", input_high),
         data("output_low", output_low),
@@ -298,13 +304,13 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<float>();
 
     // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), (size_t)64);
-    ASSERT_EQ(output->get_layout().count(), (size_t)64);
+    ASSERT_EQ(output.count(), (size_t)64);
+    ASSERT_EQ(output.get_layout().count(), (size_t)64);
 
-    ASSERT_EQ(output->size(), ref_data.size() * sizeof(float));
+    ASSERT_EQ(output.size(), ref_data.size() * sizeof(float));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
@@ -312,12 +318,12 @@ TEST(quantize_gpu, quantize_levels_2_output_broadcast_inputs_2) {
 }
 
 TEST(quantize_gpu, quantize_levels_3) {
-    cldnn::engine& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    const cldnn::engine& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 16, 2, 2}});
+    auto input_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
+    auto input_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
+    auto output_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -374,7 +380,7 @@ TEST(quantize_gpu, quantize_levels_3) {
 
     topology topology;
     topology.add(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         data("input_low", input_low),
         data("input_high", input_high),
         data("output_low", output_low),
@@ -387,14 +393,14 @@ TEST(quantize_gpu, quantize_levels_3) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<float>();
 
     // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), ref_data.size());
-    ASSERT_EQ(output->get_layout().count(), ref_data.size());
+    ASSERT_EQ(output.count(), ref_data.size());
+    ASSERT_EQ(output.get_layout().count(), ref_data.size());
 
     // Check that memory physical size consider binary pack
-    ASSERT_EQ(output->size(), ref_data.size() * sizeof(float));
+    ASSERT_EQ(output.size(), ref_data.size() * sizeof(float));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
@@ -402,12 +408,12 @@ TEST(quantize_gpu, quantize_levels_3) {
 }
 
 TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
-    cldnn::engine& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 16, 2, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    const cldnn::engine& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 16, 2, 2}});
+    auto input_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
+    auto input_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
+    auto output_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.1f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -465,7 +471,7 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
 
     topology topology;
     topology.add(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         data("input_low", input_low),
         data("input_high", input_high),
         data("output_low", output_low),
@@ -478,14 +484,14 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
     auto outputs = network.execute();
 
     auto output = outputs.at("quantize").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<uint8_t>();
 
     // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), ref_data.size());
-    ASSERT_EQ(output->get_layout().count(), ref_data.size());
+    ASSERT_EQ(output.count(), ref_data.size());
+    ASSERT_EQ(output.get_layout().count(), ref_data.size());
 
     // Check that memory physical size consider binary pack
-    ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint8_t));
+    ASSERT_EQ(output.size(), ref_data.size() * sizeof(uint8_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
@@ -493,12 +499,12 @@ TEST(quantize_gpu, quantize_levels_256_2d_unsigned) {
 }
 
 TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
-    cldnn::engine& engine = get_test_engine();
-    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, {1, 16, 2, 1, 2}});
-    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
-    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
-    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    const cldnn::engine& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfzyx, {1, 16, 2, 1, 2}});
+    auto input_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
+    auto input_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
+    auto output_low = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_high = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, { -1.0f, 2.1f, 3.0f, 4.0f,
                          5.0f, 2.0f, 2.0f, 3.0f,
@@ -556,7 +562,7 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
 
     topology topology;
     topology.add(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         data("input_low", input_low),
         data("input_high", input_high),
         data("output_low", output_low),
@@ -570,14 +576,14 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
     auto outputs = network.execute();
 
     auto output = outputs.at("out").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<uint8_t>();
 
     // Check that layout and memory contains logical size of tensor
-    ASSERT_EQ(output->count(), ref_data.size());
-    ASSERT_EQ(output->get_layout().count(), ref_data.size());
+    ASSERT_EQ(output.count(), ref_data.size());
+    ASSERT_EQ(output.get_layout().count(), ref_data.size());
 
     // Check that memory physical size consider binary pack
-    ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint8_t));
+    ASSERT_EQ(output.size(), ref_data.size() * sizeof(uint8_t));
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         EXPECT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;

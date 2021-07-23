@@ -16,7 +16,7 @@ struct reorg_yolo_params : public base_params {
 
     uint32_t stride;
 
-    ParamsKey GetParamsKey() const override {
+    virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
         return k;
     }

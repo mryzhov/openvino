@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <errno.h>
 #include "XLinkSemaphore.h"
 #include "XLinkErrorUtils.h"
 #include "XLinkLog.h"
@@ -105,9 +104,7 @@ int XLink_sem_timedwait(XLink_sem_t* sem, const struct timespec* abstime)
     XLINK_RET_ERR_IF(abstime == NULL, -1);
 
     XLINK_RET_IF_FAIL(XLink_sem_inc(sem));
-    int ret;
-    while(((ret = sem_timedwait(&sem->psem, abstime)) == -1) && errno == EINTR)
-        continue;
+    int ret = sem_timedwait(&sem->psem, abstime);
     XLINK_RET_IF_FAIL(XLink_sem_dec(sem));
 
     return ret;

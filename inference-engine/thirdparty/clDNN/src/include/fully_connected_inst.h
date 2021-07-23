@@ -4,9 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/fully_connected.hpp"
+#include "api/fully_connected.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 #include <memory>
 
@@ -38,8 +37,8 @@ public:
 public:
     typed_primitive_inst(network_impl& network, fully_connected_node const& node);
 
-    memory::ptr weights_memory() const { return dep_memory_ptr(1); }
-    memory::ptr bias_memory() const { return dep_memory_ptr(2); }
+    memory_impl& weights_memory() const { return dep_memory(1); }
+    memory_impl& bias_memory() const { return dep_memory(2); }
 
     bool bias_term() const { return !argument.bias.empty(); }
 };

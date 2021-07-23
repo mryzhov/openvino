@@ -19,7 +19,7 @@ public:
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::PartialShape,
+    ngraph::Shape,
     std::string, // target device: CPU, GPU
     ConcatWithChildAndOutputTransformationParam,
     ngraph::pass::low_precision::LayerTransformation::Params // transformation parameters

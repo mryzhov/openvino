@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ngraph/axis_vector.hpp"
+#include "ngraph/runtime/reference/reshape.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph

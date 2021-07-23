@@ -2,31 +2,35 @@
 
 **Versioned name**: *Atan-1*
 
-**Category**: Arithmetic unary operation
+**Category**: Arithmetic unary operation 
 
 **Short description**: *Atan* performs element-wise inverse tangent (arctangent) operation with given tensor.
 
-**Detailed description**:  Operation takes one input tensor and performs the element-wise inverse tangent function on a given input tensor, based on the following mathematical formula:
+**Attributes**:
+
+    No attributes available.
+
+**Inputs**
+
+* **1**: An tensor of type T. **Required.**
+
+**Outputs**
+
+* **1**: The result of element-wise atan operation. A tensor of type T.
+
+**Types**
+
+* *T*: any numeric type.
+
+*atan* does the following with the input tensor *a*:
 
 \f[
 a_{i} = atan(a_{i})
 \f]
 
-**Attributes**: *Atan* operation has no attributes.
-
-**Inputs**
-
-* **1**: A tensor of type *T* and arbitrary shape. **Required.**
-
-**Outputs**
-
-* **1**: The result of element-wise *Atan* applied to the input tensor. A tensor of type *T* and same shape as the input tensor.
-
-**Types**
-
-* *T*: any supported numeric type.
-
 **Examples**
+
+*Example 1*
 
 ```xml
 <layer ... type="Atan">

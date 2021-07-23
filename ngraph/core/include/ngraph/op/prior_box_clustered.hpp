@@ -17,7 +17,6 @@ namespace ngraph
             // clip           Clip output to [0,1]
             // step_widths    Distance between prior box centers
             // step_heights   Distance between prior box centers
-            // step           Distance between prior box centers (when step_w = step_h)
             // offset         Box offset relative to top center of image
             // variances      Values to adjust prior boxes with
             std::vector<float> widths;
@@ -25,7 +24,6 @@ namespace ngraph
             bool clip = true;
             float step_widths = 0.0f;
             float step_heights = 0.0f;
-            float step = 0.0f;
             float offset = 0.0f;
             std::vector<float> variances;
         };
@@ -37,8 +35,8 @@ namespace ngraph
             class NGRAPH_API PriorBoxClustered : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"PriorBoxClustered", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 PriorBoxClustered() = default;
                 /// \brief Constructs a PriorBoxClustered operation
                 ///
@@ -56,7 +54,6 @@ namespace ngraph
                 virtual bool visit_attributes(AttributeVisitor& visitor) override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
 
             private:
                 PriorBoxClusteredAttrs m_attrs;

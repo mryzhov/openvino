@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/scatter_elements_update.hpp"
+#include "api/scatter_elements_update.hpp"
 #include "primitive_inst.h"
 #include <string>
 

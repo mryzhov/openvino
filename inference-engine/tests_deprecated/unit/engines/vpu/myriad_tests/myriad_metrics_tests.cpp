@@ -7,9 +7,6 @@
 #include "myriad_test_case.h"
 #include <memory>
 
-#include "vpu/vpu_plugin_config.hpp"
-#include "vpu/myriad_config.hpp"
-
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::VPUConfigParams;
@@ -196,14 +193,14 @@ TEST_P(MyriadRangeInferMetricsTestWithParam, CheckValues) {
     ASSERT_TRUE(act_res == exp_range_);
 }
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     MetricsTest,
     MyriadGetMetricsTestCaseWithParam,
     ::testing::Values(std::vector<std::string> {},
                       std::vector<std::string> {"2.1-ma2480"},
                       std::vector<std::string> {"2.1-ma2480", "3.1-ma2085"}));
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     MetricsTest,
     MyriadDeviceMetricsTestWithParam,
     Combine(::testing::Values(std::vector<std::string> {},
@@ -213,7 +210,7 @@ INSTANTIATE_TEST_SUITE_P(
                                 std::vector<std::string> {"1.4-ma2455"},
                                 std::vector<std::string> {"1.1-ma2080", "3.3-ma2085"})));
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     MetricsTest,
     MyriadRangeInferMetricsTestWithParam,
     ::testing::Values(std::tuple<range_type, std::string>(range_type(3,6,1), "-1"),

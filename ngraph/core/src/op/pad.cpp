@@ -15,7 +15,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v1::Pad, "Pad", 1);
+constexpr NodeTypeInfo op::v1::Pad::type_info;
 
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
@@ -232,10 +232,4 @@ bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVect
 {
     NGRAPH_OP_SCOPE(v1_Pad_evaluate);
     return evaluate_pad(outputs, inputs);
-}
-
-bool op::v1::Pad::has_evaluate() const
-{
-    NGRAPH_OP_SCOPE(v1_Pad_has_evaluate);
-    return true;
 }

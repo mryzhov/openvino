@@ -8,9 +8,11 @@ if (NOT NGRAPH_USE_PROTOBUF_LITE)
     addIeTargetTest(
             NAME ${TARGET_NAME}
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+            DEPENDENCIES
+                ngraph
+                onnx_importer
             LINK_LIBRARIES
-                gtest
-                gtest_main
+                unitTestUtils
                 onnx_importer
             DEFINES
                 ONNX_MODELS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"

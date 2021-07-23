@@ -12,6 +12,10 @@ namespace  GNAPluginNS {
 
 namespace memory {
 
+    std::string GNAVariableState::GetName() const {
+        return name;
+    }
+
     void GNAVariableState::Reset() {
         state->Reset();
     }
@@ -39,7 +43,7 @@ namespace memory {
         return state_precision;
     }
 
-    void GNAVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
+    void GNAVariableState::SetState(InferenceEngine::Blob::Ptr newState) {
         IE_ASSERT(newState != nullptr);
 
         auto data_ptr = newState->cbuffer().as<void*>();

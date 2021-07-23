@@ -89,18 +89,11 @@ inline std::string fileExt(const std::string& filename) {
 
 inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version& version) {
     os << "\t" << version.description << " version ......... ";
-    os << IE_VERSION_MAJOR << "." << IE_VERSION_MINOR << "." << IE_VERSION_PATCH;
+    os << version.apiVersion.major << "." << version.apiVersion.minor;
 
     os << "\n\tBuild ........... ";
     os << version.buildNumber;
 
-    return os;
-}
-
-inline std::ostream& operator<<(std::ostream& os, const InferenceEngine::Version* version) {
-    if (nullptr != version) {
-        os << std::endl << *version;
-    }
     return os;
 }
 

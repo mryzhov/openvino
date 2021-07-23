@@ -73,7 +73,6 @@ namespace ngraph
                      double dbias,
                      size_t size)
             {
-                NGRAPH_SUPPRESS_DEPRECATED_START
                 T alpha = static_cast<T>(dalpha);
                 T beta = static_cast<T>(dbeta);
                 T bias = static_cast<T>(dbias);
@@ -112,7 +111,6 @@ namespace ngraph
                     T x = arg[index];
                     out[index] = x / (std::pow(bias + scale * square_sum, beta));
                 }
-                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

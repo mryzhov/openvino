@@ -139,7 +139,7 @@ void LoadNetworkCacheTestBase::SetUp() {
     try {
         function = fGen(m_precision, m_batchSize);
     } catch (...) {
-        GTEST_SKIP();
+        SKIP();
     }
 
     std::stringstream ss;
@@ -168,11 +168,11 @@ void LoadNetworkCacheTestBase::Run() {
     };
     if (!function) {
         GTEST_COUT << "Can't create function " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_SKIP();
+        SKIP();
     }
     if (!importExportSupported(*core)) {
         GTEST_COUT << "Plugin doesn't support import and export - skipping test" << std::endl;
-        GTEST_SKIP();
+        SKIP();
     }
     cnnNetwork = CNNNetwork{function};
     ConfigureNetwork();
@@ -180,13 +180,13 @@ void LoadNetworkCacheTestBase::Run() {
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
         GenerateInputs();
         Infer();
-    } catch (const Exception &ex) {
+    } catch (InferenceEngineException &ex) {
         GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
         GTEST_COUT << "Exception [" << ex.what() << "]" << std::endl;
-        GTEST_SKIP();
+        SKIP();
     } catch (...) {
         GTEST_COUT << "Can't loadNetwork without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
-        GTEST_SKIP(); // skip caching test if such network is not supported by device at all
+        SKIP(); // skip caching test if such network is not supported by device at all
     }
     auto originalOutputs = GetOutputs();
 

@@ -5,9 +5,10 @@
 #pragma once
 
 #include <map>
+#include <string>
+
 #include <ngraph/op/constant.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <string>
 
 #include "transformations_visibility.hpp"
 
@@ -28,5 +29,5 @@ public:
     using MeanMap = std::map<std::string, std::shared_ptr<ngraph::op::v0::Constant>>;
 
     NGRAPH_RTTI_DECLARATION;
-    explicit AddMeanSubtract(const MeanMap& inputInfoMap);
+    explicit AddMeanSubtract(const MeanMap & inputInfoMap);
 };

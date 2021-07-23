@@ -37,10 +37,6 @@ namespace {
         0.0f, 1.5f
     };
 
-    const std::vector<float> step = {
-        0.0f
-    };
-
     const std::vector<float> offsets = {
         0.5f
     };
@@ -62,11 +58,10 @@ namespace {
         ::testing::ValuesIn(clips),
         ::testing::ValuesIn(step_widths),
         ::testing::ValuesIn(step_heights),
-        ::testing::ValuesIn(step),
         ::testing::ValuesIn(offsets),
         ::testing::ValuesIn(variances));
 
-    INSTANTIATE_TEST_SUITE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerTest,
+    INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerTest,
             ::testing::Combine(
                 layerSpeficParams,
                 ::testing::ValuesIn(netPrecisions),

@@ -25,7 +25,7 @@ set(FILTER "${DEFAULT_FILTER}${CUSTOM_FILTER}")
 
 execute_process(
     COMMAND
-        "${PYTHON_EXECUTABLE}"
+        python3
         "${CPPLINT_SCRIPT}"
         "--linelength=160"
         "--counting=detailed"

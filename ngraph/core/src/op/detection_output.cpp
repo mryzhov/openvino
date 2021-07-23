@@ -8,7 +8,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::DetectionOutput, "DetectionOutput", 0);
+constexpr NodeTypeInfo op::DetectionOutput::type_info;
 
 op::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
                                      const Output<Node>& class_preds,

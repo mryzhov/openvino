@@ -9,7 +9,7 @@
 #include "convolution_inst.h"
 #include "fully_connected_inst.h"
 #include "data_inst.h"
-#include "cldnn/runtime/memory.hpp"
+#include "memory_impl.h"
 #include "program_impl.h"
 
 #include <vector>
@@ -21,7 +21,7 @@ namespace {
 
 using shuffle_range = std::pair<int32_t, int32_t>;
 
-bool can_shuffle_features(program_node& node, stream& stream) {
+bool can_shuffle_features(program_node& node) {
     if (node.is_type<convolution>()) {
         auto& conv_node = node.as<convolution>();
         auto& wei_node = conv_node.weights();
@@ -46,7 +46,7 @@ bool can_shuffle_features(program_node& node, stream& stream) {
     if (pass_through) {
         // Primitives that are feature order invariant, pass-through shuffled features to users
         for (auto& user : node.get_users()) {
-            if (!can_shuffle_features(*user, stream))
+            if (!can_shuffle_features(*user))
                 return false;
         }
         return true;
@@ -55,19 +55,17 @@ bool can_shuffle_features(program_node& node, stream& stream) {
     return false;
 }
 
-void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, stream& stream) {
+void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges) {
     // Correct for shuffled features by shuffling input feature dimension in weights.
     // This allows to restore correct feature order on output and only changes calculation order.
     auto wei_layout = node.get_output_layout();
-    auto old_weights_memory = node.get_attached_memory_ptr();
+    auto& old_weights_memory = node.get_attached_memory();
     bool need_reset = static_cast<bool>(wei_layout.data_padding) || wei_layout.format.is_blocked();
-    auto new_weights_memory = old_weights_memory->get_engine()->allocate_memory(wei_layout, old_weights_memory->get_allocation_type(), need_reset);
+    auto new_weights_memory = old_weights_memory.get_engine()->allocate_memory(wei_layout, old_weights_memory.get_net_id(), need_reset);
 
     auto bytes_per_elem = data_type_traits::size_of(wei_layout.data_type);
-    mem_lock<uint8_t> old_weights_memory_lock{old_weights_memory, stream};
-    mem_lock<uint8_t> new_weights_memory_lock{new_weights_memory, stream};
-    auto old_ptr = old_weights_memory_lock.data();
-    auto new_ptr = new_weights_memory_lock.data();
+    auto old_ptr = static_cast<char*>(old_weights_memory.lock());
+    auto new_ptr = static_cast<char*>(new_weights_memory->lock());
     for (int32_t ofi = 0; ofi < wei_layout.size.batch[0]; ++ofi) {
         int32_t new_ifi = 0;
         for (auto& range : ranges) {
@@ -90,21 +88,23 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
             }
         }
     }
+    old_weights_memory.unlock();
+    new_weights_memory->unlock();
 
-    node.attach_memory(new_weights_memory, false);
+    node.attach_memory(*new_weights_memory, false);
 }
 
-void shuffle_features(program_node& node, const std::vector<shuffle_range>& ranges, stream& stream) {
+void shuffle_features(program_node& node, const std::vector<shuffle_range>& ranges) {
     if (node.is_type<convolution>()) {
         auto& conv = node.as<convolution>();
-        shuffle_weights(conv.weights().as<data>(), ranges, stream);
+        shuffle_weights(conv.weights().as<data>(), ranges);
     } else if (node.is_type<fully_connected>()) {
         auto& fc = node.as<fully_connected>();
-        shuffle_weights(fc.weights().as<data>(), ranges, stream);
+        shuffle_weights(fc.weights().as<data>(), ranges);
     } else {
         // General case for pass-through layers
         for (auto& user : node.get_users()) {
-            shuffle_features(*user, ranges, stream);
+            shuffle_features(*user, ranges);
         }
     }
 }
@@ -155,7 +155,7 @@ void concat_input_order::run(program_impl& p) {
         // Check that we can fuse shuffling to users
         bool can_shuffle_users = true;
         for (auto user : concat_node.get_users()) {
-            can_shuffle_users &= can_shuffle_features(*user, p.get_stream());
+            can_shuffle_users &= can_shuffle_features(*user);
         }
 
         if (!along_f || !no_fusing || !correct_format || !single_format || already_aligned || !can_shuffle_users)
@@ -207,7 +207,8 @@ void concat_input_order::run(program_impl& p) {
         mutable_prim->input = new_input_ids;
         // Correct users for shuffled features
         for (auto& user : concat_node.get_users()) {
-            shuffle_features(*user, shuffled_ranges, p.get_stream());
+            shuffle_features(*user, shuffled_ranges);
         }
     }
 }
+

@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <limits>
-#include <numeric>
 
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape_util.hpp"
@@ -18,35 +17,35 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void max(const T* arg, T* out, const Shape& in_shape, const AxisSet& reduction_axes)
+            void max(const T* arg,
+                     T* out,
+                     const Shape& in_shape,
+                     const AxisSet& reduction_axes,
+                     bool keep_dims)
             {
                 T minval = std::numeric_limits<T>::has_infinity
                                ? T(-std::numeric_limits<T>::infinity())
                                : std::numeric_limits<T>::min();
 
-                constexpr bool dont_keep_dims_in_output = false;
-                const auto out_shape = reduce(in_shape, reduction_axes, dont_keep_dims_in_output);
-                std::fill(out, out + shape_size(out_shape), minval);
+                auto out_shape = reduce(in_shape, reduction_axes, keep_dims);
+                CoordinateTransform output_transform(out_shape);
 
-                const auto in_strides = row_major_strides(in_shape);
-                const auto out_strides = row_major_strides(out_shape);
+                for (const Coordinate& output_coord : output_transform)
+                {
+                    out[output_transform.index(output_coord)] = minval;
+                }
 
-                CoordinateTransformBasic input_transform(in_shape);
+                CoordinateTransform input_transform(in_shape);
+
                 for (const Coordinate& input_coord : input_transform)
                 {
-                    const Coordinate output_coord =
-                        reduce(input_coord, reduction_axes, dont_keep_dims_in_output);
+                    Coordinate output_coord = reduce(input_coord, reduction_axes, keep_dims);
 
-                    const size_t in_idx = std::inner_product(
-                        input_coord.begin(), input_coord.end(), in_strides.begin(), 0);
-                    const size_t out_idx = std::inner_product(
-                        output_coord.begin(), output_coord.end(), out_strides.begin(), 0);
-
-                    const T x = arg[in_idx];
-                    const T max = out[out_idx];
+                    T x = arg[input_transform.index(input_coord)];
+                    T max = out[output_transform.index(output_coord)];
                     if (x > max)
                     {
-                        out[out_idx] = x;
+                        out[output_transform.index(output_coord)] = x;
                     }
                 }
             }

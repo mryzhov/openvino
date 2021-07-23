@@ -4,10 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-
-#include "cldnn/primitives/reorder.hpp"
+#include "api/reorder.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 #include <memory>
 
@@ -52,8 +50,8 @@ public:
 
 public:
     typed_primitive_inst(network_impl& network, reorder_node const& node);
-    memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
-    memory::ptr mean_memory() const { return dep_memory_ptr(1); }
+    memory_impl& mean_nv12_memory() const { return dep_memory(2); }
+    memory_impl& mean_memory() const { return dep_memory(1); }
 
     bool has_mean() const { return !argument.mean.empty(); }
 

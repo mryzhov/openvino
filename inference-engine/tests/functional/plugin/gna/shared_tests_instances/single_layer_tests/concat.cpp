@@ -11,8 +11,9 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-std::vector<size_t > axes = {1};
+std::vector<size_t > axes = {0, 1, 2, 3};
 std::vector<std::vector<std::vector<size_t>>> inShapes = {
+        {{10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
@@ -21,8 +22,9 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
 
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                          InferenceEngine::Precision::FP16};
+
 // TODO: Issue:  26421
-INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConcatLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_NoReshape, ConcatLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(axes),
                                 ::testing::ValuesIn(inShapes),
@@ -33,5 +35,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_NoReshape, ConcatLayerTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConcatLayerTest::getTestCaseName);
-
 }  // namespace

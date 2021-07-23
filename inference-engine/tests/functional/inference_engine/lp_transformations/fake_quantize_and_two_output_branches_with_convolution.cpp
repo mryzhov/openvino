@@ -48,7 +48,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter2;
     };
 
-    TestTransformationParams params;
+    low_precision::LayerTransformation::Params params;
     ActualValues actual;
     ExpectedValues expected;
 };
@@ -82,7 +82,7 @@ public:
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getReference(
             precision,
             shape,
-            TestTransformationParams::toParams(testValues.params),
+            testValues.params,
             testValues.expected.fqOnData,
             testValues.expected.precisionBeforeOp,
             testValues.expected.dequantizationBefore,
@@ -135,42 +135,22 @@ const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues> fak
             {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
         }
     },
-    // TODO: LPT: issue #58685
-//    // not update precisions
-//    {
-//        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
-//        {
-//            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-//            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-//            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-//        },
-//        {
-//            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-//            ngraph::element::f32,
-//            {{}, {}, {}},
-//            ngraph::element::f32,
-//            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-//            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
-//            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
-//            {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
-//        }
-//    },
     // not update precisions
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
-            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
         },
         {
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
             ngraph::element::f32,
             {{}, {}, {}},
             ngraph::element::f32,
-            { },
+            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
             {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
-            { },
+            { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
             {{}, {}, {{ 1.f }, ngraph::element::f32, { 1, 1, 1, 1 }}},
         }
     }
@@ -181,7 +161,7 @@ const std::vector<ngraph::Shape> shapes = {
     // TODO: 3D tensor
 };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
     ::testing::Combine(

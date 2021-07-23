@@ -196,10 +196,9 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v):
         not_satisfied_v.append((name, 'installed: {}'.format(installed_v), 'required: {} {}'.format(sign, required_v)))
 
 
-def get_environment_setup(framework):
+def get_environment_setup():
     """
     Get environment setup such as Python version, TensorFlow version
-    :param framework: framework name
     :return: a dictionary of environment variables
     """
     env_setup = dict()
@@ -208,10 +207,9 @@ def get_environment_setup(framework):
                                        sys.version_info.micro)
     env_setup['python_version'] = python_version
     try:
-        if framework == 'tf':
-            exec("import tensorflow")
-            env_setup['tensorflow'] = sys.modules["tensorflow"].__version__
-            exec("del tensorflow")
+        exec("import tensorflow")
+        env_setup['tensorflow'] = sys.modules["tensorflow"].__version__
+        exec("del tensorflow")
     except (AttributeError, ImportError):
         pass
     env_setup['sys_platform'] = sys.platform
@@ -230,7 +228,7 @@ def check_requirements(framework=None):
     :param framework: framework name
     :return: exit code (0 - execution successful, 1 - error)
     """
-    env_setup = get_environment_setup(framework)
+    env_setup = get_environment_setup()
     if framework is None:
         framework_suffix = ""
     elif framework == "tf":

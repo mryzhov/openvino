@@ -14,11 +14,11 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API ReduceMeanTransformation : public ReduceBaseTransformation {
+class TRANSFORMATIONS_API ReduceMeanTransformation : public ReduceBaseTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
-    ReduceMeanTransformation(const Params& params = Params());
+    ReduceMeanTransformation(const Params& params);
     bool isPrecisionPreserved(std::shared_ptr<Node> reduce) const noexcept override;
+    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> reduce) const override;
 
 protected:

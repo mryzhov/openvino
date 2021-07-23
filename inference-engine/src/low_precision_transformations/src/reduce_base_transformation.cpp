@@ -13,7 +13,7 @@ namespace low_precision {
 
 ReduceBaseTransformation::ReduceBaseTransformation(const Params& params) : LayerTransformation(params) {}
 
-bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) {
+bool ReduceBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher& m) const {
     if (!canBeTransformed(context, m.get_match_root())) {
         return false;
     }
@@ -36,10 +36,6 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
         return false;
     }
 
-    if (NetworkHelper::isDQByDynamicDimension(reduce)) {
-        return false;
-    }
-
     const auto axesConstant = as_type_ptr<ngraph::opset1::Constant>(reduce->get_input_node_shared_ptr(1));
     if (axesConstant == nullptr) {
         return false;
@@ -48,10 +44,6 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     // get reduced axes in normal form (without negative values)
     const auto constData = axesConstant->cast_vector<int64_t>();
     const auto inputRank = reduce->get_input_partial_shape(0).rank();
-    if (inputRank.is_dynamic()) {
-        return false;
-    }
-
     const std::vector<size_t> axes = ngraph::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {

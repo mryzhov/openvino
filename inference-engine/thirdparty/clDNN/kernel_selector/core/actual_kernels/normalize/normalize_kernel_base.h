@@ -18,7 +18,7 @@ struct normalize_params : public base_params {
     float epsilon = 1e-10f;
     DataTensor scaleTable;
 
-    ParamsKey GetParamsKey() const override {
+    virtual ParamsKey GetParamsKey() const {
         ParamsKey k = base_params::GetParamsKey();
 
         k.EnableNormalizeMode(normMode);

@@ -51,14 +51,8 @@
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
 #include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
-#include <vpu/configuration/options/disable_convert_stages.hpp>
-#include <vpu/configuration/options/ignore_unknown_layers.hpp>
-#include <vpu/configuration/options/custom_layers.hpp>
-#include <vpu/configuration/options/config_file.hpp>
-#include <vpu/utils/skip_layers.hpp>
-
 namespace vpu {
-FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICore> core)
+FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
     : _stageBuilder(std::move(stageBuilder)),
     _core(core),
     parsers{{
@@ -156,7 +150,6 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const std::shared_ptr<ie::ICo
         {"ExpGatherElements",                                  LAYER_PARSER(parseGatherElements)},
         {"Round",                                              LAYER_PARSER(parseRound)},
         {"CTCGreedyDecoderSeqLen",                             LAYER_PARSER(parseCTCGreedyDecoderSeqLen)},
-        {"Abs",                                                LAYER_PARSER(parseAbs)}
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -199,17 +192,14 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     // ConvertPrecision must be executed before ConvertOpSet1ToLegacy due to this pass works with operations from opsets only
-    static const precisions_array precisions = {
-        { ngraph::element::i64, ngraph::element::i32 },
-        { ngraph::element::u64, ngraph::element::i32 },
-        { ngraph::element::u32, ngraph::element::i32 },
-        { ngraph::element::boolean, ngraph::element::i32 }
-    };
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions, myriadTypeToFuseMap);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32, myriadTypeToFuseMap);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u64, ngraph::element::i32, myriadTypeToFuseMap);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u32, ngraph::element::i32, myriadTypeToFuseMap);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::i32, myriadTypeToFuseMap);
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     //  ConvertOpSet1ToLegacy can produce constants with I64 precision
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }}, myriadTypeToFuseMap);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32, myriadTypeToFuseMap);
     manager.register_pass<vpu::MergeSubsequentDSROperations>();
 
     auto pass_config = manager.get_pass_config();
@@ -228,9 +218,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
                               ngraph::pass::ConvertStridedSliceToCropMatcher>(transformationPredicate);
 
     manager.run_passes(nGraphFunc);
-    IE_SUPPRESS_DEPRECATED_START
     return ie::CNNNetwork(ie::details::convertFunctionToICNNNetwork(nGraphFunc, network));
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 std::set<std::string> FrontEnd::checkSupportedLayers(const ie::CNNNetwork& network) {
@@ -443,7 +431,7 @@ void FrontEnd::processTrivialCases(const Model& model) {
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
-    VPU_THROW_UNSUPPORTED_LAYER_UNLESS(env.config.get<IgnoreUnknownLayersOption>(), "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
+    VPU_THROW_UNSUPPORTED_UNLESS(env.config.ignoreUnknownLayers, "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
     _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
 }
 
@@ -473,17 +461,15 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
     // Parse custom layers
     //
 
-    auto customLayers = env.config.get<CustomLayersOption>().empty()
-        ? env.config.get<ConfigFileOption>() : env.config.get<CustomLayersOption>();
-    if (!customLayers.empty()) {
-        env.log->trace("Parse custom layers : %s", customLayers);
+    if (!env.config.customLayers.empty()) {
+        env.log->trace("Parse custom layers : %s", env.config.customLayers);
         VPU_LOGGER_SECTION(env.log);
 
-        if (env.platform != ncDevicePlatform_t::NC_MYRIAD_X) {
+        if (env.platform != Platform::MYRIAD_X) {
             VPU_THROW_FORMAT("Custom layers are not supported for %v platforms", env.platform);
         }
 
-        _customLayers = CustomLayer::loadFromFile(customLayers);
+        _customLayers = CustomLayer::loadFromFile(env.config.customLayers);
     }
 
     //
@@ -502,6 +488,10 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
     {
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
+
+        if (network.getFunction() && env.config.forceDeprecatedCnnConversion) {
+            network = convertNetwork(network);
+        }
 
         detectNetworkBatch(network, model);
 
@@ -550,7 +540,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         processTrivialCases(model);
 
-        if (!CompileEnv::get().config.get<DisableConvertStagesOption>()) {
+        if (!CompileEnv::get().config.disableConvertStages) {
             addDataTypeConvertStages(model);
         }
 
@@ -572,7 +562,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         getInputAndOutputData(model, layer, inputs, outputs);
 
-        if (skipAllLayers(env.config) || skipLayerType(env.config, layer->type)) {
+        if (env.config.skipAllLayers() || env.config.skipLayerType(layer->type)) {
             _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
             supportedLayer(layer);
             continue;

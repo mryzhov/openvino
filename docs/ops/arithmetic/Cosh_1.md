@@ -2,31 +2,35 @@
 
 **Versioned name**: *Cosh-1*
 
-**Category**: Arithmetic unary operation
+**Category**: Arithmetic unary operation 
 
-**Short description**: *Cosh* performs element-wise hyperbolic cosine operation on a given input tensor.
+**Short description**: *Cosh* performs element-wise hyperbolic cosine operation with given tensor.
 
-**Detailed description**: *Cosh* performs element-wise hyperbolic cosine (cosh) operation on a given input tensor, based on the following mathematical formula:
+**Attributes**:
 
-\f[
-a_{i} = cosh(a_{i})
-\f]
-
-**Attributes**: *Cosh* operation has no attributes.
+    No attributes available.
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: An tensor of type T. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise *Cosh* operation. A tensor of type *T* and the same shape as the input tensor.
+* **1**: The result of element-wise cosh operation. A tensor of type T.
 
 **Types**
 
 * *T*: any numeric type.
 
-**Example**
+*Cosh* does the following with the input tensor *a*:
+
+\f[
+a_{i} = cosh(a_{i})
+\f]
+
+**Examples**
+
+*Example 1*
 
 ```xml
 <layer ... type="Cosh">

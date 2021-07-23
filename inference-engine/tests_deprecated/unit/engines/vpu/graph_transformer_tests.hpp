@@ -176,12 +176,10 @@ void CheckStageTestInds(const StageRange& stageRange, std::initializer_list<int>
     }
 }
 
-PluginConfiguration createConfiguration();
-
 class GraphTransformerTest : public TestsCommon {
 public:
-    ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
-    PluginConfiguration config;
+    Platform platform = Platform::MYRIAD_X;
+    CompilationConfig config;
 
     StageBuilder::Ptr stageBuilder;
     FrontEnd::Ptr frontEnd;
@@ -200,7 +198,7 @@ public:
     TestModel CreateTestModel(const DataDesc& dataDesc);
 
 private:
-    std::shared_ptr<MockICore> _mockCore = std::make_shared<MockICore>();
+    MockICore  _mockCore;
     Logger::Ptr _log;
     std::list<ModelPtr> _models;
 };

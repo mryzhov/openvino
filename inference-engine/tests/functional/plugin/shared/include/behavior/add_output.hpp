@@ -21,7 +21,7 @@ protected:
     std::vector<std::string> outputsToAdd;
     std::string deviceName;
 
-    void SetUp() override;
+    void SetUp();
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<addOutputsParams> &obj);
 };

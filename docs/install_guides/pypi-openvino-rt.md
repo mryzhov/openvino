@@ -1,10 +1,8 @@
 # Intel® Distribution of OpenVINO™ Toolkit Runtime Package
-Copyright © 2018-2021 Intel Corporation
-> **LEGAL NOTICE**: Your use of this software and any required dependent software (the
-“Software Package”) is subject to the terms and conditions of the [software license agreements](https://software.intel.com/content/dam/develop/external/us/en/documents/intel-openvino-license-agreements.pdf) for the Software Package, which may also include notices, disclaimers, or
-license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.
 
->Intel is committed to the respect of human rights and avoiding complicity in human rights abuses, a policy reflected in the [Intel Global Human Rights Principles](https://www.intel.com/content/www/us/en/policy/policy-human-rights.html). Accordingly, by accessing the Intel material on this platform you agree that you will not use the material in a product or application that causes or contributes to a violation of an internationally recognized human right.
+> **LEGAL NOTICE**: Your use of this software and any required dependent software (the
+“Software Package”) is subject to the terms and conditions of the [software license agreements](https://software.intel.com/en-us/license/eula-for-intel-software-development-products) for the Software Package, which may also include notices, disclaimers, or
+license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.
 
 ## Introduction
 
@@ -15,7 +13,7 @@ The Intel® Distribution of OpenVINO™ toolkit\*:
 - Supports heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 - Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
 
-The **runtime package** includes the following components installed by default:
+**The Runtime Package Includes the Following Components Installed by Default:**
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -39,7 +37,11 @@ The table below lists supported operating systems and Python* versions required 
 
 ## Install the Runtime Package
 
-### Step 1. Set Up Python Virtual Environment
+### Step 1. Install External Software Dependencies
+
+On Windows* OS you are required to install [Microsoft* Visual C++ Redistributable Package (x64)](https://visualstudio.microsoft.com/downloads/#microsoft-visual-c-redistributable-for-visual-studio-2019) to be able to run OpenVINO™ applications.
+
+### Step 2. Set Up Python Virtual Environment
 
 To avoid dependency conflicts, use a virtual environment. Skip this
    step only if you do want to install all dependencies globally.
@@ -51,9 +53,9 @@ python -m venv openvino_env
 ```
 
 > **NOTE**: On Linux and macOS, you may need to type `python3` instead of
-`python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
+`python`. You may also need to [install pip](https://pip.pypa.io/en/stable/installing/).
 
-### Step 2. Activate Virtual Environment
+### Step 3. Activate Virtual Environment
 
 On Linux and macOS:
 ```sh
@@ -64,14 +66,14 @@ On Windows:
 openvino_env\Scripts\activate
 ```
 
-### Step 3. Set Up and Update PIP to the Highest Version
+### Step 4. Set Up and Update pip to the Highest Version
 
 Run the command below:
 ```sh
 python -m pip install --upgrade pip
 ```
 
-### Step 4. Install the Package
+### Step 5. Install the Package
 
 Run the command below: <br>
 
@@ -79,7 +81,7 @@ Run the command below: <br>
    pip install openvino
    ```
 
-### Step 5. Verify that the Package Is Installed
+### Step 6. Verify that the Package is Installed
 
 Run the command below:
 ```sh
@@ -88,22 +90,8 @@ python -c "from openvino.inference_engine import IECore"
    
 You will not see any error messages if installation finished successfully.
 
-## Troubleshooting
-
-### Error: Microsoft Visual C++ 14.0 is required. Get it with "Build Tools for Visual Studio"
-
-On Windows* some dependencies may require compilation from source when installing. To resolve this issue, you need to install [Build Tools for Visual Studio* 2019](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2019) and repeat package installation.
-
-### ImportError: libpython3.7m.so.1.0: cannot open shared object file: No such file or directory
-
-To resolve missing external dependency on Ubuntu*, execute the following command:
-```sh
-sudo apt-get install libpython3.7
-```
-
 ## Additional Resources
 
-- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
-- [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org)
-- [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
+- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit).
+- [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org).
 

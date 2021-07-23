@@ -4,6 +4,7 @@
 
 #include "ngraph/opsets/opset5.hpp"
 #include "shared_test_classes/subgraph/split_concat_memory.hpp"
+#include "common_test_utils/xml_net_builder/ir_net.hpp"
 
 namespace SubgraphTestsDefinitions {
 

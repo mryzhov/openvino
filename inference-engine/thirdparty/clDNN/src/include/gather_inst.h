@@ -4,9 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/gather.hpp"
+#include "api/gather.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 
 namespace cldnn {

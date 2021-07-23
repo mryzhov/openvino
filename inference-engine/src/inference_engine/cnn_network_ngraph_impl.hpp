@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A file containing ngraph implementation of public CNNNetwork wrapper
+ * @brief A file containing ngraph implementation of public ICNNNetwork interface
  * @file cnn_network_ngraph_impl.hpp
  */
 
@@ -33,10 +33,8 @@
 namespace InferenceEngine {
 namespace details {
 
-IE_SUPPRESS_DEPRECATED_START
-
 /**
- * @brief Ngraph-based implementation of the CNNNetwork.
+ * @brief Ngraph-based implementation of the ICNNNetwork interface.
  */
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl) final : public ICNNNetwork {
 public:
@@ -79,17 +77,12 @@ public:
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
-    StatusCode serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
-        noexcept override;
-
-    StatusCode serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
-        noexcept override;
-
     StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept override;
 
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
 protected:
+    virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false) const;
     std::shared_ptr<::ngraph::Function> _ngraph_function;
 
 private:
@@ -111,11 +104,7 @@ private:
      * @brief Reshape on the same shape
      */
     void reshape();
-    void reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes);
-    void validateFunctionNames() const;
+    void reshape(const std::map<std::string, std::vector<size_t>>& inputShapes);
 };
-
-IE_SUPPRESS_DEPRECATED_END
-
 }  // namespace details
 }  // namespace InferenceEngine

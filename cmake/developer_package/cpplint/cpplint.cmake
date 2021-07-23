@@ -3,15 +3,15 @@
 #
 
 if(ENABLE_CPPLINT)
-    find_package(PythonInterp 3 QUIET)
+    find_package(Python3 COMPONENTS Interpreter)
 
-    if(NOT PYTHONINTERP_FOUND)
+    if(NOT Python3_Interpreter_FOUND)
         message(WARNING "Python3 interpreter was not found (required for cpplint check)")
         set(ENABLE_CPPLINT OFF)
     endif()
 endif()
 
-if(ENABLE_CPPLINT AND NOT TARGET cpplint_all)
+if(ENABLE_CPPLINT)
     add_custom_target(cpplint_all ALL)
     set_target_properties(cpplint_all PROPERTIES FOLDER cpplint)
     set(CPPLINT_ALL_OUTPUT_FILES "" CACHE INTERNAL "All cpplint output files")
@@ -68,7 +68,6 @@ function(add_cpplint_target TARGET_NAME)
                 "${output_file}"
             COMMAND
                 "${CMAKE_COMMAND}"
-                -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
                 -D "CPPLINT_SCRIPT=${IEDevScripts_DIR}/cpplint/cpplint.py"
                 -D "INPUT_FILE=${source_file}"
                 -D "OUTPUT_FILE=${output_file}"

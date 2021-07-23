@@ -17,7 +17,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple <
     element::Type,
-    PartialShape,
+    Shape,
     std::string,
     ngraph::builder::subgraph::DequantizationOperations,
     bool> FuseConvertTransformationParams;
@@ -30,6 +30,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

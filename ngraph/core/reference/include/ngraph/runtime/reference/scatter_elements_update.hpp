@@ -33,7 +33,6 @@ namespace ngraph
                 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
                 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2
 
-                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform indices_transform{indices_shape};
                 CoordinateTransform data_transform{data_shape};
 
@@ -48,7 +47,6 @@ namespace ngraph
                                  ".");
                     out_buf[data_transform.index(out_cord)] = updates[indices_idx];
                 }
-                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

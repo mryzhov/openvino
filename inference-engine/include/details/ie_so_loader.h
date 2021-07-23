@@ -4,7 +4,7 @@
 
 /**
  * @brief A header file for definition of abstraction over platform specific shared objects
- *
+ * 
  * @file ie_so_loader.h
  */
 #pragma once
@@ -25,9 +25,9 @@ class INFERENCE_ENGINE_API_CLASS(SharedObjectLoader) {
 
 public:
     /**
-     * @brief Default constructor
+     * @brief A shared pointer to SharedObjectLoader
      */
-    SharedObjectLoader() = default;
+    using Ptr = std::shared_ptr<SharedObjectLoader>;
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**

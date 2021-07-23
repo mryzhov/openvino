@@ -65,11 +65,9 @@ inline std::pair<InferenceEngine::CNNLayerPtr, InferenceEngine::CNNLayerPtr> Fin
         if (parent->outData.size() != 1 || InferenceEngine::getInputTo(parent->outData[0]).size() != 1) {
             return std::make_pair(nullptr, nullptr);
         }
-        // Check if reshape is expected for this pattern:
-        // the previous layer has number of channels > 1 and one of height/width dimensions is also > 1
-        if (GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::C) != 1 &&
-            (GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::H) != 1 ||
-             GetDataDimSize(parent->outData[0], InferenceEngine::DataDimName::W) != 1)) {
+        auto parent_dims = parent->outData[0]->getDims();
+        // Check if the previous layer has all dimensions except one to be equal to 1
+        if (std::count_if(std::begin(parent_dims), std::end(parent_dims), [](size_t dim) { return dim != 1; }) > 1) {
             return std::make_pair(nullptr, nullptr);
         }
     }

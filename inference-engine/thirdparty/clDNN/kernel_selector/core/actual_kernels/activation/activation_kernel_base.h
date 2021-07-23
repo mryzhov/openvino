@@ -15,7 +15,7 @@ struct activation_params : public base_params {
 
     MultiDataTensor inputActivationParams;
 
-    ParamsKey GetParamsKey() const override {
+    virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
         if (!inputActivationParams.empty()) {
             k.EnableActivationAdditionalParamsAsInput();

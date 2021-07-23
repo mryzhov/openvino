@@ -4,8 +4,8 @@
 
 #include "crop_inst.h"
 #include "primitive_type_base.h"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "memory_impl.h"
+#include "error_handler.h"
 #include "json_object.h"
 #include <string>
 

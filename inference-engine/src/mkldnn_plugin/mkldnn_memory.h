@@ -172,6 +172,5 @@ private:
 };
 
 using MKLDNNMemoryPtr = std::shared_ptr<MKLDNNMemory>;
-using MKLDNNMemoryCPtr = std::shared_ptr<const MKLDNNMemory>;
 
 }  // namespace MKLDNNPlugin

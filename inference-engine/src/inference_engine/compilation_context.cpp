@@ -42,7 +42,7 @@ static int32_t as_int32_t(T v) {
 }
 
 class OstreamHashWrapper final: public std::streambuf {
-    std::size_t m_res = 0;
+    std::size_t    m_res = {};
 public:
     std::size_t getResult() const { return m_res; }
     std::streamsize xsputn(const char* s, std::streamsize n) override {
@@ -65,7 +65,7 @@ public:
 //////////////////////////////////////////////////
 
 std::string NetworkCompilationContext::calculateFileInfo(const std::string& filePath) {
-    size_t seed = 0;
+    size_t seed {};
     auto absPath = filePath;
     try {
         absPath = FileUtils::absoluteFilePath(filePath);
@@ -101,7 +101,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
     serializer.run_on_function(net.getFunction());
 
     // 2. Compute hash on serialized data and options
-    size_t seed = 0;
+    size_t seed {};
     seed = hash_combine(seed, xmlHash.getResult());
     seed = hash_combine(seed, binHash.getResult());
 
@@ -163,7 +163,7 @@ std::string NetworkCompilationContext::computeHash(const CNNNetwork& network,
 std::string NetworkCompilationContext::computeHash(const std::string& modelName,
                                const std::map<std::string, std::string>& compileOptions) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::IE_LT, "NetworkCompilationContext::computeHash - ModelName");
-    size_t seed = 0;
+    size_t seed {};
     try {
         seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
     } catch (...) {

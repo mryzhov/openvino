@@ -78,7 +78,7 @@ KernelsData EltwiseKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params, co
 
     std::pair<std::string, std::string> jit;
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
 
     try {
         auto cldnn_jit = GetJitConstants(newParams);
@@ -97,12 +97,11 @@ KernelsData EltwiseKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params, co
     size_t x = input.X().v;
     size_t global_size = featuresRoundedUp * batches * x * y;
 
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.workGroups.global = {std::max(global_size / 8, (size_t)1), 1, 1};
+    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
 
-    kernel.params.workGroups.global = {std::max(global_size / 8, (size_t)1), 1, 1};
-    kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global, params.engineInfo);
-
-    kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
+    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
     return {kd};
 }

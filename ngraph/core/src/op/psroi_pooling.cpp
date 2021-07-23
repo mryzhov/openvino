@@ -9,7 +9,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::PSROIPooling, "PSROIPooling", 0);
+constexpr NodeTypeInfo op::PSROIPooling::type_info;
 
 op::PSROIPooling::PSROIPooling(const Output<Node>& input,
                                const Output<Node>& coords,

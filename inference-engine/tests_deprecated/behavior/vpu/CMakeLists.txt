@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-disable_deprecated_warnings()
-
 function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
+
     # Common tests for HDDL MYRIAD KMB
     file(GLOB_RECURSE TEST_INCLUDE
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/*.hpp)
@@ -55,9 +54,11 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
         target_compile_definitions(${TARGET_NAME} PRIVATE __PC__)
 
         target_include_directories(${TARGET_NAME} PRIVATE
-                $<TARGET_PROPERTY:vpu_graph_transformer,INTERFACE_INCLUDE_DIRECTORIES>
+                ${IE_MAIN_SOURCE_DIR}/src/vpu/common/include
                 ${CMAKE_CURRENT_SOURCE_DIR}/myriad_tests
-                ${IE_MAIN_SOURCE_DIR}/src/inference_engine
+                ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
+                ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include
+                ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include/watchdog
                 ${XLINK_INCLUDE}
                 ${XLINK_PLATFORM_INCLUDE})
         target_link_libraries(${TARGET_NAME} PRIVATE mvnc)
@@ -65,11 +66,6 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
 
     add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
     set_property(TEST ${TARGET_NAME} PROPERTY LABELS VPU MYRIAD)
-
-    install(TARGETS ${TARGET_NAME}
-            RUNTIME DESTINATION tests
-            COMPONENT tests
-            EXCLUDE_FROM_ALL)
 
     add_dependencies(${TARGET_NAME} ${DEPENDENCIES})
 endfunction(enable_vpu)

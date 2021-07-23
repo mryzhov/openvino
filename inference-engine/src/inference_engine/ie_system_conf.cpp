@@ -111,4 +111,9 @@ std::vector<int> getAvailableCoresTypes() {
 }
 #endif
 
+std::exception_ptr& CurrentException() {
+     static thread_local std::exception_ptr currentException = nullptr;
+    return currentException;
+}
+
 }  // namespace InferenceEngine

@@ -23,6 +23,7 @@ public:
 
 private:
     HeteroInferRequest::Ptr                     _heteroInferRequest;
+    std::vector<InferenceEngine::StatusCode>    _statusCodes;
 };
 
 }  // namespace HeteroPlugin

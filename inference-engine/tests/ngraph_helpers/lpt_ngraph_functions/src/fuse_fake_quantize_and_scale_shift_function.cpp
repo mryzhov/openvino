@@ -15,9 +15,9 @@ using namespace ngraph::pass;
 
 std::shared_ptr<ngraph::Function> FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::PartialShape& inputShape,
+    const ngraph::Shape& inputShape,
     const FakeQuantizeOnData& fakeQuantizeOnData) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
     const std::shared_ptr<Node> fakeQuantize = ngraph::builder::makeFakeQuantize(

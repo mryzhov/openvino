@@ -8,7 +8,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::CTCGreedyDecoder, "CTCGreedyDecoder", 0);
+constexpr NodeTypeInfo op::CTCGreedyDecoder::type_info;
 
 op::CTCGreedyDecoder::CTCGreedyDecoder(const Output<Node>& input,
                                        const Output<Node>& seq_len,

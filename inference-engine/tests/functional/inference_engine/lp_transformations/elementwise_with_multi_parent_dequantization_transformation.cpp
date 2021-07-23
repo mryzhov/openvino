@@ -45,7 +45,7 @@ public:
 
     ngraph::element::Type precision;
     ngraph::Shape inputShape;
-    TestTransformationParams params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
 };
@@ -73,20 +73,21 @@ public:
         actualFunction = ElementwiseWithMultiParentDequantizationFunction::get(
             testValues.precision,
             testValues.inputShape,
-            TestTransformationParams::toParams(testValues.params),
+            testValues.params,
             testValues.actual.precision1,
             testValues.actual.dequantization1,
             testValues.actual.precision2,
             testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(testValues.params);
+        transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
+            low_precision::LayerTransformation::Params(testValues.params));
         transform.transform(actualFunction);
 
         referenceFunction = ElementwiseWithMultiParentDequantizationFunction::get(
             testValues.precision,
             testValues.inputShape,
-            TestTransformationParams::toParams(testValues.params),
+            testValues.params,
             testValues.expected.precision1,
             testValues.expected.dequantization1,
             testValues.expected.precision2,
@@ -153,7 +154,7 @@ const std::vector<ElementwiseWithMultiParentDequantizationTransformationTestValu
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     ElementwiseWithMultiParentDequantizationTransformation,
     ::testing::ValuesIn(addTransformationTestValues),

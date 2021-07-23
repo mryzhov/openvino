@@ -13,7 +13,6 @@
 #include <vector>
 #include <tuple>
 #include <set>
-#include <iostream>
 
 // #define ENABLE_ENV
 // #define ENABLE_ENV_PRINT
@@ -106,7 +105,7 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
     // TODO: find a better place to located this assignment
     if (kernelsData.size()) {
         kernelsData[0].kernelName = kernelName;
-        kernelsData[0].kernels[0].params.layerID = params.layerID;
+        kernelsData[0].kernels[0].layerID = params.layerID;
     }
 
     return kernelsData;
@@ -124,7 +123,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
     std::tuple<std::string, int> cachedKernelConfig;
     if (options.tuningParams.mode == TuningMode::TUNING_DISABLED && !int8_kernel) {  // Try to load kernel/config from offline cache
 #if ENABLE_OFFLINE_TUNING_CACHE
-        cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache.get(), params);
+        cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache, params);
 #else
         return GetNaiveBestKernel(params, options, kType);
 #endif
@@ -146,7 +145,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                 if (kds.size() && kds[0].kernels.size()) {
                     kernelsData = kds;
                     kernelsData[0].kernelName = cachedkernelName;
-                    kernelsData[0].kernels[0].params.layerID = params.layerID;
+                    kernelsData[0].kernels[0].layerID = params.layerID;
                 }
                 break;
             }
@@ -219,7 +218,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
 
     if (kernelsData.size()) {
         kernelsData[0].kernelName = kernelName;
-        kernelsData[0].kernels[0].params.layerID = params.layerID;
+        kernelsData[0].kernels[0].layerID = params.layerID;
         autoTuner.StoreKernel(options.tuningParams.cacheFilePath,
                                 params,
                                 kernelName,

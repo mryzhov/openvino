@@ -19,7 +19,7 @@ public:
     virtual ~PermuteKernelRef() {}
 
     bool Validate(const Params& p, const optional_params& o) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const;
     ParamsKey GetSupportedKey() const override;
 
 protected:

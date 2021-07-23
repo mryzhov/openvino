@@ -34,32 +34,31 @@ one at a time to mitigate memory statistics pollution. You can use
 
 Stress tests should be built in 2 steps.
 
-1. Build `openvino`
+1. Build `dldt`
 
-Build `openvino` as usual but with `-DENABLE_TESTS=ON`.
+Build `dldt` as usual but with `-DENABLE_TESTS=ON`.
 
 2. Build `stress_tests`
 
 Stress tests depend from the Inference Engine Developer Package located in the
-`openvino` build directory.
+`dldt` build directory.
 
 In the command line snippet bellow, it is assumed that the Inference Engine
 Developer Package CMake module can be found in the directory `build` under
-`openvino` repository root.
+`dldt` repository root.
 
 ``` bash
 (
-export OPENVINO_BUILD_DIR=$(git rev-parse --show-toplevel)/build
+export DLDT_BUILD_DIR=$(git rev-parse --show-toplevel)/build
 mkdir -p build && cd build && \
-cmake -DInferenceEngineDeveloperPackage_DIR=$OPENVINO_BUILD_DIR .. && make -j$(nproc) \
+cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_BUILD_DIR .. && make -j$(nproc) \
 )
 ```
 
 ### Preparing Test Data
 
-Stress tests may work with models from [Open Model Zoo][open_model_zoo]. To use it, 
-download and convert models to IRs using `./scripts/get_testdata.py` script.
-Script will update test config file with data required for OMZ models execution.
+Stress test use models from [Open Model Zoo][open_model_zoo]. Download and
+convert models to IRs using `./scripts/get_testdata.py` script.
 
 From Intel network you can use models from cache at `vdp_tests` file share.
 Refer to [VDP shared folders][VDP-shared-folders] on using file shares.
@@ -67,14 +66,12 @@ Refer to [VDP shared folders][VDP-shared-folders] on using file shares.
 ### Running Tests
 
 ``` bash
-gtest-parallel <openvino_bin>/StressMemLeaksTests
+gtest-parallel ./MemCheckTests
 ```
 
-For MemCheckTests preferable way is:
 ``` bash
-python ./scripts/run_memcheck.py --gtest_parallel <gtest_parallel_py_path> 
-<openvino_bin>/MemCheckTests -- --test_conf=<test_conf_path> --refs_conf=<refs_conf_path>
-``` 
+gtest-parallel ./StressMemLeaksTests
+```
 
 MemCheckTests logs can be used to gather reference values based on current
 memory consumption:
@@ -87,4 +84,4 @@ grep -rh ./MemCheckTests-logs -e ".*<model " | sed -e "s/.*<model /<model /" | s
 
 [VDP-shared-folders]: https://wiki.ith.intel.com/display/DLSDK/VDP+shared+folders
 [gtest-parallel]: https://github.com/google/gtest-parallel
-[open_model_zoo]: https://github.com/openvinotoolkit/open_model_zoo
+[open_model_zoo]: https://github.com/opencv/open_model_zoo

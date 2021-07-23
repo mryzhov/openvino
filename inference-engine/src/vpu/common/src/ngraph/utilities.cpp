@@ -6,6 +6,7 @@
 
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset5.hpp"
+#include "ngraph/evaluator.hpp"
 
 #include <numeric>
 

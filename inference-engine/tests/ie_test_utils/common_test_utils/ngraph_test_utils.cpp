@@ -22,6 +22,9 @@
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+
+#include "details/ie_exception.hpp"
+
 namespace {
 inline namespace tools {
 bool isTypeRelaxed(const std::string &type) {
@@ -779,14 +782,6 @@ void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     }
 }
 
-void set_tensor_name(ngraph::Output<ngraph::Node> output, const std::string & name) {
-    output.get_tensor_ptr()->set_names({name});
-}
-
-void set_tensor_names(ngraph::Output<ngraph::Node> output, const std::unordered_set<std::string> & names) {
-    output.get_tensor_ptr()->set_names(names);
-}
-
 NGRAPH_RTTI_DEFINITION(TestOpMultiOut, "TestOp", 0);
 
 namespace attributes {
@@ -806,13 +801,9 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ngraph::ValueAc
             auto a = ngraph::as_type<
                     ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
                     &adapter)) {
-        const auto beg = static_cast<unsigned char *>(a->get()->get_ptr());
+        const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
         const auto end = beg + a->get()->size();
         insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
-    } else if (auto framework_node_attr = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
-        insert(name, framework_node_attr->get());
-    } else if (auto variable_ptr = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
-        insert(name, variable_ptr->get());
     } else {
         m_read_result += "store   attr [ ERR ]: " + name +
                          " [drop `void` comparison which is '" + adapter.get_type_info().name +
@@ -890,10 +881,6 @@ void ReadAndCompareAttributes::verify_others(const std::string &name, ngraph::Va
                     ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
                     &adapter)) {
         verify_mem_buf(name, a->get());
-    } else if (auto attrs = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
-        verify(name, attrs->get());
-    } else if (auto variable_ptr = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
-        verify(name, variable_ptr->get());
     } else {
         m_cmp_result += "compare attr [ ERR ]: " + name +
                         " [drop `void` comparison which is '" + adapter.get_type_info().name +

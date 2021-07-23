@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/include_all.cl"
 
 #define INPUT_VECTOR_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
 #define OUTPUT_VECTOR_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)

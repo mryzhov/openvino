@@ -15,7 +15,7 @@
 
 #include <ie_parameter.hpp>
 #include <cpp/ie_cnn_network.h>
-#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include <cpp/ie_executable_network.hpp>
 
 #include "threading/ie_itask_executor.hpp"
 
@@ -63,25 +63,8 @@ public:
      * operation
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal LoadNetwork(const CNNNetwork& network,
-                                                    const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config = {}) = 0;
-
-    /**
-     * @brief Creates an executable network from a model file.
-     *
-     * Users can create as many networks as they need and use
-     *        them simultaneously (up to the limitation of the hardware resources)
-     *
-     * @param modelPath Path to model
-     * @param deviceName Name of device to load network to
-     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
-     * operation
-     * @return An executable network reference
-     */
-    virtual SoExecutableNetworkInternal LoadNetwork(const std::string& modelPath,
-                                                    const std::string& deviceName,
-                                                    const std::map<std::string, std::string>& config) = 0;
+    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
+                                          const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -91,9 +74,8 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual SoExecutableNetworkInternal ImportNetwork(std::istream& networkModel,
-                                                      const std::string& deviceName = {},
-                                                      const std::map<std::string, std::string>& config = {}) = 0;
+    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+                                            const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
      * @brief Query device if it supports specified network with specified configuration
@@ -127,19 +109,22 @@ public:
     virtual std::vector<std::string> GetAvailableDevices() const = 0;
 
     /**
-     * @brief Checks whether device supports Export & Import functionality of network
-     *
-     * @param deviceName - A name of a device to get a metric value.
-     * @return True if device has IMPORT_EXPORT_SUPPORT metric in SUPPORTED_METRICS and
-     * this metric returns 'true', False otherwise.
-     */
-    virtual bool DeviceSupportsImportExport(const std::string& deviceName) const = 0;
-
-    /**
      * @brief Default virtual destructor
      */
     virtual ~ICore() = default;
 };
+
+/**
+ * @brief Type of magic value
+ * @ingroup ie_dev_api_plugin_api
+ */
+using ExportMagic = std::array<char, 4>;
+
+/**
+ * @brief Magic number used by ie core to identify exported network with plugin name
+ * @ingroup ie_dev_api_plugin_api
+ */
+constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
 
 /**
  * @private

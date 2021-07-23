@@ -8,17 +8,16 @@
 #include "myriad_executable_network.h"
 #include "myriad_mvnc_wrapper.h"
 #include "myriad_metrics.h"
-#include "vpu/configuration/plugin_configuration.hpp"
 #include <memory>
 #include <string>
 #include <vector>
 #include <map>
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 
 namespace vpu {
 namespace MyriadPlugin {
 
-class Engine : public ie::IInferencePlugin {
+class Engine : public ie::InferencePluginInternal {
 public:
     explicit Engine(std::shared_ptr<IMvnc> mvnc);
 
@@ -28,7 +27,7 @@ public:
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
-    ie::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
+    ie::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
             const ie::CNNNetwork& network,
             const std::map<std::string, std::string>& config) override;
 
@@ -36,7 +35,11 @@ public:
             const ie::CNNNetwork& network,
             const std::map<std::string, std::string>& config) const override;
 
-    using ie::IInferencePlugin::ImportNetwork;
+    using ie::InferencePluginInternal::ImportNetwork;
+
+    ie::IExecutableNetworkInternal::Ptr ImportNetwork(
+            const std::string& modelFileName,
+            const std::map<std::string, std::string>& config) override;
 
     ie::IExecutableNetworkInternal::Ptr ImportNetwork(
             std::istream& model,
@@ -51,7 +54,7 @@ public:
             const std::map<std::string, ie::Parameter>& options) const override;
 
 private:
-    PluginConfiguration _parsedConfig;
+    MyriadConfig _parsedConfig;
     std::vector<DevicePtr> _devicePool;
     std::shared_ptr<IMvnc> _mvnc;
     std::shared_ptr<MyriadMetrics> _metrics;

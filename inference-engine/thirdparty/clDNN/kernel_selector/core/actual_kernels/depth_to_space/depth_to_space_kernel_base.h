@@ -18,6 +18,8 @@ struct depth_to_space_params : public base_params {
     , mode(DepthToSpaceMode::DEPTH_FIRST) {}
     size_t block_size;
     DepthToSpaceMode mode;
+
+    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -43,7 +45,7 @@ public:
     };
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    virtual bool Validate(const Params&, const optional_params&) const;
     virtual JitConstants GetJitConstants(const depth_to_space_params& params) const;
     virtual CommonDispatchData SetDefault(const depth_to_space_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;

@@ -12,7 +12,6 @@
 #include "snippets/pass/assign_registers.hpp"
 
 #include <ngraph/pass/manager.hpp>
-#include <transformations/serialize.hpp>
 
 #include <algorithm>
 #include <memory>
@@ -177,7 +176,9 @@ void snippets::op::Subgraph::canonicalize(const BlockedShapeVector& output_shape
             if (param->get_element_type() != std::get<2>(input_shapes[i])) {
                 throw ngraph::ngraph_error("changes in presision. Is it legal??");
             }
-            m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(std::get<2>(input_shapes[i]), std::get<0>(input_shapes[i])));
+            if (param->get_shape().size() != std::get<0>(input_shapes[i]).size()) {
+                m_body->replace_parameter(i, std::make_shared<opset1::Parameter>(std::get<2>(input_shapes[i]), std::get<0>(input_shapes[i])));
+            }
         }
     }
 
@@ -203,19 +204,15 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     manager.run_passes(m_body);
 }
 
-snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes,
-                                                    ngraph::pass::Manager opt) {
+snippets::Schedule snippets::op::Subgraph::generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes) {
     INTERNAL_OP_SCOPE(Subgraph);
     NGRAPH_CHECK(m_generator != nullptr, "generate is called while generator is not set");
 
     canonicalize(output_shapes, input_shapes);
     convert_to_snippet_dialect();
-    opt.run_passes(m_body);
 
     // generation flow
     snippets::pass::AssignRegisters().run_on_function(m_body);
-
-    // shedule generation should go here and be target agnostic
 
     // actual code emission
     ngraph::snippets::code ptr = m_generator->generate(m_body);
@@ -344,13 +341,4 @@ void snippets::op::Subgraph::print_statistics(bool verbose) {
     if (verbose) {
         this->print();
     }
-}
-
-void snippets::op::Subgraph::serialize() const {
-    std::stringstream xmlFile, binFile;
-    ngraph::pass::Serialize serializer(xmlFile, xmlFile, ngraph::pass::Serialize::Version::IR_V10);
-    serializer.run_on_function(get_body());
-    auto m_constants = binFile.str();
-    auto m_model = xmlFile.str();
-    std::cout << m_model << std::endl;
 }

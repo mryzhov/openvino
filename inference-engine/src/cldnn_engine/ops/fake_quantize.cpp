@@ -7,7 +7,7 @@
 
 #include "ngraph/op/fake_quantize.hpp"
 
-#include "cldnn/primitives/quantize.hpp"
+#include "api/quantize.hpp"
 
 namespace CLDNNPlugin {
 

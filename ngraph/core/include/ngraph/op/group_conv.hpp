@@ -71,9 +71,7 @@ namespace ngraph
                 const PadType& get_auto_pad() const { return m_auto_pad; }
                 void set_auto_pad(const PadType& auto_pad) { m_auto_pad = auto_pad; }
                 /// \return The default value for Convolution.
-                NGRAPH_SUPPRESS_DEPRECATED_START
                 virtual std::shared_ptr<Node> get_default_value() const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
 
             protected:
                 Strides m_strides;
@@ -87,8 +85,8 @@ namespace ngraph
             class NGRAPH_API GroupConvolutionBackpropData : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"GroupConvolutionBackpropData", 1};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a batched-convolution data batch-backprop operation.
                 GroupConvolutionBackpropData();
                 // clang-format off

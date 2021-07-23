@@ -24,7 +24,6 @@ namespace ngraph
                                   size_t sequence_axis,
                                   const U* sequence_lengths)
             {
-                NGRAPH_SUPPRESS_DEPRECATED_START
                 CoordinateTransform input_transform(arg_shape);
                 for (const Coordinate& in_coord : input_transform)
                 {
@@ -52,7 +51,6 @@ namespace ngraph
                     out_coord[sequence_axis] = sequence_index;
                     out[input_transform.index(out_coord)] = arg[input_transform.index(in_coord)];
                 }
-                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         } // namespace reference
     }     // namespace runtime

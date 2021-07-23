@@ -32,7 +32,6 @@ Download and installs the Intel® Graphics Compute Runtime for OpenCL™ Driver 
 
     Available options:
     -y                      Replace the currently installed driver with the newer version.
-    -a, --auto              Auto-mode for detecting best driver for current OS and hardware.
     -d, --install_driver    Manually select driver version to one of available to install drivers.
                             Default value: $INSTALL_DRIVER_VERSION
                             Available to install drivers: ${AVAILABLE_DRIVERS[*]}
@@ -59,10 +58,6 @@ do
     ;;
         -y)
         agreement=true
-        shift
-    ;;
-        -a|--auto)
-        auto_mode=true
         shift
     ;;
         --no_numa)
@@ -528,19 +523,14 @@ check_specific_generation()
     if [[ ! -z "$specific_generation" && "$INSTALL_DRIVER_VERSION" != '20.35.17767' ]]; then
         echo "$(basename "$0"): Detected 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)."
         echo "Driver version 20.35.17767 is going to be installed to fully utilize hardware features and performance."
-        if [ "$auto_mode" == true ]; then
-            INSTALL_DRIVER_VERSION='20.35.17767'
-            return 0
-        else
-            while true; do
-                read -p "You are still able to use the older version 19.41.14441. Use the older driver? (y/n) [n] " yn
-                yn=${yn:=n}
-                case $yn in
-                    [Yy]*) return 0 ;;
-                    [Nn]*) INSTALL_DRIVER_VERSION='20.35.17767' && return 0 ;;
-                esac
-            done
-        fi
+        while true; do
+            read -p "You are still able to use the older version 19.41.14441. Use the older driver? (y/n) [n] " yn
+            yn=${yn:=n}
+            case $yn in
+                [Yy]*) return 0 ;;
+                [Nn]*) INSTALL_DRIVER_VERSION='20.35.17767' && return 0 ;;
+            esac
+        done        
     fi
 }
 

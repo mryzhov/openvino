@@ -50,10 +50,8 @@ public:
 
     ICNNNetwork* getNetwork(ResponseDesc* resp) noexcept;
 
-    CNNNetwork getNetwork() {
-        IE_SUPPRESS_DEPRECATED_START
-        return CNNNetwork(network);
-        IE_SUPPRESS_DEPRECATED_END
+    std::shared_ptr<ICNNNetwork> getNetwork() {
+        return network;
     }
 
     StatusCode getName(char* name, size_t len, ResponseDesc* resp) noexcept {

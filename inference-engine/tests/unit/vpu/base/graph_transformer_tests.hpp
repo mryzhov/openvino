@@ -130,12 +130,10 @@ void checkStageTestInds(const StageRange& stageRange, std::initializer_list<int>
 
 bool checkExecutionOrder(const Model& model, const std::vector<int>& execOrder);
 
-PluginConfiguration createConfiguration();
-
 class GraphTransformerTest : public ::testing::Test {
 public:
-    ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;
-    PluginConfiguration config;
+    Platform platform = Platform::MYRIAD_X;
+    CompilationConfig config;
 
     StageBuilder::Ptr stageBuilder;
     FrontEnd::Ptr frontEnd;
@@ -154,7 +152,7 @@ public:
     TestModel CreateTestModel();
 
 private:
-    std::shared_ptr<MockICore> _mockCore = std::make_shared<MockICore>();
+    MockICore  _mockCore;
     Logger::Ptr _log;
     std::list<ModelPtr> _models;
 };

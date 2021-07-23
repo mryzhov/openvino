@@ -6,8 +6,7 @@
 // Convert the results using the inverse F(2,3) Winograd transform.
 // --------------------------------------------------------------------------------------------------------------------------------
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/include_all.cl"
 
 KERNEL(reorder_from_winograd_2x3_s1)(global const UNIT_TYPE* input_winograd, global float* output)
 {
@@ -15,14 +14,14 @@ KERNEL(reorder_from_winograd_2x3_s1)(global const UNIT_TYPE* input_winograd, glo
     const int winograd_tile_height = 1;
     const int output_tile_width = 2;
     const int output_tile_height = 1;
-
+    
     const int batch_idx = (uint)get_global_id(0) / INPUT0_FEATURE_NUM;
     const int feature_idx = (uint)get_global_id(0) % INPUT0_FEATURE_NUM;
     const int tile_idx_x = get_global_id(1);
     const int tile_idx_y = get_global_id(2);
 
     const int out_x_idx = (tile_idx_x * output_tile_width);
-
+    
     //input is in bxyf -- no paddings allowed in winograd domain
     int input_idx = batch_idx * INPUT0_BATCH_PITCH +
                     feature_idx * INPUT0_FEATURE_PITCH +

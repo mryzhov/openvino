@@ -29,6 +29,7 @@ else:
   * **Description**: *levels* is the number of quantization levels (e.g. 2 is for binarization, 255/256 is for int8 quantization)
   * **Range of values**: an integer greater than or equal to 2
   * **Type**: `int`
+  * **Default value**: None
   * **Required**: *yes*
 
 * *auto_broadcast*
@@ -36,34 +37,29 @@ else:
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
     * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md),
-    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
+    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>
+    * *pdpd* - PaddlePaddle-style implicit broadcasting.
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: `X` - tensor of type *T_F* and arbitrary shape. **Required.**
+*   **1**: `X` - multidimensional input tensor of floating type to be quantized. Required.
 
-*   **2**: `input_low` - tensor of type *T_F* with minimum limit for input value. The shape must be broadcastable to the shape of *X*. **Required.**
+*   **2**: `input_low` - minimum limit for input value. The shape must be broadcastable to the shape of *X*. Required.
 
-*   **3**: `input_high` - tensor of type *T_F* with maximum limit for input value. Can be the same as `input_low` for binarization. The shape must be broadcastable to the shape of *X*. **Required.**
+*   **3**: `input_high` - maximum limit for input value. Can be the same as `input_low` for binarization. The shape must be broadcastable to the shape of *X*. Required.
 
-*   **4**: `output_low` - tensor of type *T_F* with minimum quantized value. The shape must be broadcastable to the shape of *X*. **Required.**
+*   **4**: `output_low` - minimum quantized value. The shape must be broadcastable to the shape of *X*. Required.
 
-*   **5**: `output_high` - tensor of type *T_F* with maximum quantized value. The shape must be broadcastable to the of *X*. **Required.**
+*   **5**: `output_high` - maximum quantized value. The shape must be broadcastable to the of *X*. Required.
 
 **Outputs**:
 
-*   **1**: output tensor of type *T_F* with shape and type matching the 1st input tensor *X*.
-
-**Types**
-
-*   *T_F*: any supported floating point type.
+*   **1**: `Y` - resulting tensor with shape and type matching the 1st input tensor *X*.
 
 **Example**
-
 ```xml
 <layer … type="FakeQuantize"…>
     <data levels="2"/>

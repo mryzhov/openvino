@@ -3,31 +3,36 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <gtest/gtest.h>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/convolution.hpp"
+#include "api/eltwise.hpp"
+#include "api/reorder.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include "test_utils/test_utils.h"
+#include <api/data.hpp>
+#include <api/depth_to_space.hpp>
 
-#include "test_utils.h"
-
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/convolution.hpp>
-#include <cldnn/primitives/eltwise.hpp>
-#include <cldnn/primitives/reorder.hpp>
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/depth_to_space.hpp>
-#include <cldnn/primitives/fused_conv_eltwise.hpp>
+#include <api_extension/fused_conv_eltwise.hpp>
 
 #include <cassert>
 #include <cmath>
+#include <gmock/gmock.h>
 #include <limits>
 
 using namespace cldnn;
-using namespace ::tests;
+using namespace tests;
 using namespace testing;
 
 TEST(fused_conv_eltwise, basic_0)
 {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 4, 5 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
 
     set_values(input, {
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
@@ -35,7 +40,7 @@ TEST(fused_conv_eltwise, basic_0)
     });
 
     topology topology(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         data("weights", weights),
         convolution("conv", "input", { "weights" }),
         eltwise("eltwise", "input", "conv", eltwise_mode::sum),
@@ -51,7 +56,7 @@ TEST(fused_conv_eltwise, basic_0)
     EXPECT_EQ(outputs.begin()->first, "out");
 
     auto output = outputs.begin()->second.get_memory();
-    auto&& out_layout = output->get_layout();
+    auto&& out_layout = output.get_layout();
 
     EXPECT_EQ(out_layout.format, format::bfyx);
     EXPECT_EQ(out_layout.size.batch[0], 1);
@@ -62,11 +67,11 @@ TEST(fused_conv_eltwise, basic_0)
 
 TEST(fused_conv_eltwise, basic_image2d)
 {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 4, 128, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 3, 256, 4 } });
-    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 12, 4, 1, 1 } });
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 4, 128, 2 } });
+    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 3, 256, 4 } });
+    auto weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 12, 4, 1, 1 } });
 
     auto input_data1 = generate_random_4d<FLOAT16>(1, 4, 2, 128, -1, 1);
     auto input_data1_bfyx = flatten_4d(format::bfyx, input_data1);
@@ -81,8 +86,8 @@ TEST(fused_conv_eltwise, basic_image2d)
     set_values(weights, weights_data_bfyx);
 
     topology topology_act(
-        input_layout("input", input->get_layout()),
-        input_layout("input2", input2->get_layout()),
+        input_layout("input", input.get_layout()),
+        input_layout("input2", input2.get_layout()),
         data("weights", weights),
         convolution("conv", "input", { "weights" }),
         depth_to_space("depth_to_space", "conv", 2, depth_to_space_mode::blocks_first),
@@ -100,11 +105,11 @@ TEST(fused_conv_eltwise, basic_image2d)
     EXPECT_EQ(outputs_act.begin()->first, "eltwise");
 
     auto output_act = outputs_act.begin()->second.get_memory();
-    cldnn::mem_lock<uint8_t> out_act_ptr(output_act, get_test_stream());
+    auto out_act_ptr = output_act.pointer<uint8_t>();
 
     topology topology_ref(
-        input_layout("input", input->get_layout()),
-        input_layout("input2", input2->get_layout()),
+        input_layout("input", input.get_layout()),
+        input_layout("input2", input2.get_layout()),
         data("weights", weights),
         convolution("conv", "input", { "weights" }),
         depth_to_space("depth_to_space", "conv", 2, depth_to_space_mode::blocks_first),
@@ -122,7 +127,7 @@ TEST(fused_conv_eltwise, basic_image2d)
     EXPECT_EQ(outputs_ref.begin()->first, "out");
 
     auto output_ref = outputs_ref.begin()->second.get_memory();
-    cldnn::mem_lock<uint8_t> out_ref_ptr(output_ref, get_test_stream());
+    auto out_ref_ptr = output_ref.pointer<uint8_t>();
 
     for (int i = 0;i < 3 * 256 * 4;i++) {
         EXPECT_EQ(out_act_ptr[i], out_ref_ptr[i]);
@@ -131,10 +136,10 @@ TEST(fused_conv_eltwise, basic_image2d)
 
 TEST(fused_conv_eltwise, dont_fuse_if_conv_elt_are_outputs)
 {
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 5 } });
-    auto weights = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 5 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, {
         1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
@@ -142,7 +147,7 @@ TEST(fused_conv_eltwise, dont_fuse_if_conv_elt_are_outputs)
         });
 
     topology topology(
-        input_layout("input", input->get_layout()),
+        input_layout("input", input.get_layout()),
         data("weights", weights),
         convolution("conv", "input", { "weights" }),
         eltwise("out", "input", "conv", eltwise_mode::sum));
@@ -157,7 +162,7 @@ TEST(fused_conv_eltwise, dont_fuse_if_conv_elt_are_outputs)
     EXPECT_EQ(outputs.begin()->first, "out");
 
     auto output = outputs.begin()->second.get_memory();
-    auto&& out_layout = output->get_layout();
+    auto&& out_layout = output.get_layout();
 
     EXPECT_EQ(out_layout.format, format::bfyx);
     EXPECT_EQ(out_layout.size.batch[0], 1);
@@ -206,7 +211,7 @@ protected:
 
     void do_test(const fused_conv_eltwise& fused_prim)
     {
-        auto& engine = get_test_engine();
+        const auto& engine = get_test_engine();
 
         int n_features = static_cast<int>(biases_values.size());
 
@@ -215,11 +220,19 @@ protected:
         auto biases_shape = tensor(1, n_features, 1, 1);
         auto sum_input_shape = tensor(1, n_features, 2, 1);
 
-        auto input = engine.allocate_memory({type_to_data_type<InputTy>::value, format::bfyx, input_shape});
-        auto weights = engine.allocate_memory({type_to_data_type<WeightsTy>::value, format::bfyx, weights_shape});
+        auto input = memory::allocate(
+            engine,
+            {type_to_data_type<InputTy>::value, format::bfyx, input_shape});
+        auto weights = memory::allocate(
+            engine,
+            {type_to_data_type<WeightsTy>::value, format::bfyx, weights_shape});
 
-        auto biases = engine.allocate_memory({type_to_data_type<BiasesTy>::value, format::bfyx, biases_shape});
-        auto sum_input = engine.allocate_memory({type_to_data_type<InputTy>::value, format::bfyx, sum_input_shape});
+        auto biases = memory::allocate(
+            engine,
+            {type_to_data_type<BiasesTy>::value, format::bfyx, biases_shape});
+        auto sum_input = memory::allocate(
+            engine,
+            {type_to_data_type<InputTy>::value, format::bfyx, sum_input_shape});
 
         set_values(input, input_values);
         std::vector<WeightsTy> post_processed_weights_values(n_features
@@ -241,7 +254,7 @@ protected:
         set_values(biases, biases_values);
         set_values(sum_input, non_conv_input_values);
 
-        the_topology.add(input_layout("input", input->get_layout()));
+        the_topology.add(input_layout("input", input.get_layout()));
         the_topology.add(data("weights", weights));
         the_topology.add(data("biases", biases));
         the_topology.add(data("sum_input", sum_input));
@@ -256,8 +269,8 @@ protected:
         auto outputs = network.execute();
 
         auto output_memory = outputs.at("fused_conv").get_memory();
-        auto output_layout = output_memory->get_layout();
-        cldnn::mem_lock<OutputTy> output_ptr(output_memory, get_test_stream());
+        auto output_layout = output_memory.get_layout();
+        auto output_ptr = output_memory.pointer<OutputTy>();
         int y_size = output_layout.size.spatial[1];
         int x_size = output_layout.size.spatial[0];
         int f_size = output_layout.size.feature[0];

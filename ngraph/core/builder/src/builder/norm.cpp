@@ -29,8 +29,7 @@ namespace ngraph
                 shared_ptr<Node> lp_norm(const Output<Node>& value,
                                          size_t p_norm,
                                          const Output<Node>& reduction_axes,
-                                         float bias,
-                                         bool keep_dims)
+                                         float bias)
                 {
                     // In general "entrywise" lp-norm for matrix `A` is defined as following double
                     // sum:
@@ -41,8 +40,7 @@ namespace ngraph
 
                     // Get inner part of equation: abs_values^p_node, then sum over reduction_axes.
                     shared_ptr<Node> values{make_shared<ngraph::opset1::Power>(abs_values, p_node)};
-                    values =
-                        make_shared<ngraph::opset1::ReduceSum>(values, reduction_axes, keep_dims);
+                    values = make_shared<ngraph::opset1::ReduceSum>(values, reduction_axes, false);
 
                     shared_ptr<Node> bias_node{ngraph::opset1::Constant::create(
                         values->get_element_type(), Shape{}, {bias})};
@@ -60,8 +58,7 @@ namespace ngraph
         }     // namespace detail
 
         shared_ptr<Node> builder::opset1::l0_norm(const Output<Node>& value,
-                                                  const Output<Node>& reduction_axes,
-                                                  bool keep_dims)
+                                                  const Output<Node>& reduction_axes)
         {
             // L0 norm returns number of elements different from zero.
             const shared_ptr<Node> zero_node{
@@ -71,18 +68,16 @@ namespace ngraph
             const shared_ptr<Node> non_zero_values = make_shared<ngraph::opset1::Convert>(
                 make_shared<ngraph::opset1::NotEqual>(value, zero_node), value.get_element_type());
 
-            return make_shared<ngraph::opset1::ReduceSum>(
-                       non_zero_values, reduction_axes, keep_dims)
+            return make_shared<ngraph::opset1::ReduceSum>(non_zero_values, reduction_axes, false)
                 ->add_provenance_group_members_above({value});
         }
 
         shared_ptr<Node> builder::opset1::l1_norm(const Output<Node>& value,
                                                   const Output<Node>& reduction_axes,
-                                                  float bias,
-                                                  bool keep_dims)
+                                                  float bias)
         {
             const shared_ptr<Node> values{make_shared<ngraph::opset1::ReduceSum>(
-                make_shared<ngraph::opset1::Abs>(value), reduction_axes, keep_dims)};
+                make_shared<ngraph::opset1::Abs>(value), reduction_axes, false)};
 
             const shared_ptr<Node> bias_node{
                 ngraph::opset1::Constant::create(values->get_element_type(), Shape{}, {bias})};
@@ -97,10 +92,8 @@ namespace ngraph
                                                   BiasMode bias_mode,
                                                   bool keep_dims)
         {
-            shared_ptr<Node> pow = make_shared<ngraph::opset1::Power>(
-                value, make_shared<ngraph::opset1::Constant>(value.get_element_type(), Shape{}, 2));
-            shared_ptr<Node> values{
-                make_shared<ngraph::opset1::ReduceSum>(pow, reduction_axes, keep_dims)};
+            shared_ptr<Node> values{make_shared<ngraph::opset1::ReduceSum>(
+                make_shared<ngraph::opset1::Multiply>(value, value), reduction_axes, keep_dims)};
 
             shared_ptr<Node> bias_node{
                 ngraph::opset1::Constant::create(values->get_element_type(), Shape{}, {bias})};
@@ -124,28 +117,27 @@ namespace ngraph
         shared_ptr<Node> builder::opset1::lp_norm(const Output<Node>& value,
                                                   const Output<Node>& reduction_axes,
                                                   size_t p_norm,
-                                                  float bias,
-                                                  bool keep_dims)
+                                                  float bias)
         {
             // The number of non-zero elements
             if (p_norm == 0)
             {
-                return opset1::l0_norm(value, reduction_axes, keep_dims);
+                return opset1::l0_norm(value, reduction_axes);
             }
             //  sum of absolute values.
             else if (p_norm == 1)
             {
-                return opset1::l1_norm(value, reduction_axes, bias, keep_dims);
+                return opset1::l1_norm(value, reduction_axes, bias);
             }
             // sqrt of sum of squares - Euclidean norm
             else if (p_norm == 2)
             {
-                return opset1::l2_norm(value, reduction_axes, bias, BiasMode::ADD, keep_dims);
+                return opset1::l2_norm(value, reduction_axes, bias);
             }
             // generic case
             else
             {
-                return detail::opset1::lp_norm(value, p_norm, reduction_axes, bias, keep_dims);
+                return detail::opset1::lp_norm(value, p_norm, reduction_axes, bias);
             }
         }
 

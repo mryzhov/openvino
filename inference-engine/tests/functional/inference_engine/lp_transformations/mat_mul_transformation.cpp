@@ -12,6 +12,7 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
+#include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -21,8 +22,8 @@
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 namespace {
+
 using namespace testing;
-using namespace ngraph;
 using namespace ngraph::pass;
 
 class MatMullTransformationTestValues {
@@ -46,7 +47,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations result;
     };
 
-    TestTransformationParams params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
 };
@@ -76,14 +77,14 @@ inline std::ostream& operator << (std::ostream& out, const MatMullTransformation
 
 typedef std::tuple<
     ngraph::element::Type,
-    std::pair<ngraph::PartialShape, ngraph::PartialShape>,
+    std::pair<ngraph::Shape, ngraph::Shape>,
     MatMullTransformationTestValues> MatMulTransformationParams;
 
 class MatMulTransformation : public LayerTransformation, public testing::WithParamInterface<MatMulTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
-        const std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes = std::get<1>(GetParam());
+        const std::pair<ngraph::Shape, ngraph::Shape> shapes = std::get<1>(GetParam());
         const MatMullTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MatMulFunction::getOriginal(
@@ -94,7 +95,6 @@ public:
             shapes.second,
             testValues.actual.precisionBeforeDequantization2,
             testValues.actual.dequantization2);
-
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
         transformer.transform(actualFunction);
@@ -122,7 +122,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
         ngraph::element::Type precision;
-        std::pair<ngraph::PartialShape, ngraph::PartialShape> shapes;
+        std::pair<ngraph::Shape, ngraph::Shape> shapes;
         MatMullTransformationTestValues testValues;
         std::tie(precision, shapes, testValues) = obj.param;
 
@@ -143,36 +143,33 @@ const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f16
 };
 
-namespace testValues1 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapes = {
-    {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
-    },
+const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {
     { { 1, 16, 384, 64 }, { 1, 16, 64, 384 } },
     { { 4, 16, 384, 64 }, { 4, 16, 64, 384 } }
 };
 
+const std::vector<bool> updatePrecisions = { true, false };
+
 std::vector<MatMullTransformationTestValues> testValues = {
-     // U8 + I8: Constant on dequantization operations on 0 branch
-     {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
-        {
-            ngraph::element::u8,
-            { ngraph::element::f32, {}, { {0.02f}, ngraph::element::f32, {}, true, 0 } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-        },
-        {
-            ngraph::element::u8,
-            {},
-            ngraph::element::i8,
-            {},
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { {}, {}, { 0.0006f } },
-        }
-     },
+    // U8 + I8: Constant on dequantization operations on 0 branch
+    // {
+    //    LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+    //    {
+    //        ngraph::element::u8,
+    //        { ngraph::element::f32, { 127.f }, { {0.02f}, ngraph::element::f32, {}, true, 0 } },
+    //        ngraph::element::i8,
+    //        { ngraph::element::f32, {}, { 0.03f } },
+    //    },
+    //    {
+    //        ngraph::element::u8,
+    //        { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
+    //        ngraph::element::i8,
+    //        { },
+    //        ngraph::element::f32,
+    //        ngraph::element::f32,
+    //        { {}, {}, { 0.0006f } },
+    //    }
+    // },
     // U8 + I8
     {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
@@ -341,24 +338,6 @@ std::vector<MatMullTransformationTestValues> testValues = {
         }
     },
     {
-        LayerTransformation::createParamsI8I8().setUpdatePrecisions(true),
-        {
-            ngraph::element::f32,
-            { {}, {}, { 0.02f } },
-            ngraph::element::f32,
-            { {}, {}, { 0.03f } },
-        },
-        {
-            ngraph::element::f32,
-            { {}, {}, { 0.02f } },
-            ngraph::element::f32,
-            { {}, {}, { 0.03f } },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { {}, {}, {} },
-        }
-    },
-    {
         LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
         {
             ngraph::element::f32,
@@ -378,7 +357,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     MatMulTransformation,
     ::testing::Combine(
@@ -386,123 +365,5 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
     MatMulTransformation::getTestCaseName);
-} // namespace testValues1
 
-namespace testValues2 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapes = {
-    {
-        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), 3, Dimension::dynamic(), Dimension::dynamic() }
-    },
-    { { 1, 3, 384, 64 }, { 1, 3, 64, 384 } },
-};
-
-std::vector<MatMullTransformationTestValues> testValues = {
-    // U8 + I8: Constant on dequantization operations on 0 branch
-    {
-       LayerTransformation::createParamsU8U8(),
-       {
-           ngraph::element::u8,
-           { ngraph::element::f32, {}, { {0.02f, 0.03f, 0.01f} } },
-           ngraph::element::i8,
-           { ngraph::element::f32, {}, { 0.03f } },
-       },
-       {
-           ngraph::element::u8,
-           {},
-           ngraph::element::i8,
-           {},
-           ngraph::element::f32,
-           ngraph::element::f32,
-           { {}, {}, { {0.0006f, 0.0009f, 0.0003f} } },
-       }
-    },
-    {
-       LayerTransformation::createParamsU8U8(),
-       {
-           ngraph::element::u8,
-           { ngraph::element::f32, {}, { {0.02f, 0.03f, 0.01f} } },
-           ngraph::element::i8,
-           { ngraph::element::f32, {}, { {0.02f, 0.03f, 0.01f} } },
-       },
-       {
-           ngraph::element::u8,
-           {},
-           ngraph::element::i8,
-           {},
-           ngraph::element::f32,
-           ngraph::element::f32,
-           { {}, {}, { {0.0004f, 0.0009f, 0.0001f} } },
-       }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    MatMulTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(testValues)),
-    MatMulTransformation::getTestCaseName);
-} // namespace testValues2
-
-namespace testValues3 {
-const std::vector<std::pair<ngraph::PartialShape, ngraph::PartialShape>> shapesWithDynamicChannels = {
-    {
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() },
-        { Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic() }
-    },
-    { PartialShape::dynamic(), PartialShape::dynamic() }
-};
-
-std::vector<MatMullTransformationTestValues> testValuesWithPerChannelDq = {
-    // U8 + I8: Constant on dequantization operations on 0 branch
-    {
-       LayerTransformation::createParamsU8U8(),
-       {
-           ngraph::element::u8,
-           { ngraph::element::f32, {}, { {0.02f, 0.03f, 0.01f} } },
-           ngraph::element::i8,
-           { ngraph::element::f32, {}, { 0.03f } },
-       },
-       {
-           ngraph::element::u8,
-           { ngraph::element::f32, {}, { {0.02f, 0.03f, 0.01f} } },
-           ngraph::element::i8,
-           { ngraph::element::f32, {}, { 0.03f } },
-           ngraph::element::f32,
-           ngraph::element::f32,
-           { {}, {}, {} },
-       }
-    },
-    {
-       LayerTransformation::createParamsU8U8(),
-       {
-           ngraph::element::u8,
-           { ngraph::element::f32, {}, { {0.02f, 0.03f, 0.01f} } },
-           ngraph::element::i8,
-           { ngraph::element::f32, {}, { {0.02f, 0.03f, 0.01f} } },
-       },
-       {
-           ngraph::element::u8,
-           { ngraph::element::f32, {}, { {0.02f, 0.03f, 0.01f} } },
-           ngraph::element::i8,
-           { ngraph::element::f32, {}, { {0.02f, 0.03f, 0.01f} } },
-           ngraph::element::f32,
-           ngraph::element::f32,
-           { {}, {}, {} },
-       }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    MatMulTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapesWithDynamicChannels),
-        ::testing::ValuesIn(testValuesWithPerChannelDq)),
-    MatMulTransformation::getTestCaseName);
-} // namespace testValues3
 } // namespace

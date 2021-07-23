@@ -7,10 +7,8 @@
 #pragma once
 
 #include "program_node.h"
-#include "cldnn/runtime/engine.hpp"
+#include "engine_impl.h"
 #include "program_impl.h"
-#include "data_inst.h"
-
 #include <string>
 #include <vector>
 #include <utility>
@@ -97,7 +95,7 @@ struct program_helpers {
         else
             do_for_types<RestOfT...>(node, rest...);
     }
-    static void merge_buffers(engine& engine,
+    static void merge_buffers(engine_impl& engine,
                               program_node& node,
                               const layout& target_layout,
                               size_t begin_offset,

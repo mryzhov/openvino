@@ -16,8 +16,8 @@ namespace ngraph
             class NGRAPH_API ConvertLike : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"ConvertLike", 1};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a conversion operation.
                 ConvertLike() = default;
                 /// \brief Constructs a conversion operation.

@@ -16,6 +16,8 @@ struct embedding_bag_params : public base_params {
 
     EmbeddingBagType type;
     int32_t default_index;
+
+    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

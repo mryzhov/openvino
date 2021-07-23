@@ -5,9 +5,10 @@
 #pragma once
 
 #include <map>
+#include <string>
+
 #include <ngraph/op/constant.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <string>
 
 #include "transformations_visibility.hpp"
 

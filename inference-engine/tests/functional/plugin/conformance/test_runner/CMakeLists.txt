@@ -4,6 +4,11 @@
 
 set(TARGET_NAME conformanceTests)
 
+list(APPEND EXPORT_DEPENDENCIES
+        gflags
+        funcSharedTests
+    )
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -15,8 +20,9 @@ addIeTargetTest(
                 "${CMAKE_CURRENT_SOURCE_DIR}/include"
         LINK_LIBRARIES
             PUBLIC
-                gflags
-                funcSharedTests
+                ${EXPORT_DEPENDENCIES}
+        DEPENDENCIES
+            ${EXPORT_DEPENDENCIES}
         LABELS
             CONFORMANCE
 )

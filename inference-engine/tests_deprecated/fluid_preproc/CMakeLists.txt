@@ -34,8 +34,3 @@ endif()
 
 add_test(NAME ${TARGET} COMMAND ${TARGET})
 set_property(TEST ${TARGET} PROPERTY LABELS IE PREPROC)
-
-install(TARGETS ${TARGET}
-        RUNTIME DESTINATION tests
-        COMPONENT tests
-        EXCLUDE_FROM_ALL)

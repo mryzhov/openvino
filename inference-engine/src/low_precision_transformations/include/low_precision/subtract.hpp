@@ -11,11 +11,12 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API SubtractTransformation : public LayerTransformation {
+class TRANSFORMATIONS_API SubtractTransformation : public LayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
-    SubtractTransformation(const Params& params);
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
+    SubtractTransformation(const Params& params) : LayerTransformation(params) {}
+    ~SubtractTransformation() override {}
+    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
+    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
 };
 
 } // namespace low_precision

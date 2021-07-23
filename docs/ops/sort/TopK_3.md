@@ -13,6 +13,7 @@
   * **Description**: Specifies the axis along which the values are retrieved.
   * **Range of values**: An integer. Negative value means counting dimension from the end.
   * **Type**: `int`
+  * **Default value**: None
   * **Required**: *yes*
 
 * *mode*
@@ -20,6 +21,7 @@
   * **Description**: Specifies which operation is used to select the biggest element of two.
   * **Range of values**: `min`, `max`
   * **Type**: `string`
+  * **Default value**: None
   * **Required**: *yes*
 
 * *sort*
@@ -27,6 +29,7 @@
   * **Description**: Specifies order of output elements and/or indices.
   * **Range of values**: `value`, `index`, `none`
   * **Type**: `string`
+  * **Default value**: None
   * **Required**: *yes*
 
 * *index_element_type*
@@ -35,14 +38,14 @@
   * **Range of values**: "i64" or "i32"
   * **Type**: string
   * **Default value**: "i32"
-  * **Required**: *no*
+  * **Required**: *No*
 
 
 **Inputs**:
 
-*   **1**: tensor of arbitrary rank of type *T*. **Required.**
+*   **1**: tensor of arbitrary rank of type *T*. Required.
 
-*   **2**: *k* -- scalar of any integer type specifies how many maximum/minimum elements should be computed. **Required.**
+*   **2**: *k* -- scalar of any integer type specifies how many maximum/minimum elements should be computed. Required
 
 **Outputs**:
 

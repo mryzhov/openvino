@@ -55,7 +55,6 @@ class PermuteKernel {
 public:
     PermuteKernel(const PermuteParams& params);
 
-    void execute(const uint8_t* src_data, uint8_t* dst_data);
     void execute(const uint8_t* src_data, uint8_t* dst_data, const int mb);
 
 private:

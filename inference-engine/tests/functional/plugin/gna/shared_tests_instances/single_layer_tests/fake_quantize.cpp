@@ -47,10 +47,9 @@ const std::vector<std::vector<size_t>> inputShapes = {
             {1, 8, 8, 256},
             {1, 2, 2, 2},
             {1, 3, 4, 5},
-            {8}
             };
 const std::vector<std::vector<size_t>> constShapes = {{1}};
-const std::vector<size_t> levels = {16, 255, 256, UINT32_MAX};
+const std::vector<size_t> levels = {16, 255, 256};
 
 const std::vector<std::vector<float>> fqArgs = {{}};
 const std::vector<std::vector<float>> inputParams = {{-10, 10, 0.1}, {}};
@@ -80,12 +79,11 @@ std::vector<std::vector<float>> getInputOutputShapes(const std::vector<float> in
 const auto fqParams = ::testing::Combine(
     ::testing::ValuesIn(levels),
     ::testing::ValuesIn(constShapes),
-    ::testing::ValuesIn(fqArgs),
-    ::testing::ValuesIn(inputParams),
-    ::testing::Values(ngraph::op::AutoBroadcastType::NUMPY)
+    ::testing::ValuesIn(getInputOutputShapes(fqInputMin, fqInputMax, fqOutputMin, fqOutputMax, fqArgs)),
+    ::testing::ValuesIn(inputParams)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTestRevise,
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
     ::testing::Combine(
     fqParams,
     ::testing::ValuesIn(netPrecisions),
@@ -96,6 +94,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FakeQuantize, FakeQuantizeLayerTestRevise,
     ::testing::ValuesIn(inputShapes),
     ::testing::Values(CommonTestUtils::DEVICE_GNA),
     ::testing::ValuesIn(gnaQuantModes)),
-    FakeQuantizeLayerTestRevise::getTestCaseName);
+    FakeQuantizeLayerTest::getTestCaseName);
 
 }  // namespace

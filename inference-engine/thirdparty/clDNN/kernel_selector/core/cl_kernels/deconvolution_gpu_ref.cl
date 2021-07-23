@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/include_all.cl"
 
 KERNEL(deconvolution_gpu_yxfb_ref)(
     const __global INPUT0_TYPE* input,

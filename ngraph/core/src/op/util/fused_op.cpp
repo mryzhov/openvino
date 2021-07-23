@@ -11,8 +11,6 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-NGRAPH_RTTI_DEFINITION(op::util::FusedOp, "FusedOp", 0);
-
 op::util::FusedOp::FusedOp()
     : Op()
 {

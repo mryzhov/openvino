@@ -14,7 +14,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v0::Result, "Result", 0);
+constexpr NodeTypeInfo op::Result::type_info;
 
 op::Result::Result(const Output<Node>& arg, bool needs_default_layout)
     : Op({arg})
@@ -54,13 +54,6 @@ bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     void* output = outputs[0]->get_data_ptr();
     void* input = inputs[0]->get_data_ptr();
     memcpy(output, input, outputs[0]->get_size_in_bytes());
-
-    return true;
-}
-
-bool op::Result::has_evaluate() const
-{
-    NGRAPH_OP_SCOPE(v0_Result_has_evaluate);
     return true;
 }
 

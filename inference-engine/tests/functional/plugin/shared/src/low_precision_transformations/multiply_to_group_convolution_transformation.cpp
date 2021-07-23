@@ -24,43 +24,27 @@ namespace LayerTestsDefinitions {
 std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams> obj) {
     std::string targetDevice;
     ngraph::element::Type precision;
-    ngraph::PartialShape shape;
+    ngraph::Shape shape;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    MultiplyToGroupConvolutionTransformationParam param;
-    std::tie(precision, shape, targetDevice, param) = obj.param;
+    builder::subgraph::FakeQuantizeOnData fqOnData;
+    std::tie(precision, shape, targetDevice, fqOnData) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, shape, targetDevice, params) << "_" <<
-        param.fqOnData << "_" <<
-        param.constant << "_" <<
-        param.layerName << "_" <<
-        param.expectedKernelType;
+    result << getTestCaseNameByParams(precision, shape, targetDevice, params) << "_" << fqOnData;
     return result.str();
 }
 
 void MultiplyToGroupConvolutionTransformation::SetUp() {
-    ngraph::PartialShape shape;
+    ngraph::Shape shape;
     ngraph::element::Type precision;
-    MultiplyToGroupConvolutionTransformationParam param;
-    std::tie(precision, shape, targetDevice, param) = this->GetParam();
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    builder::subgraph::FakeQuantizeOnData fqOnData;
+    std::tie(precision, shape, targetDevice, fqOnData) = this->GetParam();
 
     function = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
         precision,
         shape,
-        param.fqOnData,
-        param.constant);
-}
-
-void MultiplyToGroupConvolutionTransformation::Run() {
-    LayerTestsCommon::Run();
-
-    const auto param = std::get<3>(GetParam());
-    const auto actualPrecision = getRuntimePrecision(param.layerName);
-    auto expectedPrecision = param.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
-        expectedPrecision = "FP16";
-    }
-    EXPECT_EQ(actualPrecision, expectedPrecision);
+        fqOnData);
 }
 
 TEST_P(MultiplyToGroupConvolutionTransformation, CompareWithRefImpl) {

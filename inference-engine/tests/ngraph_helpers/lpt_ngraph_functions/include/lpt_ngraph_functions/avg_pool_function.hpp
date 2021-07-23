@@ -20,26 +20,25 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::PartialShape& inputShape,
+        const ngraph::Shape& inputShape,
         const bool addFQ,
-        const std::vector<std::string>& additionalLayers,
+        const std::string additionalLayer,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type originalFunctionPrecision,
-        const ngraph::PartialShape& inputShape,
+        const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
-        const ngraph::PartialShape& inputShape,
+        const ngraph::Shape& inputShape,
         const bool addFQ,
-        const std::vector<std::string>& additionalLayers,
+        const std::string additionalLayer,
         const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ngraph::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationEnd);
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 
 }  // namespace subgraph

@@ -1,6 +1,7 @@
-#include <ie_core.hpp>
+#include <inference_engine.hpp>
+#include <ngraph/ngraph.hpp>
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
+#include "hetero/hetero_plugin_config.hpp"
 
 int main() {
 using namespace InferenceEngine;

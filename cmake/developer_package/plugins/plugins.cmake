@@ -27,10 +27,7 @@ endif()
 #               )
 #
 function(ie_add_plugin)
-    set(options 
-        SKIP_INSTALL 
-        ADD_CLANG_FORMAT
-        )
+    set(options SKIP_INSTALL)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR)
     set(multiValueArgs SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(IE_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -76,11 +73,7 @@ function(ie_add_plugin)
         string(CONCAT custom_filter "${custom_filter}" "," "${filter}")
     endforeach()
 
-    if (IE_PLUGIN_ADD_CLANG_FORMAT)
-        add_clang_format_target(${IE_PLUGIN_NAME}_clang FOR_TARGETS ${IE_PLUGIN_NAME})
-    else()
-        add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
-    endif()
+    add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
 
     # check that plugin with such name is not registered
 
@@ -123,7 +116,8 @@ function(ie_add_plugin)
         ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
 
         install(TARGETS ${IE_PLUGIN_NAME}
-                LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${install_component})
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${install_component}
+            LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${install_component})
     endif()
 endfunction()
 

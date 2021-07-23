@@ -11,7 +11,6 @@
 int main(int argc, char *argv[]) {
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = false;
     bool print_custom_help = false;
-    std::string outputFolderPath(".");
     for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--disable_tests_skipping") {
             FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
@@ -20,8 +19,8 @@ int main(int argc, char *argv[]) {
         } else if (std::string(argv[i]) == "--help") {
             print_custom_help = true;
         } else if (std::string(argv[i]).find("--output_folder") != std::string::npos) {
-            outputFolderPath = std::string(argv[i]).substr(std::string("--output_folder").length() + 1);
-            LayerTestsUtils::Summary::setOutputFolder(outputFolderPath);
+            LayerTestsUtils::Summary::setOutputFolder(
+                    std::string(argv[i]).substr(std::string("--output_folder").length() + 1));
         } else if (std::string(argv[i]).find("--report_unique_name") != std::string::npos) {
             LayerTestsUtils::Summary::setSaveReportWithUniqueName(true);
         } else if (std::string(argv[i]).find("--save_report_timeout") != std::string::npos) {

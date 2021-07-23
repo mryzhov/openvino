@@ -15,8 +15,8 @@ namespace ngraph
             class NGRAPH_API RegionYolo : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"RegionYolo", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 RegionYolo() = default;
                 ///
                 /// \brief      Constructs a RegionYolo operation

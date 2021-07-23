@@ -243,6 +243,17 @@ protected:
      * @return The allocator for allocator-based blobs or nullptr if there is none
      */
     virtual const std::shared_ptr<IAllocator>& getAllocator() const noexcept = 0;
+
+    /**
+     * @brief Gets a handle to allocated memory
+     *
+     * @return The handle to allocated memory for allocator-based blobs or nullptr if there is none
+     */
+    virtual void* getHandle() const noexcept = 0;
+
+    /// private
+    template <typename>
+    friend class TBlobProxy;
 };
 
 /**
@@ -304,7 +315,6 @@ public:
 
     /**
      * @brief Returns the tensor description
-     * @return A tensor description
      */
     const TensorDesc& getTensorDesc() const noexcept override {
         return tensorDesc;
@@ -312,7 +322,6 @@ public:
 
     /**
      * @brief Returns the tensor description
-     * @return A tensor description
      */
     TensorDesc& getTensorDesc() noexcept override {
         return tensorDesc;
@@ -335,9 +344,12 @@ public:
         return size() * element_size();
     }
 
-    size_t element_size() const noexcept override {
-        return tensorDesc.getPrecision().size();
-    }
+    /**
+     * @brief Provides the number of bytes per element.
+     * Abstract method.
+     * @return The number of bytes per element.
+     */
+    size_t element_size() const noexcept override = 0;
 
     /**
      * @brief Allocates memory to store the data.
@@ -394,7 +406,7 @@ public:
      *
      * @return A LockedMemory object
      */
-    virtual LockedMemory<void> rwmap() noexcept = 0;
+    virtual LockedMemory<void> rwmap()noexcept = 0;
 
     /**
      * @brief Gets read only access to the memory in virtual space of the process.
@@ -418,7 +430,7 @@ public:
      *
      * @return A LockedMemory object
      */
-    virtual LockedMemory<const void> rmap() const noexcept = 0;
+    virtual LockedMemory<const void> rmap()const noexcept = 0;
 
     /**
      * @brief Gets "write only direction" access to the memory in virtual space of the process.
@@ -445,7 +457,7 @@ public:
      *
      * @return A LockedMemory object
      */
-    virtual LockedMemory<void> wmap() noexcept = 0;
+    virtual LockedMemory<void> wmap()noexcept = 0;
 
 protected:
     /**
@@ -460,7 +472,7 @@ protected:
      *
      * @return The handle to allocated memory for allocator-based blobs or if there is none then a nullptr.
      */
-    virtual void* getHandle() const noexcept = 0;
+    void* getHandle() const noexcept override = 0;
 
     /// private
     template <typename>
@@ -567,6 +579,15 @@ public:
     virtual ~TBlob();
 
     /**
+     * @brief Gets the size of the given type.
+     *
+     * @return Size of the type
+     */
+    size_t element_size() const noexcept override {
+        return sizeof(T);
+    }
+
+    /**
      * @brief Creates an new empty rvalue LockedMemory object.
      *
      * @return rvalue for the empty locked object of type T
@@ -584,9 +605,12 @@ public:
         return std::move(lockme<const T>());
     }
 
+    /**
+     * @brief Allocates or reallocates memory
+     */
     void allocate() noexcept override {
         const auto allocator = getAllocator();
-        const auto rawHandle = allocator->alloc(byteSize());
+        const auto rawHandle = allocator->alloc(size() * sizeof(T));
 
         if (rawHandle == nullptr) {
             return;
@@ -599,14 +623,27 @@ public:
             });
     }
 
+    /**
+     * @brief Frees all allocated data
+     */
     bool deallocate() noexcept override {
         return free();
     }
 
+    /**
+     * @brief Creates a new LockedMemory instance holding void pointer.
+     *
+     * @return LockedMemory instance holding void pointer
+     */
     LockedMemory<void> buffer() noexcept override {
         return std::move(lockme<void>());
     }
 
+    /**
+     * @brief Creates a new LockedMemory instance holding constant void pointer.
+     *
+     * @return LockedMemory instance holding constant void pointer
+     */
     LockedMemory<const void> cbuffer() const noexcept override {
         return std::move(lockme<const void>());
     }
@@ -708,7 +745,6 @@ protected:
 
     /**
      * @brief Frees handler and cleans up the stored data.
-     * @return `true` if memory was freed
      */
     virtual bool free() {
         bool bCanRelease = _handle != nullptr;
@@ -725,9 +761,13 @@ protected:
     template <class S>
     LockedMemory<S> lockme() const {
         return LockedMemory<S>(_allocator.get(), getHandle(), 0);
-         //   getTensorDesc().getBlockingDesc().getOffsetPadding());
     }
 
+    /**
+     * @brief Gets an allocator or creates a default one.
+     *
+     * @return IAllocator instance
+     */
     const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
         // in case when constructor without allocator was used
         if (!_allocator) {
@@ -737,6 +777,9 @@ protected:
         return _allocator;
     }
 
+    /**
+     * @brief Returns handle to the stored data.
+     */
     void* getHandle() const noexcept override {
         return _handle.get();
     }
@@ -756,7 +799,6 @@ protected:
     }
 };
 
-#ifdef __clang__
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
@@ -771,7 +813,6 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<bool>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<char>);
-#endif  // __clang__
 
 /**
  * @brief Creates a blob with the given tensor descriptor.

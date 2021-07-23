@@ -4,9 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/pooling.hpp"
+#include "api/pooling.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 #include <memory>
 

@@ -17,6 +17,8 @@ struct cum_sum_params : public base_params {
     CumSumAxis axis;
     bool exclusive;
     bool reverse;
+
+    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

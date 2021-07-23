@@ -22,7 +22,7 @@ struct pooling_params : public base_params {
     uSize poolStride;
     uSize poolPad;
 
-    ParamsKey GetParamsKey() const override {
+    virtual ParamsKey GetParamsKey() const {
         ParamsKey k = base_params::GetParamsKey();
 
         k.EnablePoolType(poolType);

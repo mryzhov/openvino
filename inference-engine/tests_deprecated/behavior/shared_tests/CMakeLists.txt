@@ -4,6 +4,8 @@
 
 set(TARGET_NAME IEBehaviorSharedTests)
 
+disable_deprecated_warnings()
+
 file(GLOB_RECURSE SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
@@ -20,7 +22,8 @@ target_link_libraries(${TARGET_NAME} PUBLIC
 target_link_libraries(${TARGET_NAME} PUBLIC gmock)
 
 target_include_directories(${TARGET_NAME} PUBLIC
-        $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
+        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
+        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_SOURCE_DIR}/plugin_tests)
 
 # developer package

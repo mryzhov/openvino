@@ -17,6 +17,7 @@
   * **Description**: *stride* is the distance between cut throws in output blobs.
   * **Range of values**: positive integer
   * **Type**: `int`
+  * **Default value**: None
   * **Required**: *yes*
 
 **Inputs**:

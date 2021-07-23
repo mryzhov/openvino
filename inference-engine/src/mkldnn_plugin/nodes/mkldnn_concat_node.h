@@ -30,10 +30,8 @@ public:
 
 private:
     size_t axis = 0;
-    bool canOptimizeNspc = false;
 
     size_t inverseOrder(const InferenceEngine::SizeVector& order, size_t axis);
-    void execNspcSpecCase();
 
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;

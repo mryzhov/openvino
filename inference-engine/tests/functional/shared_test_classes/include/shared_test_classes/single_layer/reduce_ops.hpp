@@ -11,6 +11,7 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
+#include "common_test_utils/common_layers_params.hpp"
 
 namespace LayerTestsDefinitions {
 

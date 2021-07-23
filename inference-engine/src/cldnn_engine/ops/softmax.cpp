@@ -8,8 +8,8 @@
 #include "ngraph/op/softmax.hpp"
 #include "ngraph/op/log_softmax.hpp"
 
-#include "cldnn/primitives/softmax.hpp"
-#include "cldnn/primitives/activation.hpp"
+#include "api/softmax.hpp"
+#include "api/activation.hpp"
 
 namespace CLDNNPlugin {
 

@@ -21,7 +21,7 @@ protected:
     std::vector<std::string> statesToQuery;
     std::string deviceName;
 
-    void SetUp() override;
+    void SetUp();
     InferenceEngine::ExecutableNetwork PrepareNetwork();
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<memoryStateParams> &obj);

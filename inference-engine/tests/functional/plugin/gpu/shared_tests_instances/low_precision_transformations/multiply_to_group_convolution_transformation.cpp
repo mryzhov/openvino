@@ -9,59 +9,25 @@ using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<element::Type> precisions = {
-    element::f32
+    element::f32,
+    element::f16
 };
 
-namespace shape4d {
-const std::vector<ngraph::PartialShape> inputShapes = {
-    { 1ul, 3ul, 16ul, 16ul },
-    { 4ul, 3ul, 16ul, 16ul }
+const std::vector< ngraph::Shape > inputShapes = {
+    Shape{ 1ul, 4ul, 16ul, 16ul }, Shape{ 1ul, 4ul, 16ul, 16ul, 16ul }
 };
 
-const std::vector<MultiplyToGroupConvolutionTransformationParam> params = {
-    {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
-        "output/GroupConvolution",
-        "U8"
-    },
-    // Multiply with scalar is transformed to GroupConvolution
-    {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{4.f}, element::f32, Shape{1, 1, 1, 1}},
-        "output/GroupConvolution",
-        "U8"
-    },
-    // multiply with scalar is transformed to groupconvolution
-    {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        {{4.f}, element::f32, Shape{}},
-        "output/GroupConvolution",
-        "U8"
-    },
-    // zero point
-    {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
-        "output/GroupConvolution",
-        "I8"
-    },
-    // zero point
-    {
-        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -1.28f }, { 1.27f / 2.f }, { -1.28f }, { 1.27f / 2.f} },
-        {{1.f, 2.f, 3.f}, element::f32, Shape{1, 3, 1, 1}},
-        "output/GroupConvolution",
-        "U8"
-    }
+const std::vector<builder::subgraph::FakeQuantizeOnData> fqOnData = {
+    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 10.f }, { 25.5f } },
+    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { -12.8f }, { 12.7f } }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, MultiplyToGroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(params)),
+        ::testing::ValuesIn(fqOnData)),
     MultiplyToGroupConvolutionTransformation::getTestCaseName);
-}  // namespace shape4d
-
 }  // namespace

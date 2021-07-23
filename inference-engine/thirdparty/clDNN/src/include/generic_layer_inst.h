@@ -6,7 +6,6 @@
 #pragma once
 #include "generic_layer.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 #include <memory>
 

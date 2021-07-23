@@ -99,12 +99,6 @@ long long FileUtils::fileSize(const char* charfilepath) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     std::wstring widefilename = FileUtils::multiByteCharToWString(charfilepath);
     const wchar_t* fileName = widefilename.c_str();
-#elif defined(__ANDROID__) || defined(ANDROID)
-    std::string fileName = charfilepath;
-    std::string::size_type pos = fileName.find('!');
-    if (pos != std::string::npos) {
-        fileName = fileName.substr(0, pos);
-    }
 #else
     const char* fileName = charfilepath;
 #endif

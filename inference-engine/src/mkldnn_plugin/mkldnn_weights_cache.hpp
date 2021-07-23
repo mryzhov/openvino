@@ -10,7 +10,6 @@
 #include <functional>
 #include <string>
 #include <memory>
-#include <atomic>
 #include <mutex>
 #include <map>
 
@@ -63,7 +62,7 @@ class MKLDNNWeightsSharing {
 
         std::mutex guard;
         std::weak_ptr<MKLDNNMemory> sharedMemory;
-        std::atomic<bool> valid;
+        bool valid;
     };
 
 public:

@@ -4,11 +4,15 @@
 
 #pragma once
 
-#include <cldnn/runtime/memory.hpp>
-#include <cldnn/runtime/engine.hpp>
+#include <string>
+#include <map>
+#include <memory>
+#include <atomic>
 #include <ie_parameter.hpp>
-#include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
+#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include "cldnn_config.h"
+#include <api/memory.hpp>
+#include <api/engine.hpp>
 #include "cldnn_common_utils.h"
 
 #ifndef NOMINMAX
@@ -20,11 +24,6 @@
 #else
 # include <gpu/gpu_context_api_va.hpp>
 #endif
-
-#include <string>
-#include <map>
-#include <memory>
-#include <atomic>
 
 namespace CLDNNPlugin {
 class CLDNNRemoteAllocator;
@@ -42,7 +41,6 @@ public:
     };
 
     explicit CLDNNRemoteBlobImpl(InferenceEngine::gpu::ClContext::Ptr context,
-                                 cldnn::stream& stream,
                                  const cldnn::layout& layout,
                                  cldnn::shared_handle mem,
                                  cldnn::shared_surface surf,
@@ -65,12 +63,11 @@ public:
     bool is_allocated() const noexcept;
     bool is_locked() const noexcept;
     void allocate_if_needed();
-    cldnn::memory::ptr getMemory() { return m_memObject; }
+    cldnn::memory& getMemory() { return *m_memObject; }
 
 protected:
     static CLDNNRemoteAllocator m_allocator;
     std::weak_ptr<InferenceEngine::gpu::ClContext> m_context;
-    cldnn::stream& m_stream;
 
     // constructor stuff
     cldnn::shared_handle m_mem;
@@ -80,9 +77,9 @@ protected:
     cldnn::layout m_layout;
     BlobType m_mem_type;
 
-    cldnn::memory::ptr m_memObject;
+    std::unique_ptr<cldnn::memory> m_memObject;
 
-    mutable std::unique_ptr<cldnn::mem_lock<uint8_t>> lockedHolder;
+    mutable std::unique_ptr<cldnn::pointer<uint8_t>> lockedHolder;
     mutable void* _handle;
     mutable std::shared_ptr<InferenceEngine::IAllocator> _allocator;
 
@@ -96,14 +93,13 @@ public:
     using Ptr = std::shared_ptr<typedCLDNNRemoteBlob>;
 
     explicit typedCLDNNRemoteBlob(InferenceEngine::gpu::ClContext::Ptr context,
-                                  cldnn::stream& stream,
                                   const InferenceEngine::TensorDesc& desc,
                                   const cldnn::layout& layout,
                                   cldnn::shared_handle mem,
                                   cldnn::shared_surface surf,
                                   uint32_t plane,
                                   CLDNNRemoteBlobImpl::BlobType mem_type)
-        : _impl(context, stream, layout, mem, surf, plane, mem_type)
+        : _impl(context, layout, mem, surf, plane, mem_type)
         , TpublicAPI(desc) {}
 
     void allocate() noexcept override { _impl.allocate(); }
@@ -235,7 +231,6 @@ public:
     }
 
 protected:
-    // TODO: refactor to unique_ptr
     std::shared_ptr<cldnn::engine> m_engine;
     InferenceEngine::gpu_handle_param m_va_display;
     Config m_config;
@@ -272,7 +267,6 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
         using namespace InferenceEngine;
         using InferenceEngine::gpu::details::param_map_obj_getter;
         InferenceEngine::RemoteBlob::Ptr ret = nullptr;
-        auto& stream = _impl.GetEngine()->get_program_stream();
         uint32_t plane = param_map_obj_getter::_ObjFromParamSimple<uint32_t>(params, GPU_PARAM_KEY(VA_PLANE));
 #ifdef _WIN32
         cldnn::shared_handle mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
@@ -296,11 +290,11 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
                 std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>
                 (std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>>::shared_from_this());
 #ifdef _WIN32
-            ret = std::make_shared<CLDNNRemoteD3DSurface>(smart_this, stream,
+            ret = std::make_shared<CLDNNRemoteD3DSurface>(smart_this,
                 tensorDesc, layout, mem, 0, plane,
                 CLDNNRemoteBlobImpl::BlobType::BT_SURF_SHARED);
 #else
-            ret = std::make_shared<CLDNNRemoteVASurface>(smart_this, stream,
+            ret = std::make_shared<CLDNNRemoteVASurface>(smart_this,
                 tensorDesc, layout, nullptr, surf, plane,
                 CLDNNRemoteBlobImpl::BlobType::BT_SURF_SHARED);
 #endif
@@ -317,7 +311,6 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
         InferenceEngine::RemoteBlob::Ptr ret = nullptr;
 
         _impl.acquire_lock();
-        auto& stream = _impl.GetEngine()->get_program_stream();
 
         // try to locate previously shared object
         auto itr = shared_obj_reg.find(mem);
@@ -334,15 +327,15 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
 
             switch (blob_type) {
             case CLDNNRemoteBlobImpl::BlobType::BT_BUF_SHARED:
-                ret = std::make_shared<CLDNNRemoteCLbuffer>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type);
+                ret = std::make_shared<CLDNNRemoteCLbuffer>(smart_this, tensorDesc, layout, mem, 0, 0, blob_type);
                 break;
             case CLDNNRemoteBlobImpl::BlobType::BT_IMG_SHARED:
                 layout.format = ImageFormatFromLayout(tensorDesc.getLayout());
-                ret = std::make_shared<CLDNNRemoteCLImage2D>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type);
+                ret = std::make_shared<CLDNNRemoteCLImage2D>(smart_this, tensorDesc, layout, mem, 0, 0, blob_type);
                 break;
 #ifdef _WIN32
             case CLDNNRemoteBlobImpl::BlobType::BT_DX_BUF_SHARED:
-                ret = std::make_shared<CLDNNRemoteD3DBuffer>(smart_this, stream, tensorDesc, layout, mem, 0, 0, blob_type);
+                ret = std::make_shared<CLDNNRemoteD3DBuffer>(smart_this, tensorDesc, layout, mem, 0, 0, blob_type);
                 break;
 #endif
             default:
@@ -361,9 +354,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
                              CldnnTensorFromIEDims(tensorDesc.getDims()));
         auto smart_this = std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>
             (std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>>::shared_from_this());
-        auto& stream = _impl.GetEngine()->get_program_stream();
         return std::make_shared<CLDNNRemoteCLbuffer>(smart_this,
-                                                     stream,
                                                      tensorDesc,
                                                      layout,
                                                      nullptr, 0, 0,

@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <pugixml.hpp>
-
 #include "functional_test_utils/layer_test_utils/summary.hpp"
 #include "common_test_utils/file_utils.hpp"
 
 using namespace LayerTestsUtils;
 
-#ifdef _WIN32
-# define getpid _getpid
-#endif
 
 Summary *Summary::p_instance = nullptr;
 bool Summary::extendReport = false;
@@ -179,7 +174,8 @@ void Summary::saveReport() {
 
     pugi::xml_document doc;
 
-    const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
+    std::ifstream file;
+    file.open(outputFilePath);
 
     time_t rawtime;
     struct tm *timeinfo;
@@ -192,7 +188,7 @@ void Summary::saveReport() {
     strftime(timeNow, sizeof(timeNow), "%d-%m-%Y %H:%M:%S", timeinfo);
 
     pugi::xml_node root;
-    if (fileExists) {
+    if (file) {
         doc.load_file(outputFilePath.c_str());
         root = doc.child("report");
         //Ugly but shorter than to write predicate for find_atrribute() to update existing one
@@ -228,7 +224,7 @@ void Summary::saveReport() {
         entry.append_attribute("passrate").set_value(it.second.getPassrate());
     }
 
-    if (extendReport && fileExists) {
+    if (extendReport && file) {
         auto opStataFromReport = summary.getOpStatisticFromReport();
         for (auto &item : opStataFromReport) {
             pugi::xml_node entry;
@@ -268,4 +264,5 @@ void Summary::saveReport() {
     } else {
         isReported = true;
     }
+    file.close();
 }

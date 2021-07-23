@@ -16,7 +16,8 @@ namespace ngraph
             class NGRAPH_API Negative : public util::UnaryElementwiseArithmetic
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
+                static constexpr NodeTypeInfo type_info{"Negative", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a negative operation.
                 Negative() = default;
                 /// \brief Constructs a negative operation.
@@ -29,7 +30,6 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-                bool has_evaluate() const override;
             };
         } // namespace v0
         using v0::Negative;

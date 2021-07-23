@@ -42,8 +42,6 @@ MKLDNNConvertNode::MKLDNNConvertNode(const InferenceEngine::SizeVector &dims, co
     addOriginalInputPrecision(inPrc);
     outDims.emplace_back(dims);
     addOriginalOutputPrecision(outPrc);
-
-    errorPrefix = "Convert node with name '" + getName() + "'";
 }
 
 void MKLDNNConvertNode::getSupportedDescriptors() {

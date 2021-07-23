@@ -30,9 +30,5 @@ TEST(attributes, reshape_op)
     NodeBuilder builder(reshape);
     auto g_reshape = as_type_ptr<opset1::Reshape>(builder.create());
 
-    const auto expected_attr_count = 1;
-
-    EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
-
     EXPECT_EQ(g_reshape->get_special_zero(), reshape->get_special_zero());
 }

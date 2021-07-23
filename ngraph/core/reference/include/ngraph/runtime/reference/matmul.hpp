@@ -56,7 +56,15 @@ namespace ngraph
                     }
                 }
 
-                std::vector<size_t> get_transpose_order(const Shape& input_shape);
+                std::vector<size_t> get_transpose_order(const Shape& input_shape)
+                {
+                    size_t rank = input_shape.size();
+                    NGRAPH_CHECK(rank > 1, "Invalid input for transpose");
+                    std::vector<size_t> axes_order(rank);
+                    std::iota(axes_order.begin(), axes_order.end(), 0);
+                    std::swap(axes_order[rank - 1], axes_order[rank - 2]);
+                    return axes_order;
+                }
             } // namespace details
             /// \brief Reference kernel for matmul computation.
             ///

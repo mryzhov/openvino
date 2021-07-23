@@ -11,13 +11,12 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-class LP_TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerTransformation {
+class TRANSFORMATIONS_API ConvolutionTransformation : public WeightableLayerTransformation {
 public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvolutionTransformation(const Params& params = Params());
-    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) override;
-    bool isQuantized(const std::shared_ptr<const Node>& layer) const noexcept override;
-    static bool isQuantizedStatic(const std::shared_ptr<const Node>& layer) noexcept;
+    ConvolutionTransformation(const Params& params);
+    void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
+    bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    bool isQuantized(std::shared_ptr<Node> layer) const noexcept override;
 };
 
 } // namespace low_precision

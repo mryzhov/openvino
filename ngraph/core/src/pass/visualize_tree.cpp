@@ -16,7 +16,6 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/variant.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -164,24 +163,6 @@ static std::string label_edge(const std::shared_ptr<Node>& /* src */,
             label_edge << "[label=\"jump=" << jump_distance << "\"]";
             ss << label_edge.str();
         }
-    }
-    return ss.str();
-}
-
-static std::string
-    get_attribute_values(const std::map<std::string, std::shared_ptr<Variant>>& attributes,
-                         const std::string& delimiter = ", ")
-{
-    stringstream ss;
-    bool first = true;
-    for (const auto& item : attributes)
-    {
-        ss << (first ? " " : delimiter) << item.first;
-        const auto attributeValue = item.second == nullptr ? "[EMPTY]" : item.second->to_string();
-        if (!attributeValue.empty())
-            ss << "{" << attributeValue << "}";
-
-        first = false;
     }
     return ss.str();
 }
@@ -500,7 +481,6 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
         static const bool nvtos = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
         static const bool nvtot = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
         static const bool nvtio = getenv_bool("NGRAPH_VISUALIZE_TREE_IO");
-        static const bool nvtrti = getenv_bool("NGRAPH_VISUALIZE_TREE_RUNTIME_INFO");
 
         if (nvtos || nvtot || nvtio)
         {
@@ -515,11 +495,6 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                         label << pretty_partial_shape(input.get_partial_shape());
                     label << ": " << node->get_input_node_ptr(input.get_index())->get_name()
                           << ": out" << input.get_source_output().get_index();
-
-                    if (nvtrti)
-                    {
-                        label << get_attribute_values(input.get_rt_info());
-                    }
                 }
             }
             for (const auto& output : node->outputs())
@@ -530,11 +505,6 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                     label << "{" << output.get_element_type().get_type_name() << "}";
                 if (nvtos)
                     label << pretty_partial_shape(output.get_partial_shape());
-
-                if (nvtrti)
-                {
-                    label << get_attribute_values(output.get_rt_info());
-                }
             }
         }
 
@@ -574,7 +544,11 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
         const auto rt = node->get_rt_info();
         if (!rt.empty())
         {
-            rc += "\\nrt info: " + get_attribute_values(rt, "\\n");
+            rc += "\\nrt info: ";
+            for (const auto& item : rt)
+            {
+                rc += item.first + " ";
+            }
         }
     }
     return rc;

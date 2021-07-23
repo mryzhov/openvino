@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/include_all.cl"
 
 KERNEL(average_unpooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
 {
@@ -12,7 +11,7 @@ KERNEL(average_unpooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYP
     const uint y    = (uint)get_global_id(1);
     const uint bf   = (uint)get_global_id(2);
     const uint f    = bf % INPUT0_FEATURE_NUM;
-    const uint b    = bf / INPUT0_FEATURE_NUM;
+    const uint b    = bf / INPUT0_FEATURE_NUM;    
 #elif OUTPUT_LAYOUT_YXFB
     const uint x    = (uint)get_global_id(1);
     const uint y    = (uint)get_global_id(2);
@@ -25,7 +24,7 @@ KERNEL(average_unpooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYP
     {
         return;
     }
-
+    
     const uint x_begin = x * STRIDE_SIZE_X;
     const uint y_begin = y * STRIDE_SIZE_Y;
     const uint x_end = min((uint)(x_begin + UNPOOL_SIZE_X), (uint)(OUTPUT_SIZE_X));

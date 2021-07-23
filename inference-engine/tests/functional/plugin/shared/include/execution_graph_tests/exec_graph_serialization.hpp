@@ -20,7 +20,7 @@ private:
     // vector which is later used for comparison
     struct exec_graph_walker : pugi::xml_tree_walker {
         std::vector<pugi::xml_node> nodes;
-        bool for_each(pugi::xml_node &node) override;
+        virtual bool for_each(pugi::xml_node &node);
     };
 
     // compare_docs() helper

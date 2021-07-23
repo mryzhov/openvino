@@ -72,7 +72,6 @@ static const std::map<ie::EltwiseLayer::eOperation, std::function<StageType(ie::
         MAP_ELEMENTS(Logical_XOR,   moreThanOneInput),
         MAP_ELEMENTS(Pow,           onlyTwoInputs),
         MAP_ELEMENTS(Floor_mod,     onlyTwoInputs),
-        MAP_ELEMENTS(Abs,           onlyOneInput),
 };
 
 class EltwiseStage final : public StageNode {
@@ -151,8 +150,7 @@ private:
                     StageType::Div,
                     StageType::Min,
                     StageType::Logical_NOT,
-                    StageType::Logical_AND,
-                    StageType::Abs,
+                    StageType::Logical_AND
             };
             auto supportedDataTypesInput0 = EnumSet<DataType>{DataType::FP16};
             if (stageTypesWhichSupportS32.count(operation)) {
@@ -266,7 +264,7 @@ void FrontEnd::parseEltwise(const Model& model, const ie::CNNLayerPtr& _layer, c
     DataVector tempInputs(3);
     tempInputs[0] = inputs[0];
 
-    if (stageType == StageType::Logical_NOT || stageType == StageType::Abs)
+    if (stageType == StageType::Logical_NOT)
         tempInputs[1] = model->addFakeData();
     else
         tempInputs[1] = inputs[1];

@@ -23,9 +23,9 @@ using namespace testing;
 using namespace ngraph;
 
 
-template <typename LowPrecision, typename T>
+template <typename T>
 std::shared_ptr<Function> create_q_dq_function(const Shape& data_shape, float in_low, float in_high, float out_low, float out_high,
-                                               const Shape& zero_point_shape, std::vector<T> zero_point_values, /*const bool zero_point_in_f32,*/
+                                               const Shape& zero_point_shape, std::vector<T> zero_point_values,
                                                const Shape& scale_shape, std::vector<float> scale_values, size_t levels) {
     auto data = std::make_shared<opset1::Parameter>(element::f32, data_shape);
     auto input_low = opset1::Constant::create(element::f32, Shape{}, {in_low});
@@ -35,13 +35,9 @@ std::shared_ptr<Function> create_q_dq_function(const Shape& data_shape, float in
     auto fq = std::make_shared<opset1::FakeQuantize>(data, input_low,
                                                      input_high, output_low,
                                                      output_high, levels);
-    auto convert1 = std::make_shared<opset1::Convert>(fq, element::from<LowPrecision>());
+    auto convert1 = std::make_shared<opset1::Convert>(fq, element::from<T>());
     auto convert2 = std::make_shared<opset1::Convert>(convert1, element::f32);
-    const std::shared_ptr<Node> zero_point = element::from<T>() == element::f32 ?
-        opset1::Constant::create(element::from<T>(), zero_point_shape, zero_point_values) :
-        std::dynamic_pointer_cast<Node>(std::make_shared<opset1::Convert>(
-            opset1::Constant::create(element::from<T>(), zero_point_shape, zero_point_values),
-            element::f32));
+    auto zero_point = std::make_shared<opset1::Convert>(opset1::Constant::create(element::from<T>(), zero_point_shape, zero_point_values), element::f32);
     auto sub = std::make_shared<opset1::Subtract>(convert2, zero_point);
     auto scale = opset1::Constant::create(element::f32, scale_shape, scale_values);
     auto mul = std::make_shared<opset1::Multiply>(sub, scale);
@@ -49,21 +45,19 @@ std::shared_ptr<Function> create_q_dq_function(const Shape& data_shape, float in
     return std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 }
 
-template <typename LowPrecision, typename T>
+template <typename T>
 void positive_test(const Shape& data_shape, float in_low, float in_high, float out_low, float out_high,
                    const Shape& zero_point_shape, std::vector<T> zero_point_values,
                    const Shape& scale_shape, std::vector<float> scale_values, size_t levels) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        f = create_q_dq_function<LowPrecision>(data_shape, in_low, in_high, out_low, out_high,
+        f = create_q_dq_function(data_shape, in_low, in_high, out_low, out_high,
                                  zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
-
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
         m.register_pass<pass::ConvertQuantizeDequantize>();
         m.register_pass<pass::ConstantFolding>();
         m.run_passes(f);
-
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -83,7 +77,7 @@ void positive_test(const Shape& data_shape, float in_low, float in_high, float o
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithINT8ZeroPoint) {
+TEST(TransformationTests, ConvertQuantizeDequantizeINT8) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -96,28 +90,11 @@ TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithINT8ZeroPoint) {
     std::vector<float> scale_values{3};
     size_t levels = 256;
 
-    positive_test<int8_t>(data_shape, in_low, in_high, out_low, out_high,
+    positive_test(data_shape, in_low, in_high, out_low, out_high,
                   zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeINT8WithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-    Shape data_shape{ 3, 1, 2 };
-    float in_low = 0;
-    float in_high = 5;
-    float out_low = -128;
-    float out_high = 127;
-    Shape zero_point_shape{};
-    std::vector<float> zero_point_values{ 2 };
-    Shape scale_shape{};
-    std::vector<float> scale_values{ 3 };
-    size_t levels = 256;
-
-    positive_test<int8_t>(data_shape, in_low, in_high, out_low, out_high,
-        zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
-}
-
-TEST(TransformationTests, ConvertQuantizeDequantizeUINT8WithUINT8ZeroPoint) {
+TEST(TransformationTests, ConvertQuantizeDequantizeUINT8) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -130,34 +107,17 @@ TEST(TransformationTests, ConvertQuantizeDequantizeUINT8WithUINT8ZeroPoint) {
     std::vector<float> scale_values{3};
     size_t levels = 256;
 
-    positive_test<uint8_t>(data_shape, in_low, in_high, out_low, out_high,
+    positive_test(data_shape, in_low, in_high, out_low, out_high,
                   zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeUINT8WithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-    Shape data_shape{ 3, 1, 2 };
-    float in_low = 0;
-    float in_high = 5;
-    float out_low = 0;
-    float out_high = 255;
-    Shape zero_point_shape{};
-    std::vector<float> zero_point_values{ 2 };
-    Shape scale_shape{};
-    std::vector<float> scale_values{ 3 };
-    size_t levels = 256;
-
-    positive_test<uint8_t>(data_shape, in_low, in_high, out_low, out_high,
-        zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
-}
-
-template <typename LowPrecision, typename T>
+template <typename T>
 void negative_test(const Shape& data_shape, float in_low, float in_high, float out_low, float out_high,
                    const Shape& zero_point_shape, std::vector<T> zero_point_values,
                    const Shape& scale_shape, std::vector<float> scale_values, size_t levels) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
-        f = create_q_dq_function<LowPrecision>(data_shape, in_low, in_high, out_low, out_high,
+        f = create_q_dq_function(data_shape, in_low, in_high, out_low, out_high,
                                  zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
         pass::Manager m;
         m.register_pass<pass::InitNodeInfo>();
@@ -168,14 +128,14 @@ void negative_test(const Shape& data_shape, float in_low, float in_high, float o
 
     {
         // negative test so the transformation does not fire and reference is the same graph as original
-        f_ref = create_q_dq_function<LowPrecision>(data_shape, in_low, in_high, out_low, out_high,
+        f_ref = create_q_dq_function(data_shape, in_low, in_high, out_low, out_high,
                                  zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
     }
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastableWithINT8ZeroPoint) {
+TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastable) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -188,28 +148,11 @@ TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastableWith
     std::vector<float> scale_values{3};
     size_t levels = 256;
 
-    negative_test<int8_t>(data_shape, in_low, in_high, out_low, out_high,
+    negative_test(data_shape, in_low, in_high, out_low, out_high,
                   zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastableWithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-    Shape data_shape{ 3, 1, 2 };
-    float in_low = 0;
-    float in_high = 5;
-    float out_low = -128;
-    float out_high = 127;
-    Shape zero_point_shape{ 1, 1, 1, 1 };
-    std::vector<float> zero_point_values{ 2 };
-    Shape scale_shape{ 1 };
-    std::vector<float> scale_values{ 3 };
-    size_t levels = 256;
-
-    negative_test<int8_t>(data_shape, in_low, in_high, out_low, out_high,
-        zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
-}
-
-TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithINT8ZeroPoint) {
+TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastable) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -222,28 +165,11 @@ TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithINT8
     std::vector<float> scale_values{3};
     size_t levels = 256;
 
-    negative_test<int8_t>(data_shape, in_low, in_high, out_low, out_high,
+    negative_test(data_shape, in_low, in_high, out_low, out_high,
                   zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastableWithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-    Shape data_shape{ 3, 1, 2 };
-    float in_low = 0;
-    float in_high = 5;
-    float out_low = -128;
-    float out_high = 127;
-    Shape zero_point_shape{};
-    std::vector<float> zero_point_values{ 2 };
-    Shape scale_shape{ 1, 1, 1, 1 };
-    std::vector<float> scale_values{ 3 };
-    size_t levels = 256;
-
-    negative_test<int8_t>(data_shape, in_low, in_high, out_low, out_high,
-        zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
-}
-
-TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithINT8ZeroPoint) {
+TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevels) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -256,28 +182,11 @@ TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithINT8ZeroPoin
     std::vector<float> scale_values{3};
     size_t levels = 127;
 
-    negative_test<int8_t>(data_shape, in_low, in_high, out_low, out_high,
+    negative_test(data_shape, in_low, in_high, out_low, out_high,
                   zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevelsWithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-    Shape data_shape{ 3, 1, 2 };
-    float in_low = 0;
-    float in_high = 5;
-    float out_low = -128;
-    float out_high = 127;
-    Shape zero_point_shape{};
-    std::vector<float> zero_point_values{ 2 };
-    Shape scale_shape{};
-    std::vector<float> scale_values{ 3 };
-    size_t levels = 127;
-
-    negative_test<int8_t>(data_shape, in_low, in_high, out_low, out_high,
-        zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
-}
-
-TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHighWithUINT8ZeroPoint) {
+TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHigh) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -291,24 +200,6 @@ TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHighWithUINT8
     std::vector<float> scale_values{3};
     size_t levels = 256;
 
-    negative_test<uint8_t>(data_shape, in_low, in_high, out_low, out_high,
+    negative_test(data_shape, in_low, in_high, out_low, out_high,
                   zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
-}
-
-TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHighWithFP32ZeroPoint) {
-    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
-    Shape data_shape{ 3, 1, 2 };
-    float in_low = 0;
-    float in_high = 5;
-    // (-128, 127) are invalid for uin8_t data type
-    float out_low = -128;
-    float out_high = 127;
-    Shape zero_point_shape{};
-    std::vector<float> zero_point_values{ 2 };
-    Shape scale_shape{};
-    std::vector<float> scale_values{ 3 };
-    size_t levels = 256;
-
-    negative_test<uint8_t>(data_shape, in_low, in_high, out_low, out_high,
-        zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 }

@@ -8,15 +8,9 @@ addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
-            gmock
-            commonTestUtils_s
+            unitTestUtils
             GNAPlugin_test_static
         ADD_CPPLINT
         LABELS
             GNA
 )
-
-if(SUGGEST_OVERRIDE_SUPPORTED)
-    set_source_files_properties(gna_model_serial_test.cpp
-                                PROPERTIES COMPILE_OPTIONS -Wno-suggest-override)
-endif()

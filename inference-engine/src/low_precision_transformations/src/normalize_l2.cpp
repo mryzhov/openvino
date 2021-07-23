@@ -9,8 +9,6 @@
 #include <cmath>
 #include <vector>
 
-#include <ngraph/pattern/op/wrap_type.hpp>
-
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "low_precision/network_helper.hpp"
@@ -19,8 +17,6 @@
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::low_precision::NormalizeL2Transformation, "NormalizeL2Transformation", 0);
 
 namespace normalize_l2 {
 
@@ -38,21 +34,6 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
 }
 
 } // namespace normalize_l2
-
-NormalizeL2Transformation::NormalizeL2Transformation(const Params& params) : LayerTransformation(params) {
-    auto matcher = pattern::wrap_type<opset1::NormalizeL2>({ pattern::wrap_type<opset1::Multiply>(), pattern::wrap_type<opset1::Constant>() });
-
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        auto op = m.get_match_root();
-        if (transformation_callback(op)) {
-            return false;
-        }
-        return transform(*context, m);
-    };
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matcher, "NormalizeL2Transformation");
-    this->register_matcher(m, callback);
-}
 
 bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
     if (!LayerTransformation::canBeTransformed(context, operation)) {
@@ -84,11 +65,10 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
 
     const ngraph::Shape outputShape = scalesConst->get_output_shape(0);
     const size_t size = ngraph::shape_size(outputShape);
-    if (size != 1ul) {
-        const auto channelsInterval = operation->get_output_partial_shape(0)[1];
-        if (channelsInterval.is_dynamic() || static_cast<size_t>(channelsInterval.get_length()) != size) {
-            return false;
-        }
+    const size_t channels = operation->get_output_shape(0)[1];
+
+    if (size != channels && size != 1) {
+        return false;
     }
 
     if (!NetworkHelper::isScalarLike(scalesConst)) {
@@ -98,7 +78,17 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
     return true;
 }
 
-bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) {
+void NormalizeL2Transformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
+    addPattern(
+        pass,
+        context,
+        make_op_pattern<ngraph::opset1::NormalizeL2>({
+            make_op_label<ngraph::opset1::Multiply>(),
+            make_op_label<ngraph::opset1::Constant>()
+            }));
+}
+
+bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> operation = m.get_match_root();
     if (!canBeTransformed(context, operation)) {
         return false;
@@ -130,10 +120,10 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     }
 
     auto newNormalize = std::make_shared<op::TypeRelaxed<opset1::NormalizeL2>>(
-        std::vector<ngraph::element::Type>{ element::f32, axes->output(0).get_element_type() },
+        std::vector<ngraph::element::Type>{ element::f32, element::f32 },
         std::vector<ngraph::element::Type>{deqPrecision},
         ngraph::op::TemporaryReplaceOutputType(dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract, element::f32).get(),
-        axes,
+        ngraph::op::TemporaryReplaceOutputType(axes->clone_with_new_inputs({}), element::f32).get(),
         normalize->get_eps(),
         normalize->get_eps_mode());
     NetworkHelper::copyInfo(normalize, newNormalize);

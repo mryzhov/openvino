@@ -5,7 +5,6 @@
 #include "myriad_layers_tests.hpp"
 
 using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 using myriadConcatTestParams = std::tuple<InferenceEngine::SizeVector, int32_t, InferenceEngine::SizeVector, int32_t, int32_t >;
 typedef myriadLayerTestBaseWithParam<myriadConcatTestParams> myriadLayersTestsConcat_smoke;

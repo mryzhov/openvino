@@ -49,7 +49,7 @@ public:
 
 protected:
     //Operations
-    void SetUp() override;
+    virtual void SetUp() override;
     virtual void InitConfig() override;
 
     template <class T>

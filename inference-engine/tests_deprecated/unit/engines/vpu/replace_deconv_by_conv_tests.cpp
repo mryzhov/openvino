@@ -4,8 +4,6 @@
 
 #include "graph_transformer_tests.hpp"
 
-#include "vpu/private_plugin_config.hpp"
-
 using namespace vpu;
 
 class VPU_ReplaceDeconvByConvTest : public GraphTransformerTest {
@@ -93,7 +91,7 @@ TEST_F(VPU_ReplaceDeconvByConvTest, deconvReplacedByConvIfKernelSizeFitsHWUnit) 
 }
 
 TEST_F(VPU_ReplaceDeconvByConvTest, deconvCannotBeReplacedByConvIfDisabledInConfig) {
-    config.set(ie::MYRIAD_HW_BLACK_LIST, "deconv");
+    config.hwBlackList.insert("deconv");
     InitCompileEnv();
     InitDeconvStage(16, 15);
 

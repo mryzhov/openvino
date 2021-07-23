@@ -4,7 +4,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/fused_conv_eltwise.hpp"
+#include "api_extension/fused_conv_eltwise.hpp"
 #include "primitive_inst.h"
 
 #include <memory>
@@ -83,18 +83,18 @@ public:
 public:
     typed_primitive_inst(network_impl& network, fused_conv_eltwise_node const& node);
 
-    memory::ptr weights_memory(size_t index) const {
+    memory_impl& weights_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("weights offset too big");
 
-        return dep_memory_ptr(2 + index);
+        return dep_memory(2 + index);
     }
 
-    memory::ptr bias_memory(size_t index) const {
+    memory_impl& bias_memory(size_t index) const {
         if (static_cast<int32_t>(index) >= node.get_split())
             throw std::range_error("bias offset too big");
 
-        return dep_memory_ptr(2 + node.get_split() + index);
+        return dep_memory(2 + node.get_split() + index);
     }
 
     bool bias_term() const { return node.bias_term(); }

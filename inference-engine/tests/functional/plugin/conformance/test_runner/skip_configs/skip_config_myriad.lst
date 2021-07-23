@@ -136,7 +136,7 @@
 .*MVN_276196.*
 .*MVN_274454.*
 
-# hang
+# hung
 .*Clamp_1178483.*
 
 # lost results
@@ -144,6 +144,3 @@
 .*Add_2868.*
 .*Add_2979.*
 .*Add_53543.*
-
-# Temporary decision to skip all tests (To collect correct test number)
-.*

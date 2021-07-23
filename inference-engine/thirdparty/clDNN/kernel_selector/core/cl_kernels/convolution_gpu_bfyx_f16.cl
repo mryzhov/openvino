@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/data_types.cl"
-#include "include/fetch_data.cl"
+#include "include/include_all.cl"
+#include "include/mmad.cl"
 
 #define INPUT_TYPE        INPUT0_TYPE
 #define INPUT_TYPE2       MAKE_VECTOR_TYPE(INPUT0_TYPE, 2)

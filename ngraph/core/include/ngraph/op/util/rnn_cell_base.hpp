@@ -54,8 +54,6 @@ namespace ngraph
             class NGRAPH_API RNNCellBase : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
                 ///
                 /// \brief      Constructs a RNNCellBase class.
                 ///
@@ -89,7 +87,7 @@ namespace ngraph
                 ///
                 void validate_input_rank_dimension(const std::vector<ngraph::PartialShape>& input);
 
-                bool visit_attributes(AttributeVisitor& visitor) override;
+                virtual bool visit_attributes(AttributeVisitor& visitor);
                 std::size_t get_hidden_size() const { return m_hidden_size; }
                 float get_clip() const { return m_clip; }
                 const std::vector<std::string>& get_activations() const { return m_activations; }

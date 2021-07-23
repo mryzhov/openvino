@@ -79,10 +79,10 @@ OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &node
     return outs;
 }
 
-std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
-        interpreterFunction(const std::shared_ptr<Function> &function,
-                            const std::vector<std::vector<std::uint8_t>> &inputs,
-                            const std::vector<ngraph::element::Type> &inputTypes) {
+std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
+                                                           const std::vector<std::vector<std::uint8_t>> &inputs,
+                                                           const std::vector<ngraph::element::Type> &inputTypes,
+                                                           const std::vector<ngraph::element::Type_t> convertType) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -132,13 +132,19 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
 
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
-    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs(results.size());
+    auto outputs = std::vector<std::vector<std::uint8_t>>(results.size());
     for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
         auto& output = outputs[resultIndex];
-        output.first = results[resultIndex]->get_element_type();
         const auto& outputTensor = outputTensors[resultIndex];
-        output.second.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
-        outputTensors[resultIndex]->read(output.second.data(), output.second.size());
+        output.resize(ceil(shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() / 8.f));
+        outputTensors[resultIndex]->read(output.data(), output.size());
+        if (!convertType.empty() && convertType[resultIndex] != element::Type_t::undefined &&
+                outputTensor->get_element_type() != element::Type(convertType[resultIndex]))
+            output = convertOutputPrecision(
+                output,
+                outputTensor->get_element_type(),
+                convertType[resultIndex],
+                shape_size(outputTensors[resultIndex]->get_shape()));
     }
 
     return outputs;
@@ -197,12 +203,10 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
     return foldedFunc;
 }
 
-std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getConstData(const std::shared_ptr<Function> &function) {
+std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Function> &function, std::vector<ngraph::element::Type_t> convertType) {
     size_t numOutputs = function->get_output_size();
-    std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> outputs(numOutputs);
-    auto funcResults = function->get_results();
+    auto outputs = std::vector<std::vector<std::uint8_t>>(numOutputs);
     for (size_t i = 0; i < numOutputs; i++) {
-        outputs[i].first = funcResults[i]->get_element_type();
         const auto &output = function->output(i).get_node_shared_ptr();
         NGRAPH_CHECK(output->inputs().size() == 1);
         auto parrentNode = output->input_value(0).get_node_shared_ptr();
@@ -211,8 +215,10 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> getCons
 
         const auto data = std::dynamic_pointer_cast<opset1::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
         const auto dataSize = shape_size(parrentNode->get_shape()) * parrentNode->get_element_type().size();
-        outputs[i].second.resize(dataSize);
-        std::copy(data, data + dataSize, outputs[i].second.data());
+        outputs[i].resize(dataSize);
+        std::copy(data, data + dataSize, outputs[i].data());
+        if (!convertType.empty() && convertType[i] != element::Type_t::undefined && parrentNode->get_element_type() != element::Type(convertType[i]))
+            outputs[i] = convertOutputPrecision(outputs[i], parrentNode->get_element_type(), convertType[i], shape_size(parrentNode->get_shape()));
     }
     return outputs;
 }
@@ -226,8 +232,6 @@ std::string toString(const NodeTypeInfo& typeInfo) {
 void CompareShapes(const PartialShape& actual, const PartialShape& expected) {
     NGRAPH_CHECK(actual.relaxes(expected) && actual.refines(expected), "Functions compare: Different shape detected ", actual, " and ", expected);
 }
-
-
 
 void CompareNodes(const Node& actual, const Node& expected) {
     const auto& actualType   = actual.get_type_info();
@@ -817,32 +821,5 @@ std::ostream& operator<<(std::ostream & os, SequenceTestsMode type) {
     }
     return os;
 }
-
-std::ostream& operator<<(std::ostream & os, MemoryTransformation type) {
-    switch (type) {
-        case MemoryTransformation::NONE:
-            os << "NONE";
-            break;
-        case MemoryTransformation::LOW_LATENCY_V2:
-            os << "LOW_LATENCY_V2";
-            break;
-        case MemoryTransformation::LOW_LATENCY:
-            os << "LOW_LATENCY";
-            break;
-        case MemoryTransformation::LOW_LATENCY_V2_REGULAR_API:
-            os << "LOW_LATENCY_V2_REGULAR_API";
-            break;
-        case MemoryTransformation::LOW_LATENCY_REGULAR_API:
-            os << "LOW_LATENCY_REGULAR_API";
-            break;
-        case MemoryTransformation::LOW_LATENCY_V2_ORIGINAL_INIT:
-            os << "LOW_LATENCY_V2_ORIGINAL_INIT";
-            break;
-        default:
-            throw std::runtime_error("NOT_SUPPORTED_TYPE");
-    }
-    return os;
-}
-
 }  // namespace helpers
 }  // namespace ngraph

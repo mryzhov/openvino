@@ -1,4 +1,4 @@
-#include <ie_core.hpp>
+#include <inference_engine.hpp>
 
 int main() {
 const std::string output_name = "output_name";

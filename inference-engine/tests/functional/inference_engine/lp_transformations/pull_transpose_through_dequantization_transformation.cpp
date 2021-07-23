@@ -40,7 +40,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
-    TestTransformationParams params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     Values actual;
     Values expected;
 };
@@ -237,7 +237,7 @@ const std::vector<PullTransposeThroughDequantizationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     PullTransposeThroughDequantizationTransformation,
     ::testing::Combine(

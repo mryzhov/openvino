@@ -5,8 +5,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "input_layout_inst.h"
 #include "primitive_type_base.h"
-#include "cldnn/runtime/memory.hpp"
-#include "cldnn/runtime/error_handler.hpp"
+#include "memory_impl.h"
+#include "error_handler.h"
 #include "json_object.h"
 #include <string>
 #include <memory>
@@ -27,16 +27,16 @@ input_layout_inst::typed_primitive_inst(network_impl& network, input_layout_node
     _has_valid_input = false;  // by default input for 'input_layout' is invalid as long as user doesn't call set_data
 }
 
-void input_layout_inst::set_data(memory::ptr mem) {
+void input_layout_inst::set_data(memory_impl& mem) {
     auto ol = node.get_output_layout();
 
-    check_memory_to_set(*mem, ol);
+    check_memory_to_set(mem, ol);
 
-    if (mem->is_allocated_by(get_network().get_engine())) {
-        _output = mem;
+    if (mem.is_allocated_by(get_network().get_engine())) {
+        _output = (memory_impl::ptr) &mem;
     } else {
-        mem_lock<char> src(mem, get_network().get_stream());
-        mem_lock<char> dst(_output, get_network().get_stream());
+        mem_lock<char> src((memory_impl::ptr) &mem);
+        mem_lock<char> dst(_output);
         std::copy(src.begin(), src.end(), dst.begin());
     }
 

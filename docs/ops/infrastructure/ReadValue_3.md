@@ -6,9 +6,9 @@
 
 **Short description**: *ReadValue* returns value of the `variable_id` variable.
 
-**Detailed description**:
+**Detailed description**: 
 
-*ReadValue* returns value from the corresponding `variable_id` variable if the variable was set already by *Assign* operation and was not reset.
+*ReadValue* returns value from the corresponding `variable_id` variable if the variable was set already by *Assign* operation and was not reset. 
 The operation checks that the type and shape of the output are the same as
 declared in `variable_id` and returns an error otherwise. If the corresponding variable was not set or was reset,
 the operation returns the value from the 1 input, and initializes the `variable_id` shape and type
@@ -21,11 +21,12 @@ with the shape and type from the 1 input.
   * **Description**: identificator of the variable to be read
   * **Range of values**: any non-empty string
   * **Type**: string
-  * **Required**: *yes*
+  * **Default value**: None
+  * **Required**: *Yes*
 
 **Inputs**
 
-*   **1**: `init_value` - input tensor with constant values of any supported type. **Required.**
+*   **1**: `init_value` - input tensor with constant values of any supported type. **Required**.
 
 **Outputs**
 

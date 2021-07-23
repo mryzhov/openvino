@@ -16,13 +16,10 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include "cldnn/runtime/error_handler.hpp"
+#include "error_handler.h"
 
 void pre_replace_deconv::run(program_impl& p) {
     bool update_processing_order = false;
-
-    auto& stream = p.get_stream();
-
     auto itr = p.nodes_map.begin();
     while (itr != p.nodes_map.end()) {
         auto node_itr = itr++;
@@ -245,16 +242,16 @@ void pre_replace_deconv::run(program_impl& p) {
                 auto target_weights_layout = layout{ weights_layout.data_type, weights_layout.format, target_weights_size };
 
                 {
-                     memory::ptr data_to_allocate = p.get_engine().allocate_memory(target_weights_layout);
+                     memory_impl::ptr data_to_allocate = p.get_engine().allocate_memory(target_weights_layout, 0);
 
                      std::vector<float> weights_vec_float;
 
                      if (weights_data_type == data_types::f16) {
-                         mem_lock<half_t> src{ cur_weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                         mem_lock<half_t> src{ cur_weights_node_ptr->as<data>().get_attached_memory() };
                          for (uint32_t i = 0; i < weights_layout.size.count(); i++)
                              weights_vec_float.push_back(static_cast<float>(src.data()[i]));
                      } else {
-                         mem_lock<float> src{ cur_weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                         mem_lock<float> src{ cur_weights_node_ptr->as<data>().get_attached_memory() };
                          for (uint32_t i = 0; i < weights_layout.size.count(); i++)
                              weights_vec_float.push_back(src.data()[i]);
                      }
@@ -269,16 +266,17 @@ void pre_replace_deconv::run(program_impl& p) {
                          subpixel_weights);
 
                      if (weights_data_type == data_types::f16) {
-                         mem_lock<half_t> dst{ data_to_allocate, stream};
+                         mem_lock<half_t> dst{ data_to_allocate };
                          program_helpers::set_weights_values<half_t>(dst.data(), subpixel_weights);
                      } else if (weights_data_type == data_types::f32) {
-                         mem_lock<float> dst{ data_to_allocate, stream };
+                         mem_lock<float> dst{ data_to_allocate };
                          program_helpers::set_weights_values<float>(dst.data(), subpixel_weights);
                      } else {
                          throw std::logic_error("Not supported data type.");
                      }
 
-                     auto data_node_weights_replace = std::make_shared<data>(weights_vec[0] + "_conv_rpl", data_to_allocate);
+                     memory api_memory = memory(data_to_allocate.detach());
+                     auto data_node_weights_replace = std::make_shared<data>(weights_vec[0] + "_conv_rpl", api_memory);
                      p.get_or_create(data_node_weights_replace);
                      auto data_node_weights_replace_node_ptr = p.nodes_map.find(weights_vec[0] + "_conv_rpl")->second;
                      auto& data_node = data_node_weights_replace_node_ptr->as<data>();
@@ -287,10 +285,10 @@ void pre_replace_deconv::run(program_impl& p) {
                 float bias = 0;
 
                 if (bias_data_type == data_types::f16) {
-                    mem_lock<half_t> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                    mem_lock<half_t> src{ bias_id_node_ptr->as<data>().get_attached_memory() };
                     bias = static_cast<float>(src.data()[0]);
                 } else {
-                    mem_lock<float> src{ bias_id_node_ptr->as<data>().get_attached_memory_ptr(), stream };
+                    mem_lock<float> src{ bias_id_node_ptr->as<data>().get_attached_memory() };
                     bias = src.data()[0];
                 }
 

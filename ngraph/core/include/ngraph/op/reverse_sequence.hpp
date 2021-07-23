@@ -15,8 +15,8 @@ namespace ngraph
             class NGRAPH_API ReverseSequence : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION;
-
+                static constexpr NodeTypeInfo type_info{"ReverseSequence", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 ReverseSequence() = default;
                 /// \brief Constructs a ReverseSequence operation.
                 ///

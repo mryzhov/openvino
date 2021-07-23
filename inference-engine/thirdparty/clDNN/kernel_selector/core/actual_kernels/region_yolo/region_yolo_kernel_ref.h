@@ -21,7 +21,7 @@ struct region_yolo_params : public base_params {
     uint32_t mask_size;
     bool do_softmax;
 
-    ParamsKey GetParamsKey() const override {
+    virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
         return k;
     }

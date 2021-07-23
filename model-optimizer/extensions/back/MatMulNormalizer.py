@@ -3,7 +3,6 @@
 
 import numpy as np
 
-from extensions.back.TransposeReduceFusing import TransposeReduce
 from extensions.ops.transpose import Transpose
 from mo.back.replacement import BackReplacementPattern
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
@@ -87,8 +86,7 @@ class PullTransposeThroughFQUp(BackReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        # in case FQ->Transpose->Reduce we should first try to optimize out Transpose
-        return [MatMulConstTransposesExtraction, TransposeReduce]
+        return [MatMulConstTransposesExtraction]
 
     @staticmethod
     def pattern():
@@ -107,11 +105,6 @@ class PullTransposeThroughFQUp(BackReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         fq = match['fq']
-
-        if len(fq.out_port(0).get_destinations()) > 1:
-            # FQ should have only one child -- Transpose for optimization
-            return
-
         transpose = match['transpose']
         name = fq.soft_get('name', fq.id)
 

@@ -17,15 +17,14 @@ class TRANSFORMATIONS_API HSigmoidFusion;
 class TRANSFORMATIONS_API HSigmoidFusionWithReluDiv;
 class TRANSFORMATIONS_API HSigmoidFusionWithReluMul;
 class TRANSFORMATIONS_API HSigmoidFusionWithoutRelu;
-class TRANSFORMATIONS_API HSigmoidFusionWithClampMul;
-class TRANSFORMATIONS_API HSigmoidFusionWithClampDiv;
+class TRANSFORMATIONS_API HSigmoidFusionWithClamp;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief HSigmoidFusion transformation replaces a sub-graph ((min(Relu(x + 3), 6)) / 6) with a HSigmoid op.
+ * @brief HSigmoidFusion transformation replaces a sub-graph (x * (min(Relu(x + 3), 6))) / 6 with a HSigmoid op.
  */
 class ngraph::pass::HSigmoidFusionWithReluDiv: public ngraph::pass::MatcherPass {
 public:
@@ -35,7 +34,7 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief HSigmoidFusion transformation replaces a sub-graph ((min(Relu(x + 3), 6)) * const(1/6)) with a HSigmoid op.
+ * @brief HSigmoidFusion transformation replaces a sub-graph (x * (min(Relu(x + 3), 6)) * const(1/6) with a HSigmoid op.
  */
 class ngraph::pass::HSigmoidFusionWithReluMul: public ngraph::pass::MatcherPass {
 public:
@@ -45,7 +44,7 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief HSigmoidFusion transformation replaces a sub-graph (min(max(x + 3, 0), 6) / 6) with a HSigmoid op.
+ * @brief HSigmoidFusion transformation replaces a sub-graph x * (min(max(x + 3, 0), 6) / 6) with a HSigmoid op.
  */
 class ngraph::pass::HSigmoidFusionWithoutRelu: public ngraph::pass::MatcherPass {
 public:
@@ -55,22 +54,12 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief HSigmoidFusion transformation replaces a sub-graph (Clamp(x + 3, 0, 6) * const(1/6)) with a HSigmoid op.
+ * @brief HSigmoidFusion transformation replaces a sub-graph x * (Clamp(x + 3, 0, 6) * const(1/6)) with a HSigmoid op.
  */
-class ngraph::pass::HSigmoidFusionWithClampMul: public ngraph::pass::MatcherPass {
+class ngraph::pass::HSigmoidFusionWithClamp: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    HSigmoidFusionWithClampMul();
-};
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief HSigmoidFusion transformation replaces a sub-graph (Clamp(x + 3, 0, 6) * / 6) with a HSigmoid op.
- */
-class ngraph::pass::HSigmoidFusionWithClampDiv: public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    HSigmoidFusionWithClampDiv();
+    HSigmoidFusionWithClamp();
 };
 
 /**
@@ -84,7 +73,6 @@ public:
         add_matcher<ngraph::pass::HSigmoidFusionWithReluDiv>();
         add_matcher<ngraph::pass::HSigmoidFusionWithReluMul>();
         add_matcher<ngraph::pass::HSigmoidFusionWithoutRelu>();
-        add_matcher<ngraph::pass::HSigmoidFusionWithClampMul>();
-        add_matcher<ngraph::pass::HSigmoidFusionWithClampDiv>();
+        add_matcher<ngraph::pass::HSigmoidFusionWithClamp>();
     }
 };

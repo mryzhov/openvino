@@ -7,7 +7,7 @@
 #include "pass_manager.h"
 #include "border_inst.h"
 #include "convolution_inst.h"
-#include "cldnn/runtime/error_handler.hpp"
+#include "error_handler.h"
 #include <memory>
 
 using namespace cldnn;
@@ -18,66 +18,71 @@ using namespace cldnn;
 // Asymmetric padding can be done by adding border primitive before them. It's safe way without modyfing optimized
 // kernels.
 void handle_input_padding::run(program_impl& p) {
-    for (auto& node : p.get_processing_order()) {
-        if (!node->is_type<convolution>()) {
-            continue;
-        }
-        convolution_node& convolution_node = node->as<convolution>();
-        auto convolution_prim = const_cast<convolution*>(&(*convolution_node.get_primitive()));
+    auto processing_order = p.get_processing_order();
 
-        if (convolution_prim->padding_above.spatial[0] != 0 || convolution_prim->padding_above.spatial[1] != 0 ||
-            convolution_prim->padding_below.spatial[0] != 0 || convolution_prim->padding_below.spatial[1] != 0) {
+    for (auto& node : processing_order) {
+        if (node->is_type<convolution>() && (node->as<convolution>().get_primitive()->padding_above.spatial[0] != 0 ||
+                                             node->as<convolution>().get_primitive()->padding_above.spatial[1] != 0 ||
+                                             node->as<convolution>().get_primitive()->padding_below.spatial[0] != 0 ||
+                                             node->as<convolution>().get_primitive()->padding_below.spatial[1] != 0)) {
+            auto conv = node->as<convolution>().get_primitive();
+            auto conv_primitive = const_cast<convolution*>(&(*conv));
+
             // Asymmetric padding
-            if (convolution_prim->padding_above.spatial[0] != convolution_prim->padding_below.spatial[0] ||
-                convolution_prim->padding_above.spatial[1] != convolution_prim->padding_below.spatial[1]) {
-                const primitive_id& convolution_node_id = convolution_node.id();
-                tensor padding_above = convolution_prim->padding_above;
-                tensor padding_below = convolution_prim->padding_below;
+            if (node->as<convolution>().get_primitive()->padding_above.spatial[0] !=
+                    node->as<convolution>().get_primitive()->padding_below.spatial[0] ||
+                node->as<convolution>().get_primitive()->padding_above.spatial[1] !=
+                    node->as<convolution>().get_primitive()->padding_below.spatial[1]) {
+                primitive_id conv_id = conv_primitive->id;
+                primitive_id input_id = conv_primitive->input[0];
 
-                CLDNN_ERROR_NOT_EQUAL(convolution_node_id,
+                auto padding_above = conv_primitive->padding_above;
+                auto padding_below = conv_primitive->padding_below;
+
+                CLDNN_ERROR_NOT_EQUAL(node->as<convolution>().id(),
                                       "Padding above feature",
                                       padding_above.feature[0],
                                       "",
                                       0,
                                       "Padding above in feature is not supported");
-                CLDNN_ERROR_NOT_EQUAL(convolution_node_id,
+                CLDNN_ERROR_NOT_EQUAL(node->as<convolution>().id(),
                                       "Padding above batch",
                                       padding_above.batch[0],
                                       "",
                                       0,
                                       "Padding above in batch is not supported");
-                CLDNN_ERROR_NOT_EQUAL(convolution_node_id,
+                CLDNN_ERROR_NOT_EQUAL(node->as<convolution>().id(),
                                       "Padding below feature",
                                       padding_below.feature[0],
                                       "",
                                       0,
                                       "Padding below in feature is not supported");
-                CLDNN_ERROR_NOT_EQUAL(convolution_node_id,
+                CLDNN_ERROR_NOT_EQUAL(node->as<convolution>().id(),
                                       "Padding below batch",
                                       padding_below.batch[0],
                                       "",
                                       0,
                                       "Padding below in batch is not supported");
 
-                CLDNN_ERROR_LESS_THAN(convolution_node_id,
+                CLDNN_ERROR_LESS_THAN(node->as<convolution>().id(),
                                       "Padding above X",
                                       padding_above.spatial[0],
                                       "",
                                       0,
                                       "Padding above in X cannot be negative");
-                CLDNN_ERROR_LESS_THAN(convolution_node_id,
+                CLDNN_ERROR_LESS_THAN(node->as<convolution>().id(),
                                       "Padding above Y",
                                       padding_above.spatial[1],
                                       "",
                                       0,
                                       "Padding above in Y cannot be negative");
-                CLDNN_ERROR_LESS_THAN(convolution_node_id,
+                CLDNN_ERROR_LESS_THAN(node->as<convolution>().id(),
                                       "Padding below X",
                                       padding_below.spatial[0],
                                       "",
                                       0,
                                       "Padding below in X cannot be negative");
-                CLDNN_ERROR_LESS_THAN(convolution_node_id,
+                CLDNN_ERROR_LESS_THAN(node->as<convolution>().id(),
                                       "Padding below Y",
                                       padding_below.spatial[1],
                                       "",
@@ -85,12 +90,11 @@ void handle_input_padding::run(program_impl& p) {
                                       "Padding below in Y cannot be negative");
 
                 // set padding_above/padding_below to zeros - border primitive do the job
-                convolution_prim->padding_above = tensor(0, 0, 0, 0);
-                convolution_prim->padding_below = tensor(0, 0, 0, 0);
+                conv_primitive->padding_above = tensor(0, 0, 0, 0);
+                conv_primitive->padding_below = tensor(0, 0, 0, 0);
 
                 // create border primitive
-                primitive_id input_id = convolution_prim->input[0];
-                primitive_id border_id = input_id + "_border_" + convolution_prim->id;
+                primitive_id border_id = input_id + "_border_" + conv_id;
                 auto b_prim = std::make_shared<border>(border_id,
                                                        input_id,
                                                        padding_above,
@@ -100,16 +104,18 @@ void handle_input_padding::run(program_impl& p) {
 
                 auto& b_prim_node = p.get_or_create(b_prim);
 
-                p.add_intermediate(b_prim_node, convolution_node, 0, true);
+                p.add_intermediate(b_prim_node, *node, 0, true);
+
+                continue;
             } else {            // Symmetric padding
                 // set input_offset
-                convolution_prim->input_offset = convolution_prim->padding_above.negate().add(convolution_prim->input_offset);
+                conv_primitive->input_offset = conv_primitive->padding_above.negate().add(conv_primitive->input_offset);
 
                 // set padding_above/padding_below to zeros - input_offset do the job
-                convolution_prim->padding_above = tensor(0, 0, 0, 0);
-                convolution_prim->padding_below = tensor(0, 0, 0, 0);
+                conv_primitive->padding_above = tensor(0, 0, 0, 0);
+                conv_primitive->padding_below = tensor(0, 0, 0, 0);
 
-                convolution_node.recalc_output_layout(true);
+                node->as<convolution>().recalc_output_layout(true);
             }
         }
     }

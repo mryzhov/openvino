@@ -14,7 +14,6 @@ namespace ngraph {
 namespace pass {
 
 class InitConstMask;
-class InitMasks;
 class PropagateMasks;
 class ShrinkWeights;
 
@@ -22,16 +21,6 @@ class Pruning;
 
 } // namespace pass
 } // namespace ngraph
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief Initialising masks for pruned operations
- */
-class ngraph::pass::InitMasks : public ngraph::pass::GraphRewrite {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    InitMasks();
-};
 
 /**
  * @ingroup ie_transformation_common_api
@@ -43,7 +32,7 @@ class ngraph::pass::InitConstMask : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     explicit InitConstMask(const ngraph::AxisSet & dims,
-                           const std::function<bool(const double & value)> & condition = [](const double & value) { return value == 0; });
+                           const std::function<bool(const double & value)> & condition = [](const double & value) { return value < 1e-5; });
 };
 
 /**

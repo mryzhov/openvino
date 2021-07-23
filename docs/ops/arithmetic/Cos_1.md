@@ -2,32 +2,35 @@
 
 **Versioned name**: *Cos-1*
 
-**Category**: Arithmetic unary operation
+**Category**: Arithmetic unary operation 
 
-**Short description**: *Cos* performs element-wise cosine operation on a given input tensor.
+**Short description**: *Cos* performs element-wise cosine operation with given tensor.
 
-**Detailed description**: *Cos* performs element-wise cosine operation on a given input tensor, based on the following mathematical formula:
+**Attributes**:
 
-\f[
-a_{i} = cos(a_{i})
-\f]
-
-**Attributes**: *Cos* operation has no attributes.
+    No attributes available.
 
 **Inputs**
 
-* **1**: A tensor of type *T* and arbitrary shape. **Required.**
+* **1**: An tensor of type T. **Required.**
 
 **Outputs**
 
-* **1**: The result of element-wise *Cos* operation. A tensor of type *T* and the same shape as the input tensor.
+* **1**: The result of element-wise cos operation. A tensor of type T.
 
 **Types**
 
 * *T*: any numeric type.
 
+*Cos* does the following with the input tensor *a*:
 
-**Example**
+\f[
+a_{i} = cos(a_{i})
+\f]
+
+**Examples**
+
+*Example 1*
 
 ```xml
 <layer ... type="Cos">

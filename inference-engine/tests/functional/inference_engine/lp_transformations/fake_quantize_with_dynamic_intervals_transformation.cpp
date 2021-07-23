@@ -21,7 +21,7 @@ using namespace ngraph::pass;
 
 class FakeQuantizeWithDynamicIntervalsTransformationTestValues {
 public:
-    TestTransformationParams params;
+    low_precision::LayerTransformation::Params params;
     bool inputLowConst;
     bool inpuHighConst;
     bool outputLowConst;
@@ -157,7 +157,7 @@ const std::vector<FakeQuantizeWithDynamicIntervalsTransformationTestValues> fake
 
 const std::vector<ngraph::Shape> shapes = { { 1, 32, 72, 48 } };
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     FakeQuantizeWithDynamicIntervalsTransformation,
     ::testing::Combine(

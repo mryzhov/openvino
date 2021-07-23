@@ -7,15 +7,14 @@
 #include <gtest/gtest.h>
 #include "test_utils/test_utils.h"
 
-#include <cldnn/runtime/engine.hpp>
-#include <cldnn/runtime/layout.hpp>
-#include <cldnn/runtime/memory.hpp>
-#include <cldnn/runtime/tensor.hpp>
-
-#include <cldnn/primitives/data.hpp>
-#include <cldnn/primitives/fully_connected.hpp>
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/primitive.hpp>
+#include "api/data.hpp"
+#include "api/engine.hpp"
+#include "api/fully_connected.hpp"
+#include "api/input_layout.hpp"
+#include "api/layout.hpp"
+#include "api/memory.hpp"
+#include "api/primitive.hpp"
+#include "api/tensor.hpp"
 
 #include <map>
 #include <set>
@@ -30,7 +29,7 @@ namespace tests {
 template <typename T>
 struct typed_comparator {
     static ::testing::AssertionResult compare(const char* lhs_expr, const char* rhs_expr, T ref, T val) {
-        return ::testing::internal::EqHelper::Compare(lhs_expr, rhs_expr, ref, val);
+        return ::testing::internal::EqHelper<false>::Compare(lhs_expr, rhs_expr, ref, val);
     }
 };
 
@@ -58,7 +57,7 @@ struct typed_comparator<FLOAT16> {
 // =====================================================================================================================
 // Reference tensor
 struct reference_tensor {
-    virtual void compare(cldnn::memory::ptr actual) = 0;
+    virtual void compare(cldnn::memory actual) = 0;
 };
 
 template <typename T, size_t N>
@@ -69,23 +68,22 @@ struct reference_tensor_typed<T, 1> : reference_tensor {
     using vector_type = VF<T>;
     reference_tensor_typed(vector_type data) : reference(std::move(data)) {}
 
-    void compare(cldnn::memory::ptr actual) override {
-        cldnn::mem_lock<T> ptr(actual, get_test_stream());
-
+    void compare(cldnn::memory actual) override {
+        auto ptr = actual.pointer<T>();
         for (size_t bi = 0; bi < reference.size(); ++bi) {
             auto coords = cldnn::tensor(cldnn::batch(bi), cldnn::feature(0), cldnn::spatial(0, 0, 0, 0));
-            size_t offset = actual->get_layout().get_linear_offset(coords);
+            size_t offset = actual.get_layout().get_linear_offset(coords);
             auto& ref = reference[bi];
             auto& val = ptr[offset];
             TYPED_EXPECT_EQ(ref, val) << " at bi=" << bi;
         }
     }
 
-    void fill_memory(cldnn::memory::ptr mem) {
-        cldnn::mem_lock<T> ptr(mem, get_test_stream());
+    void fill_memory(cldnn::memory mem) {
+        auto ptr = mem.pointer<T>();
         for (size_t bi = 0; bi < reference.size(); ++bi) {
             auto coords = cldnn::tensor(cldnn::batch(bi), cldnn::feature(0), cldnn::spatial(0, 0, 0, 0));
-            size_t offset = mem->get_layout().get_linear_offset(coords);
+            size_t offset = mem.get_layout().get_linear_offset(coords);
             ptr[offset] = reference[bi];
         }
     }
@@ -102,12 +100,12 @@ struct reference_tensor_typed<T, 2> : reference_tensor {
     using vector_type = VVF<T>;
     reference_tensor_typed(vector_type data) : reference(std::move(data)) {}
 
-    void compare(cldnn::memory::ptr actual) override {
-        cldnn::mem_lock<T> ptr(actual, get_test_stream());
+    void compare(cldnn::memory actual) override {
+        auto ptr = actual.pointer<T>();
         for (size_t bi = 0; bi < reference.size(); ++bi) {
             for (size_t fi = 0; fi < reference[0].size(); ++fi) {
                 auto coords = cldnn::tensor(cldnn::batch(bi), cldnn::feature(fi), cldnn::spatial(0, 0, 0, 0));
-                size_t offset = actual->get_layout().get_linear_offset(coords);
+                size_t offset = actual.get_layout().get_linear_offset(coords);
                 auto& ref = reference[bi][fi];
                 auto& val = ptr[offset];
                 TYPED_EXPECT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi;
@@ -115,12 +113,12 @@ struct reference_tensor_typed<T, 2> : reference_tensor {
         }
     }
 
-    void fill_memory(cldnn::memory::ptr mem) {
-        cldnn::mem_lock<T> ptr(mem, get_test_stream());
+    void fill_memory(cldnn::memory mem) {
+        auto ptr = mem.pointer<T>();
         for (size_t bi = 0; bi < reference.size(); ++bi) {
             for (size_t fi = 0; fi < reference[0].size(); ++fi) {
                 auto coords = cldnn::tensor(cldnn::batch(bi), cldnn::feature(fi), cldnn::spatial(0, 0, 0, 0));
-                size_t offset = mem->get_layout().get_linear_offset(coords);
+                size_t offset = mem.get_layout().get_linear_offset(coords);
                 ptr[offset] = reference[bi][fi];
             }
         }
@@ -137,14 +135,14 @@ template <typename T>
 struct reference_tensor_typed<T, 4> : reference_tensor {
     using vector_type = VVVVF<T>;
     reference_tensor_typed(vector_type data) : reference(std::move(data)) {}
-    void compare(cldnn::memory::ptr actual) override {
-        cldnn::mem_lock<T> ptr(actual, get_test_stream());
+    void compare(cldnn::memory actual) override {
+        auto ptr = actual.pointer<T>();
         for (size_t bi = 0; bi < reference.size(); ++bi) {
             for (size_t fi = 0; fi < reference[0].size(); ++fi) {
                 for (size_t yi = 0; yi < reference[0][0].size(); ++yi) {
                     for (size_t xi = 0; xi < reference[0][0][0].size(); ++xi) {
                         auto coords = cldnn::tensor(cldnn::batch(bi), cldnn::feature(fi), cldnn::spatial(xi, yi, 0, 0));
-                        size_t offset = actual->get_layout().get_linear_offset(coords);
+                        size_t offset = actual.get_layout().get_linear_offset(coords);
                         auto& ref = reference[bi][fi][yi][xi];
                         auto& val = ptr[offset];
                         TYPED_EXPECT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi << " yi=" << yi << " xi=" << xi;
@@ -154,14 +152,14 @@ struct reference_tensor_typed<T, 4> : reference_tensor {
         }
     }
 
-    void fill_memory(cldnn::memory::ptr mem) {
-        cldnn::mem_lock<T> ptr(mem, get_test_stream());
+    void fill_memory(cldnn::memory mem) {
+        auto ptr = mem.pointer<T>();
         for (size_t bi = 0; bi < reference.size(); ++bi) {
             for (size_t fi = 0; fi < reference[0].size(); ++fi) {
                 for (size_t yi = 0; yi < reference[0][0].size(); ++yi) {
                     for (size_t xi = 0; xi < reference[0][0][0].size(); ++xi) {
                         auto coords = cldnn::tensor(cldnn::batch(bi), cldnn::feature(fi), cldnn::spatial(xi, yi, 0, 0));
-                        size_t offset = mem->get_layout().get_linear_offset(coords);
+                        size_t offset = mem.get_layout().get_linear_offset(coords);
                         ptr[offset] = reference[bi][fi][yi][xi];
                     }
                 }
@@ -259,7 +257,6 @@ struct reference_node_interface {
 
     virtual reference_tensor& get_reference() = 0;
     virtual cldnn::primitive_id get_id() = 0;
-    virtual ~reference_node_interface() = default;
 };
 
 template <typename T, size_t N>
@@ -278,7 +275,7 @@ struct reference_node : reference_node_interface {
 
 class network_test {
 public:
-    explicit network_test(cldnn::engine& eng) : eng(eng) {}
+    explicit network_test(cldnn::engine eng) : eng(eng) {}
 
     template <typename T, size_t N>
     typename reference_node<T, N>::ptr add_input_layout(cldnn::primitive_id id,
@@ -288,7 +285,7 @@ public:
         auto shape = output.get_shape();
         auto lt = cldnn::layout(cldnn::type_to_data_type<T>::value, fmt, shape);
         topo.add(cldnn::input_layout(id, lt));
-        auto mem = eng.allocate_memory(lt);
+        auto mem = cldnn::memory::allocate(eng, lt);
         output.fill_memory(mem);
         inputs.emplace(id, mem);
         return add_node(id, std::move(output), {});
@@ -301,7 +298,7 @@ public:
         auto output = reference_tensor_typed<T, N>(std::move(data));
         auto shape = output.get_shape();
         auto lt = cldnn::layout(cldnn::type_to_data_type<T>::value, fmt, shape);
-        auto mem = eng.allocate_memory(lt);
+        auto mem = cldnn::memory::allocate(eng, lt);
         output.fill_memory(mem);
         topo.add(cldnn::data(id, mem));
         return add_node(id, std::move(output), {});
@@ -387,10 +384,10 @@ protected:
         return node;
     }
 
-    cldnn::engine& eng;
+    cldnn::engine eng;
     cldnn::topology topo;
     std::map<cldnn::primitive_id, cldnn::implementation_desc> forced_impls;
-    std::map<cldnn::primitive_id, cldnn::memory::ptr> inputs;
+    std::map<cldnn::primitive_id, cldnn::memory> inputs;
     std::set<reference_node_interface::ptr> outputs;
 };
 

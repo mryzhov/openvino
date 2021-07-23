@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/fetch_data.cl"
-#include "include/fetch_weights.cl"
+#include "include/common.cl"
+#include "include/fetch.cl"
 #include "include/imad.cl"
+#include "include/mmad.cl"
 #include "include/data_types.cl"
 
 #define TYPE_N_(type, n) type##n

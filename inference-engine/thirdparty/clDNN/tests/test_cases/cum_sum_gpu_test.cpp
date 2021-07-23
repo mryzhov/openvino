@@ -3,18 +3,21 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <gtest/gtest.h>
 
-#include "test_utils.h"
-
-#include <cldnn/primitives/input_layout.hpp>
-#include <cldnn/primitives/cum_sum.hpp>
-#include <cldnn/primitives/data.hpp>
+#include <api/input_layout.hpp>
+#include "api/cum_sum.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include "test_utils/test_utils.h"
+#include <api/data.hpp>
 
 #include <algorithm>
 #include <fstream>
 
 using namespace cldnn;
-using namespace ::tests;
+using namespace tests;
 
 template<typename T = float>
 static std::vector<T> cumsum(const std::vector<T>& input,
@@ -147,7 +150,7 @@ class cum_sum_gpu : public ::testing::TestWithParam<cum_sum_test_params> {};
 
 TEST_P(cum_sum_gpu, basic_test) {
     auto p = GetParam();
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
 
     auto b = std::get<0>(p);
     auto f = std::get<1>(p);
@@ -166,14 +169,14 @@ TEST_P(cum_sum_gpu, basic_test) {
     else if (in_out_format == format::bfzyx)
         size = 5;
 
-    auto input = engine.allocate_memory({ data_types::f32, in_out_format, shape });
+    auto input = memory::allocate(engine, { data_types::f32, in_out_format, shape });
     const int inputSize = b * f * w * z * y * x;
     auto inputVals = generateVector(inputSize);
 
     set_values(input, inputVals);
 
     topology topology;
-    topology.add(input_layout("Input0", input->get_layout()));
+    topology.add(input_layout("Input0", input.get_layout()));
     topology.add(cum_sum("cum_sum", "Input0", getCumSumAxis(axis, size), exclusive, reverse));
 
     network network(engine, topology);
@@ -186,7 +189,7 @@ TEST_P(cum_sum_gpu, basic_test) {
     EXPECT_EQ(outputs.begin()->first, "cum_sum");
 
     auto output = outputs.at("cum_sum").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<float>();
 
     auto answers = cumsum(inputVals, in_out_format, { b, f, w, z, y, x }, axis, exclusive, reverse);
     ASSERT_EQ(output_ptr.size(), answers.size());
@@ -207,7 +210,7 @@ namespace {
     };
     std::vector<bool> variants = {false, true};
 }
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         axis_0,
         cum_sum_gpu,
         ::testing::Combine(
@@ -221,9 +224,9 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[0]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ));
+            ), );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         axis_1,
         cum_sum_gpu,
         ::testing::Combine(
@@ -237,9 +240,9 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[1]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ));
+            ), );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         axis_2,
         cum_sum_gpu,
         ::testing::Combine(
@@ -253,9 +256,9 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[2]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ));
+            ), );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         axis_3,
         cum_sum_gpu,
         ::testing::Combine(
@@ -269,9 +272,9 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[3]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ));
+            ), );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         axis_4,
         cum_sum_gpu,
         ::testing::Combine(
@@ -285,9 +288,9 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[4]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ));
+            ), );
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
         axis_5,
         cum_sum_gpu,
         ::testing::Combine(
@@ -301,24 +304,23 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::ValuesIn(axes[5]),
             ::testing::ValuesIn(variants),
             ::testing::ValuesIn(variants)
-            ));
+            ), );
 
-// FIXME: This test fails on some driver versions. Looks like UB in impl or driver issue
-TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
+TEST(cum_sum_gpu_f16, basic_1d) {
     // Input : 5x1x1x1
     // Output : 5x1x1x1
 
-    auto& engine = get_test_engine();
+    const auto& engine = get_test_engine();
     tensor shape = { 5, 1, 1, 1 };
     std::vector<float> inputVals = {
         1.0f, 2.0f, 3.0f, 4.0f, 5.0f
     };
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, shape });
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, shape });
 
     set_values(input, vectorCast<FLOAT16>(inputVals));
 
     topology topology;
-    topology.add(input_layout("Input0", input->get_layout()));
+    topology.add(input_layout("Input0", input.get_layout()));
     topology.add(cum_sum("cum_sum", "Input0"));
 
     network network(engine, topology);
@@ -331,12 +333,65 @@ TEST(cum_sum_gpu_f16, DISABLED_basic_1d) {
     EXPECT_EQ(outputs.begin()->first, "cum_sum");
 
     auto output = outputs.at("cum_sum").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    auto output_ptr = output.pointer<uint16_t>();
 
     auto answers = cumsum(inputVals, format::bfyx, { 5, 1, 1, 1, 1, 1 });
 
-    ASSERT_EQ(output->count(), answers.size());
-    for (size_t i = 0; i < answers.size(); ++i) {
+    ASSERT_EQ(output_ptr.size(), answers.size());
+    for (size_t i = 0; i < answers.size(); ++i)
+    {
         EXPECT_TRUE(are_equal(answers[i], float16_to_float32(output_ptr[i]))) << i;
     }
+}
+
+TEST(cum_sum_gpu_f32, perf) {
+    // Input : 384x160x160x1
+    // Output : 384x160x160x1
+
+    constexpr int batch = 384;
+    constexpr int features = 160;
+    constexpr int y = 160;
+    constexpr int x = 1;
+    engine_configuration configuration(true);
+    engine engine(configuration);
+    tensor shape = { batch, features, y, x };
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, shape });
+    constexpr int inputSize = batch * features * y * x;
+    auto inputVals = generateVector(inputSize);
+
+    set_values(input, inputVals);
+
+    topology topology;
+    topology.add(input_layout("Input0", input.get_layout()));
+    topology.add(cum_sum("cum_sum", "Input0"));
+
+    network network(engine, topology);
+
+    network.set_input_data("Input0", input);
+
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "cum_sum");
+
+    auto output = outputs.at("cum_sum").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    auto profilingTime = [](const primitive_id& id, const event& ev) {
+            cldnn::instrumentation::profiling_info cldnnInfo{id, ev.get_profiling_info()};
+            long long time = 0;
+            for (auto &interval : cldnnInfo.intervals) {
+                using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
+                time += std::chrono::duration_cast<duration_t>(interval.value->value()).count();
+            }
+            return time;
+        };
+
+
+    auto ep = network.get_executed_primitives();
+    auto cumSumEP = ep.find("cum_sum");
+    ASSERT_NE(cumSumEP, ep.end()) << "Cannot find 'cum_sum' id in executed primitives";
+
+    auto time = profilingTime(cumSumEP->first, cumSumEP->second);
+    std::cout << "Time, id: " << cumSumEP->first << ", time: " << time << std::endl;
 }

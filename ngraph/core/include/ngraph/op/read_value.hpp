@@ -6,13 +6,12 @@
 
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/variable.hpp"
-#include "ngraph/op/util/variable_extension.hpp"
 
 namespace ngraph
 {
     namespace op
     {
-        class NGRAPH_API ReadValueBase : public Op, public VariableExtension
+        class NGRAPH_API ReadValueBase : public Op
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -24,8 +23,28 @@ namespace ngraph
                 : Op(arguments)
             {
             }
-        };
 
+            /// \brief Sets the identifier of corresponding variable
+            ///
+            /// \param variable_id New identifier of the variable.
+            virtual void set_variable_id(const std::string& variable_id){};
+
+            /// \brief Returns the identifier of corresponding variable.
+            virtual std::string get_variable_id() const = 0;
+
+            /// \brief Returns variable connected to this node.
+            virtual std::shared_ptr<ngraph::Variable> get_variable() const { return m_variable; }
+            /// \brief Sets a new variable to be connected to this node.
+            ///
+            /// \param variable New variable to be connected to this node.
+            virtual void set_variable(const std::shared_ptr<ngraph::Variable>& variable)
+            {
+                m_variable = variable;
+            }
+
+        protected:
+            std::shared_ptr<ngraph::Variable> m_variable;
+        };
         namespace v3
         {
             /// \brief ReadValue operation creates the variable with `variable_id` and returns value
@@ -50,6 +69,10 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 std::string get_variable_id() const override { return m_variable_id; }
+                void set_variable_id(const std::string& variable_id) override
+                {
+                    m_variable_id = variable_id;
+                }
 
             private:
                 std::string m_variable_id;
@@ -90,14 +113,6 @@ namespace ngraph
                                  "Variable is not initialized. Variable_id is unavailable");
                     return m_variable->get_info().variable_id;
                 }
-
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs,
-                              const EvaluationContext& evaluation_context) const override;
-                bool has_evaluate() const override;
-
-                bool constant_fold(OutputVector& output_values,
-                                   const OutputVector& inputs_values) override;
             };
         } // namespace v6
     }     // namespace op

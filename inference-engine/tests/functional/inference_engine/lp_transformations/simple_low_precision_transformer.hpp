@@ -8,28 +8,43 @@
 
 #include <ngraph/ngraph.hpp>
 
-#include "layer_transformation.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "low_precision/layer_transformation.hpp"
-#include "low_precision/common/operation_precision_restriction.hpp"
-#include "low_precision/common/operation_per_tensor_quantization_restriction.hpp"
+#include "low_precision/transformation_context.hpp"
+#include <low_precision/transformer.hpp>
+#include <low_precision/iparams_manager.hpp>
+#include <low_precision/ilayer_transformations_manager.hpp>
 
-class SimpleLowPrecisionTransformer : public ngraph::pass::FunctionPass{
+class SimpleLowPrecisionTransformer : public
+    ngraph::pass::IParamsManager,
+    ngraph::pass::ILayerTransformationsManager {
 public:
-    SimpleLowPrecisionTransformer(
-        const std::vector<ngraph::pass::low_precision::OperationPrecisionRestriction>& precisionRestrictions = {},
-        const std::vector<ngraph::pass::low_precision::OperationPerTensorQuantizationRestriction>& quantizationRestrictions = {});
+    SimpleLowPrecisionTransformer();
+
+    // IParamsManager interface implementation
+    std::vector<ngraph::element::Type> getPrecisionsOnActivations(const ngraph::Node& op) const noexcept override;
+
+    // ILayerTransformationsManager interface implementation
+    bool isQuantized(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
+    bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
 
     template <class T, class Operation>
-    void add(const TestTransformationParams& params) {
-        commonGraphRewrite->add_matcher<T>(TestTransformationParams::toParams(params));
+    ngraph::pass::low_precision::LayerTransformationPtr add(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+        // const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+        const std::string typeName = ngraph::pass::low_precision::LowPrecisionTransformations::getType<Operation>();
+
+        const auto it = transformations.find(typeName);
+        if (it != transformations.end()) {
+            transformations.erase(it);
+        }
+
+        auto transformation = std::make_shared<T>(params);
+        transformations.emplace(typeName, transformation);
+        return transformation;
     }
 
     void transform(std::shared_ptr<ngraph::Function>& function);
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
-    std::shared_ptr<ngraph::pass::Manager> markup;
-    std::shared_ptr<ngraph::pass::Manager> common;
-    std::shared_ptr<ngraph::pass::GraphRewrite> commonGraphRewrite;
-    std::shared_ptr<ngraph::pass::GraphRewrite> cleanup;
+private:
+    std::map<std::string, ngraph::pass::low_precision::LayerTransformationPtr> transformations;
 };

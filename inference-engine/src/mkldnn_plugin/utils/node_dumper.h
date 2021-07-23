@@ -6,7 +6,6 @@
 
 #include "mkldnn_node.h"
 #include "utils/blob_dump.h"
-#include "utils/debug_capabilities.h"
 
 #include <unordered_map>
 #include <string>
@@ -23,7 +22,7 @@ namespace MKLDNNPlugin {
  */
 class NodeDumper {
 public:
-    NodeDumper(const DebugCaps::Config& config, const int _count);
+    NodeDumper(int _count);
 
     void dumpInputBlobs(const MKLDNNNodePtr &node) const;
     void dumpOutputBlobs(const MKLDNNNodePtr &node) const;
@@ -31,29 +30,30 @@ public:
 private:
     void dumpInternalBlobs(const MKLDNNNodePtr& node) const;
     void dump(const BlobDumper& bd, const std::string& file) const;
-    bool shouldBeDumped(const MKLDNNNodePtr &node, const std::string& portsKind) const;
+    bool shouldBeDumped(const MKLDNNNodePtr &node) const;
 
-    enum class FORMAT {
+    enum class DUMP_FORMAT {
         BIN,
         TEXT,
     };
 
-    FORMAT parseDumpFormat(const std::string& format) const;
+    DUMP_FORMAT parseDumpFormat(const std::string& format) const;
     void formatNodeName(std::string& name) const;
 
-    FORMAT dumpFormat;
-    std::string dumpDirName;
+    DUMP_FORMAT dumpFormat;
+
     int count;
 
+    std::string dumpDirName = "mkldnn_dump";
+
     enum FILTER {
-        BY_PORTS,
         BY_EXEC_ID,
         BY_TYPE,
         BY_NAME,
+        COUNT,
     };
 
-    // std::hash<int> is necessary for Ubuntu-16.04 (gcc-5.4 and defect in C++11 standart)
-    std::unordered_map<FILTER, std::string, std::hash<int>> dumpFilters;
+    std::unordered_map<FILTER, std::string> dumpFilters;
 };
 } // namespace MKLDNNPlugin
 #endif // CPU_DEBUG_CAPS

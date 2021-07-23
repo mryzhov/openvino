@@ -75,7 +75,7 @@ struct eltwise_params : public base_params {
     bool int8_quantization = false;
     bool broadcast = false;
 
-    ParamsKey GetParamsKey() const override;
+    virtual ParamsKey GetParamsKey() const;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

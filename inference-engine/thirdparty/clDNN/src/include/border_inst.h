@@ -4,9 +4,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/border.hpp"
-#include "primitive_inst.h"
 
+#include <api/border.hpp>
+
+#include "primitive_inst.h"
 #include <string>
 #include <memory>
 

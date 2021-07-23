@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <cfloat>
 #include <ie_blob.h>
-#include <gtest/gtest.h>
+#include <single_layer_common.hpp>
 #include <legacy/ie_layers_internal.hpp>
-#include "common_layers_params.hpp"
+#include "common_test_utils/common_layers_params.hpp"
 
 template<typename data_t>
 void ref_pool_common(const std::vector<InferenceEngine::Blob::Ptr> srcs,

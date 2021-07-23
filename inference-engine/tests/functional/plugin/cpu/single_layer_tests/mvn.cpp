@@ -13,7 +13,7 @@ using namespace CPUTestUtils;
 namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
-        LayerTestsDefinitions::mvn1Params,
+        LayerTestsDefinitions::mvnParams,
         CPUSpecificParams,
         fusingSpecificParams,
         Precision, // CNNNetwork input precision
@@ -24,14 +24,14 @@ class MvnLayerCPUTest : public testing::WithParamInterface<MvnLayerCPUTestParamS
                         virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MvnLayerCPUTestParamSet> obj) {
-        LayerTestsDefinitions::mvn1Params basicParamsSet;
+        LayerTestsDefinitions::mvnParams basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         Precision inputPrecision, outputPrecision;
         std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision) = obj.param;
 
         std::ostringstream result;
-        result << LayerTestsDefinitions::Mvn1LayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::mvn1Params>(
+        result << LayerTestsDefinitions::MvnLayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::mvnParams>(
                 basicParamsSet, 0));
 
         result << "_" << "CNNInpPrc=" << inputPrecision.name();
@@ -45,7 +45,7 @@ public:
     }
 protected:
     void SetUp() override {
-        LayerTestsDefinitions::mvn1Params basicParamsSet;
+        LayerTestsDefinitions::mvnParams basicParamsSet;
         CPUSpecificParams cpuParams;
         fusingSpecificParams fusingParams;
         std::tie(basicParamsSet, cpuParams, fusingParams, inPrc, outPrc) = this->GetParam();
@@ -55,17 +55,13 @@ protected:
 
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision netPrecision;
-        ngraph::AxisSet axes;
         bool acrossChanels, normalizeVariance;
         double eps;
-        std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps, targetDevice) = basicParamsSet;
+        std::tie(inputShapes, netPrecision, acrossChanels, normalizeVariance, eps, targetDevice) = basicParamsSet;
         auto netPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto param = ngraph::builder::makeParams(netPrc, {inputShapes});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
         auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
-        if (!axes.empty()) {
-             mvn = ngraph::builder::makeMVN(paramOuts[0], axes, normalizeVariance, eps);
-        }
 
         selectedType = getPrimitiveType() + "_" + inPrc.name();
 
@@ -82,20 +78,9 @@ TEST_P(MvnLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-const std::vector<std::vector<size_t>> inputShapes_1D = {
-        {5},
-        {16},
-};
-
-const std::vector<std::vector<size_t>> inputShapes_2D = {
-        {1, 32},
-        {16, 64},
-};
-
 const std::vector<std::vector<size_t>> inputShapes_3D = {
         {1, 32, 17},
         {1, 37, 9},
-        {1, 16, 4},
 };
 
 const std::vector<std::vector<size_t>> inputShapes_4D = {
@@ -132,10 +117,7 @@ const std::vector<double> epsilon = {
         0.000000001
 };
 
-const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
-
-std::vector<Precision> inpPrc = {Precision::I8, Precision::BF16, Precision::FP32};
-std::vector<Precision> outPrc = {Precision::BF16, Precision::FP32};
+std::vector<Precision> inpOutPrc = {Precision::BF16, Precision::FP32};
 
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
@@ -149,8 +131,52 @@ std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {})
 };
 
+const auto Mvn3D = ::testing::Combine(
+        ::testing::Combine(
+            ::testing::ValuesIn(inputShapes_3D),
+            ::testing::Values(InferenceEngine::Precision::FP32),
+            ::testing::ValuesIn(acrossChannels),
+            ::testing::ValuesIn(normalizeVariance),
+            ::testing::ValuesIn(epsilon),
+            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(emptyCPUSpec),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::ValuesIn(inpOutPrc),
+        ::testing::ValuesIn(inpOutPrc));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
+
+const auto Mvn4D = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(inputShapes_4D),
+                ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::ValuesIn(acrossChannels),
+                ::testing::ValuesIn(normalizeVariance),
+                ::testing::ValuesIn(epsilon),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::ValuesIn(inpOutPrc),
+        ::testing::ValuesIn(inpOutPrc));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
+
+const auto Mvn5D = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(inputShapes_5D),
+                ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::ValuesIn(acrossChannels),
+                ::testing::ValuesIn(normalizeVariance),
+                ::testing::ValuesIn(epsilon),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::ValuesIn(inpOutPrc),
+        ::testing::ValuesIn(inpOutPrc));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D, MvnLayerCPUTest, Mvn5D, MvnLayerCPUTest::getTestCaseName);
+
 std::vector<fusingSpecificParams> fusingParamsSet {
-        emptyFusingSpec,
         /* activations */
         fusingRelu,
         fusingElu,
@@ -160,116 +186,53 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         fusingFakeQuantizePerChannel,
         fusingFakeQuantizePerChannelRelu,
         fusingFakeQuantizePerTensorRelu,
-        /* another patterns */
-        fusingScaleShift,
 };
 
-const auto Mvn3D = ::testing::Combine(
+const auto Mvn3DFuse = ::testing::Combine(
         ::testing::Combine(
             ::testing::ValuesIn(inputShapes_3D),
             ::testing::Values(InferenceEngine::Precision::FP32),
-            ::testing::ValuesIn(emptyReductionAxes),
-            ::testing::ValuesIn(acrossChannels),
-            ::testing::ValuesIn(normalizeVariance),
+            ::testing::Values(false),
+            ::testing::Values(true),
             ::testing::ValuesIn(epsilon),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::Values(emptyCPUSpec),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(inpPrc),
-        ::testing::ValuesIn(outPrc));
+        ::testing::ValuesIn(inpOutPrc),
+        ::testing::ValuesIn(inpOutPrc));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_3D_Fuse, MvnLayerCPUTest, Mvn3DFuse, MvnLayerCPUTest::getTestCaseName);
 
-const auto Mvn4D = ::testing::Combine(
+const auto Mvn4DFuse = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inputShapes_4D),
                 ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::ValuesIn(emptyReductionAxes),
-                ::testing::ValuesIn(acrossChannels),
-                ::testing::ValuesIn(normalizeVariance),
+                ::testing::Values(false),
+                ::testing::Values(true),
                 ::testing::ValuesIn(epsilon),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(inpPrc),
-        ::testing::ValuesIn(outPrc));
+        ::testing::ValuesIn(inpOutPrc),
+        ::testing::ValuesIn(inpOutPrc));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_Fuse, MvnLayerCPUTest, Mvn4DFuse, MvnLayerCPUTest::getTestCaseName);
 
-const auto Mvn5D = ::testing::Combine(
+const auto Mvn5DFuse = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inputShapes_5D),
                 ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::ValuesIn(emptyReductionAxes),
-                ::testing::ValuesIn(acrossChannels),
-                ::testing::ValuesIn(normalizeVariance),
+                ::testing::Values(false),
+                ::testing::Values(true),
                 ::testing::ValuesIn(epsilon),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(inpPrc),
-        ::testing::ValuesIn(outPrc));
+        ::testing::ValuesIn(inpOutPrc),
+        ::testing::ValuesIn(inpOutPrc));
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn5D, MvnLayerCPUTest, Mvn5D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_Fuse, MvnLayerCPUTest, Mvn5DFuse, MvnLayerCPUTest::getTestCaseName);
 
-// 1D 2D case
-std::vector<fusingSpecificParams> fusingUnaryEltwiseParamsSet {
-        /* activations */
-        fusingRelu,
-        fusingElu,
-        fusingTanh,
-        fusingSwish,
-};
-
-const auto Mvn1D = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapes_1D),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::ValuesIn(emptyReductionAxes),
-                ::testing::ValuesIn(acrossChannels),
-                ::testing::ValuesIn(normalizeVariance),
-                ::testing::ValuesIn(epsilon),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::Values(emptyCPUSpec),
-        ::testing::ValuesIn(fusingUnaryEltwiseParamsSet),
-        ::testing::ValuesIn(inpPrc),
-        ::testing::ValuesIn(outPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn1D, MvnLayerCPUTest, Mvn1D, MvnLayerCPUTest::getTestCaseName);
-
-// 2D no transformed
-const auto Mvn2D = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapes_2D),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::ValuesIn(emptyReductionAxes),
-                ::testing::Values(false),
-                ::testing::ValuesIn(normalizeVariance),
-                ::testing::ValuesIn(epsilon),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::Values(emptyCPUSpec),
-        ::testing::ValuesIn(fusingParamsSet),
-        ::testing::ValuesIn(inpPrc),
-        ::testing::ValuesIn(outPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2D, MvnLayerCPUTest, Mvn2D, MvnLayerCPUTest::getTestCaseName);
-
-// 2d transformed
-const auto Mvn2DTrans = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inputShapes_2D),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::ValuesIn(emptyReductionAxes),
-                ::testing::Values(true),
-                ::testing::ValuesIn(normalizeVariance),
-                ::testing::ValuesIn(epsilon),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::Values(emptyCPUSpec),
-        ::testing::ValuesIn(fusingUnaryEltwiseParamsSet),
-        ::testing::ValuesIn(inpPrc),
-        ::testing::ValuesIn(outPrc));
-
-INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_MVN2DTrans, MvnLayerCPUTest, Mvn2DTrans, MvnLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

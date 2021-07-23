@@ -14,13 +14,15 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
     const element::Type precision,
-    const ngraph::PartialShape& inputShape,
+    const ngraph::Shape& inputShape,
     const AxisSet& reductionAxes,
     const bool& normalizeVariance,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization,
     const int opset_version) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
+    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
+        precisionBeforeDequantization,
+        ngraph::Shape(inputShape));
     auto deqStructure = dequantization;
     deqStructure.multiply.outPrecision = precision;
     const auto dequantizationOp = makeDequantization(input, deqStructure);
@@ -45,7 +47,7 @@ std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
     const ngraph::element::Type precision,
-    const ngraph::PartialShape& inputShape,
+    const ngraph::Shape& inputShape,
     const AxisSet& reductionAxes,
     const bool& normalizeVariance) {
     float k = 50.f;
@@ -62,7 +64,7 @@ std::shared_ptr<ngraph::Function> MVNFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> MVNFunction::getReference(
     const element::Type precision,
-    const ngraph::PartialShape& inputShape,
+    const ngraph::Shape& inputShape,
     const AxisSet& reductionAxes,
     const bool& normalizeVariance,
     const ngraph::element::Type precisionBeforeDequantization,
@@ -70,8 +72,9 @@ std::shared_ptr<ngraph::Function> MVNFunction::getReference(
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const int opset_version) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, inputShape);
-
+    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
+        precisionBeforeDequantization,
+        ngraph::Shape(inputShape));
     auto deqBeforeStructure = dequantizationBefore;
     deqBeforeStructure.multiply.outPrecision = precision;
     const std::shared_ptr<Node> dequantizationOpBefore = makeDequantization(input, deqBeforeStructure);

@@ -9,8 +9,6 @@
 #include <ie_blob.h>
 #include <blob_factory.hpp>
 
-using namespace InferenceEngine::details;
-
 namespace CommonTestUtils {
 
 bool isDenseBlob(const InferenceEngine::Blob::Ptr& blob) {
@@ -71,8 +69,8 @@ void fill_data_with_broadcast(InferenceEngine::Blob::Ptr& blob, InferenceEngine:
         if (src_dims[i] != dst_dims[i] && src_dims[i] != 1)
             compatible = false;
     }
-
-    IE_ASSERT(compatible);
+    IE_ASSERT(compatible) << "fill_data_with_broadcast error: Tensor shape " << values_dims
+                          << " can not be broadcasted to shape " << blob_dims;
 
     auto fill_strides_like_plain = [] (SizeVector dims) {
         SizeVector str(dims.size());

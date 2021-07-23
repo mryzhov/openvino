@@ -4,7 +4,7 @@
 import numpy as np
 
 from extensions.ops.elementwise import Add, Sub, Mul, Div, Pow, Less, Equal, Greater, LogicalAnd, LogicalOr, LogicalXor, \
-    Round, GreaterEqual, LessEqual
+    Round
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.graph.graph import Node
@@ -127,7 +127,6 @@ class MinExtractor(FrontExtractorOp):
         EltwiseNMin.update_node_stat(node)
         return cls.enabled
 
-
 class EqualExtractor(FrontExtractorOp):
     op = 'Equal'
     enabled = True
@@ -155,26 +154,6 @@ class GreaterExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         Greater.update_node_stat(node)
-        return cls.enabled
-
-
-class GreaterOrEqualExtractor(FrontExtractorOp):
-    op = 'GreaterOrEqual'
-    enabled = True
-
-    @classmethod
-    def extract(cls, node):
-        GreaterEqual.update_node_stat(node)
-        return cls.enabled
-
-
-class LessOrEqualExtractor(FrontExtractorOp):
-    op = 'LessOrEqual'
-    enabled = True
-
-    @classmethod
-    def extract(cls, node):
-        LessEqual.update_node_stat(node)
         return cls.enabled
 
 

@@ -4,9 +4,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "cldnn/primitives/normalize.hpp"
+#include "api/normalize.hpp"
 #include "primitive_inst.h"
-
 #include <string>
 
 namespace cldnn {
@@ -35,7 +34,7 @@ public:
 public:
     typed_primitive_inst(network_impl& network, normalize_node const& node);
 
-    memory::ptr scale_memory() const { return dep_memory_ptr(1); }
+    memory_impl& scale_memory() const { return dep_memory(1); }
 };
 
 using normalize_inst = typed_primitive_inst<normalize>;
