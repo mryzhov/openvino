@@ -26,6 +26,42 @@ enum rRegion {
     REGION_AUTO,
 };
 
+inline const char* rRegionToStr(uint8_t region) {
+   const char* strRegion = "UNKNOWN";
+   switch (region) {
+      case REGION_RO:
+        strRegion = "REGION_RO";
+        break;
+      case REGION_RW:
+        strRegion = "REGION_RW";
+        break;
+      case REGION_AUTO:
+        strRegion = "REGION_AUTO";
+        break;
+   }
+   return strRegion;
+}
+
+inline const char* rTypeToStr(uint8_t type) {
+   const char* strType = "UNKNOWN";
+   uint8_t initializerMask = 0x7;
+   switch (type & initializerMask) {
+      case REQUEST_STORE:
+        strType = "REQUEST_STORE";
+        break;
+      case REQUEST_ALLOCATE:
+        strType = "REQUEST_ALLOCATE";
+        break;
+      case REQUEST_BIND:
+        strType = "REQUEST_BIND";
+        break;
+      case REQUEST_INITIALIZER:
+        strType = "REQUEST_INITIALIZER";
+        break;
+   }
+   return strType;
+}
+
 struct MemRequest {
     rRegion  _region;
     uint8_t   _type;

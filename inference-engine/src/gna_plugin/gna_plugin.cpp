@@ -32,6 +32,7 @@
 #include "backend/am_intel_dnn.hpp"
 #include "memory/gna_allocator.hpp"
 #include "memory/gna_memory_state.hpp"
+#include "memory/gna_memory_solver.hpp"
 #include "gna_model_serial.hpp"
 #include "runtime/gna_float_runtime.hpp"
 #include <layers/gna_fake_quantize_layer.hpp>
@@ -930,7 +931,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     for (auto& inputLayer : inputLayers) {
         auto layerInfo = LayerInfo(inputLayer);
         if (layerInfo.isInput() && 0 == inputsDesc->bytes_allocated_for_input[inputLayer->name]) {
-            graphCompiler.connectOutput(inputLayer, &inputsDesc->getPtrInputsGlobal(inputLayer->name).front(), 0);
+            graphCompiler.connectOutput(inputLayer, &inputsDesc->getPtrInputsGlobal(inputLayer->name).front(), 0, 0);
         }
     }
 
@@ -989,6 +990,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     if (gnaFlags->gna_lib_async_threads_num > 1) {
         gnamem->reserve_ptr(&pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
     }
+
+    gnamem->setMemoryOrder(graphCompiler.dnnComponents);
 
     gnamem->commit();
 
