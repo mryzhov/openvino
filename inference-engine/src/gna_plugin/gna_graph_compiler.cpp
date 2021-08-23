@@ -442,7 +442,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     size_t num_data_bytes_out = num_columns_out * outputs->getPrecision().size();
     size_t num_data_bytes_in = (num_inputs + num_input_padding) * inputs->getPrecision().size();
 
-    auto connectedInputLayer = connectInput(layer, ptr_inputs, num_data_bytes_in).input;
+    auto connectedInputLayer = connectInput(layer, component_id, ptr_inputs, num_data_bytes_in).input;
     // Skip FakeQuantize and ScaleShift between Convolution and Input
     if (LayerInfo(connectedInputLayer).isFakeQuantize()) {
             connectedInputLayer = CNNNetPrevLayerSkipCertain(connectedInputLayer, 0, [](CNNLayerPtr l) {
@@ -623,7 +623,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
 
     size_t num_data_bytes_in = (num_inputs + num_input_padding) * inputs->getPrecision().size();
 
-    auto connectedInputLayer = connectInput(layer, ptr_inputs, num_data_bytes_in).input;
+    auto connectedInputLayer = connectInput(layer, component_id, ptr_inputs, num_data_bytes_in).input;
 
     // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know how kaldi will handle that
     if (!dnn->do_rotate_input && inputs->getLayout() != Layout::NHWC && LayerInfo(connectedInputLayer).isInput()) {
@@ -721,9 +721,9 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
             ptr_weights,
             ptr_biases,
             true);
-
-        connectOutput(layer, ptr_outputs, num_data_bytes_out);
-        connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+        size_t component_id = dnnComponents.components.size();
+        connectOutput(layer, ptr_outputs, num_data_bytes_out, component_id);
+        connectInput(layer, component_id, ptr_inputs, num_data_bytes_in);
 
         if (gnaFlags->sw_fp32) {
             IE_ASSERT(quantized == nullptr);
@@ -808,9 +808,9 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
             ptr_pwl_input,
             ptr_pwl_outputs,
             ptr_pwl_segments_target);
-
-        connectOutput(layer, ptr_pwl_outputs, num_data_bytes_out);
-        connectInput(layer, ptr_pwl_input, num_data_bytes_in, 0, 0);
+        size_t component_id = dnnComponents.components.size();
+        connectOutput(layer, ptr_pwl_outputs, num_data_bytes_out, component_id);
+        connectInput(layer, component_id, ptr_pwl_input, num_data_bytes_in);
 
         if (ptr_pwl_segments_target != nullptr) {
             gnamem->readonly().push_local_ptr(ptr_pwl_segments_target,
@@ -896,8 +896,8 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_padding = ALIGN(hw_in, 8) - hw_in;
     size_t num_data_bytes_in = c_dim_in * (hw_in + num_padding) * inputs->getPrecision().size();
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    connectInput(layer, component_id, ptr_inputs, num_data_bytes_in);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out, component_id);
 }
 
 void GNAGraphCompiler::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
@@ -939,13 +939,16 @@ void GNAGraphCompiler::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
         * outputs->getPrecision().size();
     size_t num_data_bytes_in = num_columns_in * ALIGN(num_rows_in, 8) * inputs->getPrecision().size();
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    connectInput(layer, component_id, ptr_inputs, num_data_bytes_in);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out, component_id);
 }
 
 void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto concatLayer = dynamic_cast<InferenceEngine::ConcatLayer *> (layer.get());
-
+    auto component = dnnComponents.findComponent(layer);
+    if (component != nullptr) {
+        std::cout << "found" << std::endl;
+    }
     if (concatLayer == nullptr) {
         return;
     }
@@ -1008,12 +1011,17 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto layerInfo = LayerInfo(concatParent);
         // auto layerInfo = LayerInfo(getCreatorLayer(concatLayerInput->insData[it].lock()).lock());
         if (layerInfo.isInput()) {
-            connectInput(layer, &concatLayerInfo.gna_ptr,
-                inputLayer.tensorSize, inputLayer.offset, idx, false);
+            auto & bytesAllocated = inputDesc->bytes_allocated_for_input[((InferenceEngine::CNNLayerPtr)layerInfo)->name];
+
+            connectInput(layer, 0, &concatLayerInfo.gna_ptr,
+                         concatLayerInfo.reserved_size, inputLayer.offset, idx, false);
+
+            // TODO: currently connectInput api accept only total size, for concat we need extension for allocated, and actual sizes
+            bytesAllocated = inputLayer.tensorSize;
 
             concatLayerInfo.input_allocated = true;
         } else if (layerInfo.isMemory()) {
-            connectInput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size, inputLayer.offset, idx, false);
+            connectInput(layer, 0, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size, inputLayer.offset, idx, false);
 
             concatLayerInfo.input_allocated = true;
         }
@@ -1078,7 +1086,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
 
         // calculate index idx for connectInput last parameter
-        connectInput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSize + cropOffset, cropOffset, 0);
+        connectInput(layer, 0, &cropLayerInfo->second.gna_ptr, cropOutputSize + cropOffset, cropOffset);
 
         // cases for certain output layers
         for (auto&& outLayer : getInputTo(layer->outData.front())) {
@@ -1134,8 +1142,8 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         size_t num_data_bytes_in = num_columns_in *
             ALIGN(num_rows_in, noOfInputsDivisor) * inputs->getPrecision().size();
 
-        connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
-        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+        connectInput(layer, component_id, ptr_inputs, num_data_bytes_in);
+        connectOutput(layer, ptr_outputs, num_data_bytes_out, component_id);
 
         FillWeightOfAligningFilter(layer, ptr_weights, offset.front(), (quantized == nullptr) ? false : true);
 
@@ -1268,8 +1276,8 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t num_data_bytes_in =
         num_columns_in * (num_rows_in + num_padding) * inputs2Bytes->getPrecision().size();
 
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
-    connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 1 - biasesLayerIdx);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out, component_id);
+    connectInput(layer, component_id, ptr_inputs, num_data_bytes_in, 0, 1 - biasesLayerIdx);
 
     switch (eltwise._operation) {
     case EltwiseLayer::Sub:
@@ -1288,7 +1296,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
                 gnamem->readonly().push_value<int8_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
             }
         }
-        connectInput(layer, ptr_biases, num_data_bytes_in, 0, biasesLayerIdx);
+        connectInput(layer, component_id, ptr_biases, num_data_bytes_in, 0, biasesLayerIdx);
         break;
     case EltwiseLayer::Sum:
         if (quantized == nullptr) {
@@ -1306,7 +1314,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
                 gnamem->readonly().push_value<int8_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
             }
         }
-        connectInput(layer, ptr_biases, num_data_bytes_in, 0, biasesLayerIdx);
+        connectInput(layer, component_id, ptr_biases, num_data_bytes_in, 0, biasesLayerIdx);
         break;
 
     case EltwiseLayer::Prod:
@@ -1319,7 +1327,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
                 gnamem->readonly().push_value<int8_t>(ptr_biases, 0, num_rows_out, 64);
             }
         }
-        connectInput(layer, ptr_weights, num_data_bytes_in, 0, biasesLayerIdx);
+        connectInput(layer, component_id, ptr_weights, num_data_bytes_in, 0, biasesLayerIdx);
         break;
 
     default:
@@ -1465,8 +1473,8 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
 
     size_t num_data_bytes_in = num_columns_in * (num_rows_in + num_padding) * inputs->getPrecision().size();
 
-    auto connectionInfo = connectInput(layer, useBiasConnection ? ptr_biases : ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    auto connectionInfo = connectInput(layer, component_id, useBiasConnection ? ptr_biases : ptr_inputs, num_data_bytes_in);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out, component_id);
 
     auto transpose = false;
     auto transposedRows = 0;
@@ -1644,7 +1652,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
         // need to reserve full tensor so using original size with assumption of identity activation attached to filter lateron
         size_t num_data_bytes_out = num_rows_out * num_columns_in * inputs->getPrecision().size();
 
-        connectInput(layer, ptr_inputs, num_data_bytes_in);
+        connectInput(layer, component_id, ptr_inputs, num_data_bytes_in);
         auto isNonFunctional = [](CNNLayerPtr l) {
             return LayerInfo(l).isNonFunctional();
         };
@@ -1681,8 +1689,9 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     size_t num_data_bytes_in = num_columns_in *
         ALIGN(num_rows_in, noOfInputsDivisor) * inputs->getPrecision().size();
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in, num_rows_copied * inputs->getPrecision().size(), 0);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    size_t component_id = dnnComponents.components.size();
+    connectInput(layer, component_id, ptr_inputs, num_data_bytes_in, num_rows_copied * inputs->getPrecision().size());
+    connectOutput(layer, ptr_outputs, num_data_bytes_out, component_id);
 
     {
         auto weightsElementSize = filterLayer->_weights->getTensorDesc().getPrecision().size();
@@ -1787,8 +1796,9 @@ void GNAGraphCompiler::ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr l
 
     size_t num_data_bytes_in = numInputsFullyPadedAndAligned * inputs->getPrecision().size();
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    size_t component_id = dnnComponents.components.size();
+    connectInput(layer, component_id, ptr_inputs, num_data_bytes_in);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out, component_id);
 
     gnamem->readonly().push_ptr(ptr_weights,
         filterLayer->_weights->cbuffer().as<const void*>(),
@@ -2028,8 +2038,9 @@ case name:\
         ptr_outputs,
         ptr_pwl_segments_target);
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    size_t component_id = dnnComponents.components.size();
+    connectInput(layer, component_id, ptr_inputs, num_data_bytes_in);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out, component_id);
 
     if (ptr_pwl_segments_target != nullptr) {
         gnamem->readonly().push_local_ptr(ptr_pwl_segments_target,
@@ -2114,8 +2125,9 @@ void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
                                 * outputs->getPrecision().size();
     size_t num_data_bytes_in = squeezedInputOrder[0] * squeezedInputOrder[1] * inputs->getPrecision().size();
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    size_t component_id = dnnComponents.components.size();
+    connectInput(layer, component_id, ptr_inputs, num_data_bytes_in);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out, component_id);
 }
 
 void SKIP(GNAGraphCompiler*, CNNLayerPtr) {}
@@ -2357,7 +2369,13 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
     }
 }
 
-GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer, void *ptr, size_t num_data_bytes_in, int32_t offset, int idx, bool connectTo) {
+GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
+                                                              uint16_t component_id,
+                                                              void *ptr,
+                                                              size_t num_data_bytes_in,
+                                                              int32_t offset,
+                                                              int idx,
+                                                              bool connectTo) {
     // selecting particular input layers
     // auto prevLayer = CNNNetPrevLayer(layer, idx);
     auto prevLayer = CNNNetPrevLayerSkipCertain(layer, idx, [](CNNLayerPtr l) {
@@ -2383,12 +2401,14 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                 gnamem->push_value(ptr,
                                    static_cast<uint8_t>(0),
                                    num_data_bytes_in,
-                                   64);
+                                   64,
+                                   0);
             } else {
                 gnamem->push_value(&inputDesc->getPtrInputsGlobal(prevLayer->name).front(),
                                    static_cast<uint8_t>(0),
                                    num_data_bytes_in,
-                                   64);
+                                   64,
+                                   0);
             }
             inputDesc->bytes_allocated_for_input[prevLayer->name] = num_data_bytes_in;
         }
@@ -2440,7 +2460,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
             if (it != splitLayerInfoItem.splitOutputLayers.end()) {
                 gnalog()  << "Connecting " << splitName << " input \n";
-                auto res = connectInput(splittingLayer, ptr, splitLayerInfoItem.reserved_size, it->offset + offset, 0);
+                auto res = connectInput(splittingLayer, component_id, ptr, splitLayerInfoItem.reserved_size, it->offset + offset);
                 gnalog()  << "Connected \n";
                 return res;
             }
@@ -2509,7 +2529,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     // several layers are to be skipped right now
     if (LayerInfo(prevLayer).isNonFunctional()) {
         gnalog()  << "Skipping non functional layer: " << prevLayer->name << "\n";
-        return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
+        return connectInput(prevLayer, component_id, ptr, num_data_bytes_in, offset);
     }
 
     // permute layer resulted in trivial permute
@@ -2519,7 +2539,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             THROW_GNA_EXCEPTION << "missed gna primitive for permute: " << prevLayer->name;
         }
         gnalog()  << "Skipping trivial permute layer: " << prevLayer->name << "\n";
-        return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
+        return connectInput(prevLayer, component_id, ptr, num_data_bytes_in, offset);
     }
 
     THROW_GNA_EXCEPTION << "Cannot connect input for: " << layer->name;
