@@ -78,7 +78,7 @@ public:
      * @param sz - sizeof output blob
      * @param ptr_inputs - sizeof output blob
      */
-    void connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr_outputs, size_t sz, size_t component_id = 0);
+    void connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr_outputs, size_t sz = 0);
     /**
      * Connects certain input to this layer
      * @param layer - layer that we connect input to
@@ -91,11 +91,9 @@ public:
      * @return layer used as input
      */
     GNAPluginNS::ConnectionDetails connectInput(InferenceEngine::CNNLayerPtr layer,
-                                                uint16_t component_id,
                                                 void *pVoid,
                                                 size_t num_data_bytes_in,
                                                 int32_t offset = 0,
-                                                size_t component_id = 0,
                                                 int idx = 0,
                                                 bool connectTo = true);
 
