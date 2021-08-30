@@ -90,6 +90,8 @@ private:
     int _time_duration = -1;
 
     void calcDepth();
+    void dumpOffsets();
+    void dumpTimeline();
 };
 
 }  // namespace memory

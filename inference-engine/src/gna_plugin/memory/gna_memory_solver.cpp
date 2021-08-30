@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <vector>
 #include <map>
+#include <iostream>
+#include <fstream>
+#include <iomanip>
 
 namespace GNAPluginNS {
 namespace memory {
@@ -95,6 +98,10 @@ int64_t MemorySolver::solve() {
         _offsets[id] = box.id;  // TODO: move to constructor (use .insert instead of [])
     }
 
+    //
+    dumpOffsets();
+    dumpTimeline();
+
     return _min_required;
 }
 
@@ -139,6 +146,44 @@ void MemorySolver::calcDepth() {
         _depth = std::max(_depth, depth);
     }
 }
+
+void MemorySolver::dumpOffsets() {
+    std::ofstream dump_file("memory_boxes_offsets.txt", std::ios::out);
+    uint scale = 64;
+    std::sort(_boxes.begin(), _boxes.end(),
+        [](const Box& box_l, const Box& box_r){ return (box_l.id == box_r.id) ? box_l.start < box_r.start : box_l.id < box_r.id;});
+
+    for (const Box& box : _boxes) {
+        dump_file << std::left << std::setw(5) << box.id
+        << " "
+        << std::left << std::setw(10) << "{" + std::to_string(box.start) + "," + std::to_string(box.finish) + "}"
+        << " "
+        << std::left << std::setw(5) << box.size
+        << " "
+        << std::left << std::string(box.id / scale, ' ')
+        << std::left << std::string(box.size / scale, 'X')
+        << std::endl;
+    }
+}
+
+void MemorySolver::dumpTimeline() {
+    std::ofstream dump_file("memory_boxes_timeline.txt", std::ios::out);
+    std::sort(_boxes.begin(), _boxes.end(),
+        [](const Box& box_l, const Box& box_r){ return (box_l.id == box_r.id) ? box_l.start < box_r.start : box_l.id < box_r.id;});
+
+    for (const Box& box : _boxes) {
+        dump_file << std::left << std::setw(5) << box.id
+        << " "
+        << std::left << std::setw(10) << "{" + std::to_string(box.start) + "," + std::to_string(box.finish) + "}"
+        << " "
+        << std::left << std::setw(5) << box.size
+        << " "
+        << std::left << std::string(box.start, ' ')
+        << std::left << std::string(box.finish - box.start + 1, 'X')
+        << std::endl;
+    }
+}
+
 
 }  // namespace memory
 }  // namespace GNAPluginNS
