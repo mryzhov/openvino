@@ -100,23 +100,6 @@ class GNAMemory : public GNAMemRequestsQueue {
 
         updateSectionsSizes();
 
-        // solveMemory(memory::rRegion::REGION_RW);
-
-
-        // std::vector<MemorySolver::Box> boxes;
-        // std::cout << "Memory Requests:" << std::endl;
-        // for (int i = 0; i < _future_heap.size(); i++) {
-        //     if (_future_heap[i]._type & REQUEST_BIND || _future_heap[i]._region != REGION_RW) {
-        //         continue;
-        //     }
-
-        //     // &box = boxes[i];
-        //     auto original_with_pad =
-        //         ALIGN(_future_heap[i]._num_elements * _future_heap[i]._element_size + _future_heap[i]._padding, _future_heap[i]._alignment);
-
-        // std::cout << "REQUESTED total size=" << _total << "\n";
-        // std::cout << "REQUESTED RO size=" << _ro_section_size << "\n";
-        // std::cout << "REQUESTED RW size=" << _rw_section_size << "\n";
         std::cout << "REQUESTED total size=" << _total << "\n";
         std::cout << "REQUESTED RO size=" << _ro_section_size << "\n";
         std::cout << "REQUESTED RW size=" << _rw_section_size << "\n";
@@ -228,8 +211,8 @@ class GNAMemory : public GNAMemRequestsQueue {
                 iterate_binded(originated, [&](MemRequest & reference, MemRequest & binded) {
                     auto compInst = (binded._ptr_out != nullptr) ? dnnComponents.findFirstComponentWithPtr(binded._ptr_out) : nullptr;
                     uint16_t bindedOrder = (compInst != nullptr) ? compInst->execOrder : dnnComponents.components.size();
-                    limits.second = bindedOrder;
-                    //limits.second = std::max(limits.second, bindedOrder);
+                    // limits.second = bindedOrder;
+                    limits.second = std::max(limits.second, bindedOrder);
                 });
             }
             originated._life_limits = limits;
