@@ -78,10 +78,9 @@ static void SwapAndTransposeInputs(std::shared_ptr<ngraph::opset7::MatMul> matmu
 SwapInputMatMul::SwapInputMatMul() {
     auto constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
         auto shape = node.get_node_shared_ptr()->get_output_shape(0);
-        if (shape.size() != 2 || shape[0] < 8 || ((shape[0] % 8 != 0 || shape[1] % 8 != 0))) {
-            return false;
-        }
-        return true;
+        return !(shape.size() != 2 ||
+                 shape[0] < 8 ||
+                 ((shape[0] % 8 != 0 || shape[1] % 8 != 0)));
     });
     auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({constant,
         ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
@@ -106,10 +105,9 @@ SwapInputMatMul::SwapInputMatMul() {
 SwapInputMatMulWithBias::SwapInputMatMulWithBias() {
     auto constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
         auto shape = node.get_node_shared_ptr()->get_output_shape(0);
-        if (shape.size() != 2 || shape[0] < 8 || ((shape[0] % 8 != 0 || shape[1] % 8 != 0))) {
-            return false;
-        }
-        return true;
+        return !(shape.size() != 2 ||
+                 shape[0] < 8 ||
+                 ((shape[0] % 8 != 0 || shape[1] % 8 != 0)));
     });
     auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({constant,
         ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
@@ -138,10 +136,9 @@ SwapInputMatMulWithBias::SwapInputMatMulWithBias() {
 SwapInputMatMulWithFq::SwapInputMatMulWithFq() {
     auto constant = ngraph::pattern::wrap_type<ngraph::opset7::Constant>({}, [](const ngraph::Output<ngraph::Node>& node) {
         auto shape = node.get_node_shared_ptr()->get_output_shape(0);
-        if (shape.size() != 2 || shape[0] < 8 || ((shape[0] % 8 != 0 || shape[1] % 8 != 0))) {
-            return false;
-        }
-        return true;
+        return !(shape.size() != 2 ||
+                 shape[0] < 8 ||
+                 ((shape[0] % 8 != 0 || shape[1] % 8 != 0)));
     });
     auto fake_quantize = ngraph::pattern::wrap_type<ngraph::opset7::FakeQuantize>({constant,
         ngraph::pattern::wrap_type<ngraph::opset7::Constant>(),
