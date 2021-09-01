@@ -94,7 +94,6 @@ class GNAMemory : public GNAMemRequestsQueue {
                 });
                 originated._offset = region_offset;
                 region_offset += ALIGN(originated._num_elements * originated._element_size + originated._padding, originated._alignment);
-                std::cout << "Offset " << rRegionToStr(originated._region) << " " << rTypeToStr(originated._type) << ": "<< originated._offset << "\n";
             }
         };
 
@@ -107,23 +106,19 @@ class GNAMemory : public GNAMemRequestsQueue {
         });
 
 
-        // std::cout << "REQUESTED total size=" << _total << "\n";
-        // std::cout << "REQUESTED RO size=" << _ro_section_size << "\n";
-        // std::cout << "REQUESTED RW size=" << _rw_section_size << "\n";
         // allocation with memory setting to 0 internally
-
         heap = allocate(getTotalBytes());
-        auto allocateSection = [&](std::function<bool(MemRequest & request)> filter, size_t offset) {
+        auto allocateSection = [&](std::function<bool(MemRequest & request)> filter, size_t section_offset) {
             for (auto &re : _future_heap) {
                 if (re._type == REQUEST_BIND) continue;
                 if (filter(re)) continue;
 
                 auto sz = re._element_size * re._num_elements;
 
-                size_t local_offset = offset + re._offset;
+                size_t offset = section_offset + re._offset;
                 if (re._ptr_out != nullptr) {
-                    auto cptr = heap.get() + local_offset;
-                    size_t cptr_avail_size = _total - local_offset;
+                    auto cptr = heap.get() + offset;
+                    size_t cptr_avail_size = _total - offset;
                     if (re._type & REQUEST_BIND) {
                         cptr = reinterpret_cast<uint8_t*>(*reinterpret_cast<void **>(re._ptr_out));
                         cptr_avail_size = sz;
@@ -138,7 +133,7 @@ class GNAMemory : public GNAMemRequestsQueue {
                         binded._element_size = reference._element_size;
                     });
 
-                    std::cout << "size=" << ALIGN(sz, re._alignment) << "\n" << std::flush;
+                    // std::cout << "size=" << ALIGN(sz, re._alignment) << "\n" << std::flush;
 
                     switch (re._type & ~REQUEST_BIND) {
                         case REQUEST_ALLOCATE :
