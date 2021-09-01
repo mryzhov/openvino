@@ -113,11 +113,11 @@ class GNAMemory : public GNAMemRequestsQueue {
                 if (filter(re)) continue;
 
                 auto sz = re._element_size * re._num_elements;
-                // ptrdiff_t pos = std::distance(_future_heap.begin(), std::find(_future_heap.begin(), _future_heap.end(), re));
-                // std::cout << pos << std::endl;
+
                 if (re._region == REGION_RW && _is_optimized) {
                     local_offset = re._offset;
                 }
+
                 if (re._ptr_out != nullptr) {
                     auto cptr = heap.get() + local_offset;
                     size_t cptr_avail_size = _total - local_offset;
@@ -285,8 +285,8 @@ class GNAMemory : public GNAMemRequestsQueue {
 
                         auto original_with_pad = ALIGN(_future_heap[i]._num_elements * _future_heap[i]._element_size + _future_heap[i]._padding,
                                                        _future_heap[i]._alignment);
-                        int start = std::get<0>(_future_heap[i]._life_limits);
-                        int stop = std::get<1>(_future_heap[i]._life_limits);
+                        int start = _future_heap[i]._life_limits.first;
+                        int stop = _future_heap[i]._life_limits.second;
 
                         boxes.push_back({start, stop, static_cast<int64_t>(original_with_pad), i});
                     }
