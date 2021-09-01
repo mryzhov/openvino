@@ -53,26 +53,6 @@ intel_dnn_component_t * DnnComponents::findComponent(InferenceEngine::CNNLayerPt
     return nullptr;
 }
 
-GNAPluginNS::backend::DnnComponentExtra * DnnComponents::findLastComponentWithPtr(const void * __ptr) {
-    auto component = std::find_if(components.rbegin(),
-                                  components.rend(),
-                                  [&](storage_type ::value_type &comp) {
-                                      void* ptr_inputs = &(comp.dnnComponent.ptr_inputs);
-                                      void* ptr_outputs = &(comp.dnnComponent.ptr_outputs);
-                                    //   std::cout << "ptr_inputs: " << "addr: " << ptr_inputs
-                                    //             << " value: " << static_cast<void**>(comp.dnnComponent.ptr_inputs) << std::endl;
-                                    //   std::cout << "ptr_outputs: " << "addr: " << ptr_outputs
-                                    //             << " value: " << static_cast<void**>(comp.dnnComponent.ptr_outputs) << std::endl;
-                                      return (ptr_inputs == __ptr) ||
-                                             (ptr_outputs == __ptr);
-                                  });
-    // check for generic prev layer
-    if (component != components.rend()) {
-        return &(*component);
-    }
-
-    return nullptr;
-}
 
 GNAPluginNS::backend::DnnComponentExtra * DnnComponents::findFirstComponentWithPtr(const void * __ptr) {
     auto component = std::find_if(components.begin(),
@@ -80,14 +60,10 @@ GNAPluginNS::backend::DnnComponentExtra * DnnComponents::findFirstComponentWithP
                                   [&](storage_type ::value_type &comp) {
                                       void* ptr_inputs = &(comp.dnnComponent.ptr_inputs);
                                       void* ptr_outputs = &(comp.dnnComponent.ptr_outputs);
-                                    //   std::cout << "ptr_inputs: " << "addr: " << ptr_inputs
-                                    //             << " value: " << static_cast<void**>(comp.dnnComponent.ptr_inputs) << std::endl;
-                                    //   std::cout << "ptr_outputs: " << "addr: " << ptr_outputs
-                                    //             << " value: " << static_cast<void**>(comp.dnnComponent.ptr_outputs) << std::endl;
-                                      return (ptr_inputs == __ptr) ||
-                                             (ptr_outputs == __ptr);
+
+                                      return (ptr_inputs == __ptr) || (ptr_outputs == __ptr);
                                   });
-    // check for generic prev layer
+
     if (component != components.end()) {
         return &(*component);
     }

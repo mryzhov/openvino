@@ -1019,8 +1019,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         gnamem->reserve_ptr(&pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
     }
 
-    gnamem->setMemoryOrder(graphCompiler.dnnComponents);
-
+    if (gnaFlags->compact_mode) {
+        gnamem->setExecutionOrder(graphCompiler.dnnComponents);
+    }
     gnamem->commit();
 
     dnn->Init(gnamem->getBasePtr(),

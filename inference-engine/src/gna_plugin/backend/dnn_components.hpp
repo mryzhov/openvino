@@ -43,7 +43,6 @@ struct DnnComponents {
      * @return
      */
     intel_dnn_component_t * findComponent(InferenceEngine::CNNLayerPtr layer);
-    DnnComponentExtra * findLastComponentWithPtr(const void *ptr);
     DnnComponentExtra * findFirstComponentWithPtr(const void *ptr);
     /**
      * @brief extract components in execution order
