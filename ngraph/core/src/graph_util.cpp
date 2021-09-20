@@ -344,24 +344,24 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     clone_nodes(func.get_ops(), node_map);
 
     // clone variables
-    // auto variables = func.get_variables();
-    // VariableVector cloned_vars;
-    // std::map<std::string, std::shared_ptr<Variable>> var_map;
-    // for (const auto& var : variables) {
-    //     auto cloned_var = std::make_shared<Variable>(
-    //         VariableInfo{PartialShape::dynamic(), element::dynamic, var->get_info().variable_id});
-    //     cloned_vars.push_back(cloned_var);
-    //     var_map[cloned_var->get_info().variable_id] = cloned_var;
-    // }
-    // if (!variables.empty()) {
-    //     for (const auto& op : node_map) {
-    //         if (auto read_val = std::dynamic_pointer_cast<VariableExtension>(op.second)) {
-    //             read_val->set_variable(var_map.at(read_val->get_variable_id()));
-    //         } else if (auto assign = std::dynamic_pointer_cast<VariableExtension>(op.second)) {
-    //             assign->set_variable(var_map.at(assign->get_variable_id()));
-    //         }
-    //     }
-    // }
+    auto variables = func.get_variables();
+    VariableVector cloned_vars;
+    std::map<std::string, std::shared_ptr<Variable>> var_map;
+    for (const auto& var : variables) {
+        auto cloned_var = std::make_shared<Variable>(
+            VariableInfo{PartialShape::dynamic(), element::dynamic, var->get_info().variable_id});
+        cloned_vars.push_back(cloned_var);
+        var_map[cloned_var->get_info().variable_id] = cloned_var;
+    }
+    if (!variables.empty()) {
+        for (const auto& op : node_map) {
+            if (auto read_val = std::dynamic_pointer_cast<VariableExtension>(op.second)) {
+                read_val->set_variable(var_map.at(read_val->get_variable_id()));
+            } else if (auto assign = std::dynamic_pointer_cast<VariableExtension>(op.second)) {
+                assign->set_variable(var_map.at(assign->get_variable_id()));
+            }
+        }
+    }
 
     // get cloned function results and sinks and parameters
     ResultVector cloned_results;
@@ -382,16 +382,12 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
         cloned_params.push_back(ov::as_type_ptr<op::Parameter>(node_map.at(param.get())));
     }
 
-    auto result = std::make_shared<ngraph::Function>(cloned_results, cloned_params);
-    result->set_friendly_name(func.get_friendly_name());
-    result->add_sinks(cloned_sinks);
-
     // create and return cloned function
-    // auto result = std::make_shared<ngraph::Function>(cloned_results,
-    //                                                  cloned_sinks,
-    //                                                  cloned_params,
-    //                                                  cloned_vars,
-    //                                                  func.get_friendly_name());
+    auto result = std::make_shared<ngraph::Function>(cloned_results,
+                                                     cloned_sinks,
+                                                     cloned_params,
+                                                     cloned_vars,
+                                                     func.get_friendly_name());
     return result;
 }
 
