@@ -15,7 +15,6 @@ struct GNAFlags {
     bool exclusive_async_requests = false;
     ov::intel_gna::PWLDesignAlgorithm pwl_design_algorithm = ov::intel_gna::PWLDesignAlgorithm::UNDEFINED;
     bool uniformPwlDesign = false;
-    float pwlMaxErrorPercent = 1.0f;
     bool gna_openmp_multithreading = false;
     bool sw_fp32 = false;
     bool performance_counting = false;

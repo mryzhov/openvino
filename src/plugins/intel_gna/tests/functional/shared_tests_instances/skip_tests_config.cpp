@@ -17,7 +17,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: FIX BUG 59041
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
-        R"(.*ActivationFQSubgraph.*activation=(Exp|Log).*)",
         // TODO: Issue 32542
         R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
         // TODO: Issue 32541

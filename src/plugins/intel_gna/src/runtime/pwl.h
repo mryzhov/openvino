@@ -43,6 +43,9 @@ double leaky_relu(const double x);
 
 double clipping(const double x, const double lbound, const double ubound);
 
+
+inline std::vector<pwl_t> negative_pwl(const std::vector<pwl_t>& pwl);
+
 double pivot_search(std::vector<pwl_t>& result, double(*f)(const double),
                     double(*first_deriv_f)(const double),
                     const uint32_t N,
@@ -50,9 +53,22 @@ double pivot_search(std::vector<pwl_t>& result, double(*f)(const double),
                     const double alpha_N,
                     const double threshold,
                     const bool negative,
-                    size_t iter_num);
+                    size_t iter_num = PWL_MAX_ITERATIONS_DEFAULT);
 
-inline std::vector<pwl_t> negative_pwl(const std::vector<pwl_t>& pwl);
+std::pair<std::vector<pwl_t>, double> calculate_pwl(const DnnActivation& activation_type,
+                                                    const double l_bound,
+                                                    const double u_bound,
+                                                    const double threshold,
+                                                    int n_segments);
+
+std::vector<pwl_t> pwl_binary_search(const DnnActivation& activation_type,
+                                     double l_bound,
+                                     double u_bound,
+                                     double threshold,
+                                     int samples,
+                                     int l_seg_num,
+                                     int u_seg_num,
+                                     const std::vector<pwl_t>& last_pwl = std::vector<pwl_t>());
 
 std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                               const double l_bound,
@@ -61,6 +77,14 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                               const double allowed_err_pct,
                               const int samples,
                               double& err_pct);
+
+std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
+                              const double l_bound,
+                              const double u_bound,
+                              const double threshold,
+                              const int samples,
+                              double& err_pct,
+                              size_t max_seg_num = PWL_MAX_NUM_SEGMENTS);
 
 bool split_search(const DnnActivationType fun,
                   const double l_bound,
