@@ -118,7 +118,6 @@ Options:
                             If you use the cw_r or cw_l flag, then batch size and nthreads arguments are ignored.
     -oname "<string>"       Optional. Layer names for output blobs. The names are separated with "," Example: Output1:port,Output2:port
     -iname "<string>"       Optional. Layer names for input blobs. The names are separated with "," Example: Input1,Input2
-    -pwl_me "<double>"      Optional. The maximum percent of error for PWL function.The value must be in <0, 100> range. The default value is 1.0.
 
 Available target devices: <devices>
 

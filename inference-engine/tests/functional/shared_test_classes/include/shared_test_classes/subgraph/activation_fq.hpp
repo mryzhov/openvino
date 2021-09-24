@@ -54,7 +54,6 @@ protected:
 protected:
     float inputDataMin        = 0.0;
     float inputDataMax        = 10.0;
-    float inputDataResolution = 1.0;
     int32_t seed = 1;
 };
 } // namespace SubgraphTestsDefinitions

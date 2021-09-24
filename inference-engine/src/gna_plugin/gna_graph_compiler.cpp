@@ -775,7 +775,6 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
                     ptr_pwl_segments,
                     input_pwl_scale_factor,
                     output_pwl_scale_factor,
-                    gnaFlags->pwlMaxErrorPercent,
                     gnaFlags->input_low_precision);
             }
         }
@@ -2074,7 +2073,6 @@ case name:\
                 ptr_pwl_segments,
                 input_pwl_scale_factor,
                 output_pwl_scale_factor,
-                gnaFlags->pwlMaxErrorPercent,
                 gnaFlags->input_low_precision);
         }
         ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);

@@ -35,8 +35,8 @@ namespace SubgraphTestsDefinitions {
         if (!config.first.empty()) {
             result << "_targetConfig=" << config.first;
         }
-        if (inputParams.size() == 3) {
-            result << "_inputArg=" << inputParams[0] << "_" << inputParams[1] << "_" << inputParams[2];
+        if (inputParams.size() == 2) {
+            result << "_inputArg=" << inputParams[0] << "_" << inputParams[1];
         }
         result << "_activation=" << activationNames[activationType];
         return result.str();
@@ -55,10 +55,13 @@ namespace SubgraphTestsDefinitions {
         std::vector<std::vector<size_t>> constShape;
         std::vector<float> inputArg;
         std::tie(levels, constShape, inputArg) = fqParams;
-        if (inputArg.size() == 3) {
+        if (inputArg.size() == 2) {
             inputDataMin = inputArg[0];
             inputDataMax = inputArg[1];
-            inputDataResolution = inputArg[2];
+        }
+
+        if (activationType == ngraph::helpers::ActivationTypes::Log && inputDataMin <= 0) {
+            inputDataMin = 1.0e-3;
         }
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -75,7 +78,7 @@ namespace SubgraphTestsDefinitions {
         function = std::make_shared<ngraph::Function>(results, params, "ActivationFakeQuantizeSubgraph");
     }
 
-InferenceEngine::Blob::Ptr ActivationFakeQuantizeSubgraphTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    InferenceEngine::Blob::Ptr ActivationFakeQuantizeSubgraphTest::GenerateInput(const InferenceEngine::InputInfo& info) const {
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
     blob->allocate();
 
@@ -85,5 +88,5 @@ InferenceEngine::Blob::Ptr ActivationFakeQuantizeSubgraphTest::GenerateInput(con
         rawBlobDataPtr[i] = values[i];
     }
     return blob;
-}
+    }
 } // namespace SubgraphTestsDefinitions

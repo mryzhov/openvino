@@ -42,10 +42,10 @@ const std::vector<std::vector<size_t>> inputShapes = {
 
 const std::vector<size_t> level = {65535};
 const std::vector<std::vector<float>> inputParams = {
-        {-1, 1, 0.01},
-        {-5, 5, 1},
-        {-100, 100, 1},
-        {-16, 16, 1}
+        {-1.0, 1.0},
+        {-5.0, 5.0},
+        {-100.0, 100.0},
+        {-16.0, 16.0}
 };
 
 const std::vector<std::vector<std::vector<size_t>>> constShapes = {
