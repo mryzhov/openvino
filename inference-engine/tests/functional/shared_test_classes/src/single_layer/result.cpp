@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ResultLayerTest::getTestCaseName(testing::TestParamInfo<ResultTestParamSet> obj) {
+std::string ResultLayerTest::getTestCaseName(const testing::TestParamInfo<ResultTestParamSet>& obj) {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision inputPrecision;
     std::string targetDevice;
@@ -31,5 +31,6 @@ void ResultLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(params[0])};
     function = std::make_shared<ngraph::Function>(results, params, "result");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

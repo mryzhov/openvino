@@ -20,7 +20,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionQDqTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionQDqTransformationParams> obj) {
+std::string ConvolutionQDqTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionQDqTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -53,6 +53,7 @@ void ConvolutionQDqTransformation::SetUp() {
         param.convertOnWeights,
         param.dequantizationOnWeights,
         {});
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ConvolutionQDqTransformation::Run() {

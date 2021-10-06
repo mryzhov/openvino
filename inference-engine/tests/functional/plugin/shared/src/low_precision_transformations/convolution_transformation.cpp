@@ -20,7 +20,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
+std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -50,6 +50,7 @@ void ConvolutionTransformation::SetUp() {
         // TODO: pass from test parameters
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ConvolutionTransformation::Run() {

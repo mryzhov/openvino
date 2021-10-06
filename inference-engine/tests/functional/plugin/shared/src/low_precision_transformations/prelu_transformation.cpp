@@ -15,7 +15,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PReluTransformation::getTestCaseName(testing::TestParamInfo<PReluTransformationParams> obj) {
+std::string PReluTransformation::getTestCaseName(const testing::TestParamInfo<PReluTransformationParams>& obj) {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -55,6 +55,7 @@ void PReluTransformation::SetUp() {
     function = ngraph::builder::subgraph::PReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(PReluTransformation, CompareWithRefImpl) {

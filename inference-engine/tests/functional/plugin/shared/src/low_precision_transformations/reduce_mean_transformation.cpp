@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReduceMeanTransformation::getTestCaseName(testing::TestParamInfo<ReduceMeanTransformationParams> obj) {
+std::string ReduceMeanTransformation::getTestCaseName(const testing::TestParamInfo<ReduceMeanTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -43,6 +43,7 @@ void ReduceMeanTransformation::SetUp() {
         param.fakeQuantize,
         param.constantValues,
         param.keepDims);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ReduceMeanTransformation::Run() {

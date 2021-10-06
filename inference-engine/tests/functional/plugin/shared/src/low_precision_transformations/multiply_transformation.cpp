@@ -17,7 +17,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MultiplyTransformation::getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
+std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyTransformationParams>& obj) {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
@@ -67,6 +67,7 @@ void MultiplyTransformation::SetUp() {
         param.fakeQuantize2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(MultiplyTransformation, CompareWithRefImpl) {

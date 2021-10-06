@@ -12,7 +12,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PadTransformation::getTestCaseName(testing::TestParamInfo<PadTransformationParams> obj) {
+std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     ngraph::op::PadMode padMode;
@@ -45,6 +45,7 @@ void PadTransformation::SetUp() {
         param.padsEnd,
         mode,
         param.padValue);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void PadTransformation::Run() {

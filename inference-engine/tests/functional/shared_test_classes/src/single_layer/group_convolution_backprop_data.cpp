@@ -8,7 +8,7 @@ namespace LayerTestsDefinitions {
 
 // DEPRECATED, remove this old API when KMB (#58495) and ARM (#58496) plugins are migrated to new API
 
-std::string GroupConvBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<groupConvBackpropDataLayerTestParamsSet> obj) {
+std::string GroupConvBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<groupConvBackpropDataLayerTestParamsSet>& obj) {
     groupConvBackpropDataSpecificParams groupConvBackpropDataParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -60,6 +60,7 @@ void GroupConvBackpropDataLayerTest::SetUp() {
                                              padEnd, dilation, padType, convOutChannels, numGroups));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConvBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "GroupConvolutionBackpropData");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 std::string GroupConvBackpropLayerTest::getTestCaseName(testing::TestParamInfo<groupConvBackpropLayerTestParamsSet> obj) {
@@ -124,5 +125,6 @@ void GroupConvBackpropLayerTest::SetUp() {
     }
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConvBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "GroupConvolutionBackpropData");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

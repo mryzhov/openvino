@@ -20,7 +20,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(testing::TestParamInfo<PullReshapeThroughDequantizationParams> obj) {
+std::string PullReshapeThroughDequantizationTransformation::getTestCaseName(const testing::TestParamInfo<PullReshapeThroughDequantizationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -77,6 +77,7 @@ void PullReshapeThroughDequantizationTransformation::SetUp() {
         testValues.reshape2,
         testValues.dequantizationAfter,
         "GroupConvolution");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void PullReshapeThroughDequantizationTransformation::Run() {

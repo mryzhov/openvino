@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string SplitLayerTest::getTestCaseName(testing::TestParamInfo<splitParams> obj) {
+std::string SplitLayerTest::getTestCaseName(const testing::TestParamInfo<splitParams>& obj) {
     size_t numSplits;
     int64_t axis;
     InferenceEngine::Precision netPrecision;
@@ -53,5 +53,6 @@ void SplitLayerTest::SetUp() {
         results.push_back(std::make_shared<ngraph::opset5::Result>(split->output(outIndices[i])));
     }
     function = std::make_shared<ngraph::Function>(results, params, "split");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

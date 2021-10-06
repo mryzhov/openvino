@@ -12,7 +12,7 @@ using namespace FuncTestUtils::PrecisionUtils;
 
 namespace LayerTestsDefinitions {
 
-std::string AdaPoolLayerTest::getTestCaseName(testing::TestParamInfo<adapoolParams> obj) {
+std::string AdaPoolLayerTest::getTestCaseName(const testing::TestParamInfo<adapoolParams>& obj) {
     std::vector<size_t> inputShape;
     std::vector<int> pooledSpatialShape;
 
@@ -50,5 +50,6 @@ void AdaPoolLayerTest::SetUp() {
 
     function = (poolingMode == "max" ? std::make_shared<ngraph::Function>(adapoolMax->outputs(), params, "AdaPoolMax") :
                 std::make_shared<ngraph::Function>(adapoolAvg->outputs(), params, "AdaPoolAvg"));
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

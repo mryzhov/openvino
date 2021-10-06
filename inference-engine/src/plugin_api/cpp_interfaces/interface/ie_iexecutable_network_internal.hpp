@@ -11,15 +11,18 @@
 
 #include "cpp/ie_cnn_network.h"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
-#include "details/ie_so_pointer.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
+#include "so_ptr.hpp"
 
+namespace ov {
+class Function;
+}
 namespace InferenceEngine {
 
 class IInferencePlugin;
 class IInferRequestInternal;
-class IRemoteContext;
+class RemoteContext;
 class IVariableStateInternal;
 
 /**
@@ -46,6 +49,12 @@ public:
      * @param[in]  networkOutputs  The network outputs
      */
     virtual void setNetworkOutputs(const OutputsDataMap& networkOutputs);
+
+    /**
+     * @brief      Sets function with network inputs and outpus info
+     * @param[in]  function The function with network inputs and outpus info
+     */
+    virtual void setRuntimeFunction(std::shared_ptr<ov::Function> function);
 
     /**
      * @brief Gets the Executable network output Data node information. The received info is stored in the given Data
@@ -125,7 +134,7 @@ public:
      * @brief Gets the remote context.
      * @return A reference to a context
      */
-    virtual std::shared_ptr<IRemoteContext> GetContext() const;
+    virtual std::shared_ptr<RemoteContext> GetContext() const;
 
 protected:
     ~IExecutableNetworkInternal() = default;
@@ -141,6 +150,7 @@ protected:
     virtual std::shared_ptr<IInferRequestInternal> CreateInferRequestImpl(InputsDataMap networkInputs,
                                                                           OutputsDataMap networkOutputs);
 
+    std::shared_ptr<ov::Function> _runtime_function;  //!< Holds information about network inputs and outputs
     InferenceEngine::InputsDataMap _networkInputs;    //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
 
@@ -152,8 +162,8 @@ protected:
 };
 
 /**
- * @brief SOPointer to IExecutableNetworkInternal.
+ * @brief SoPtr to IExecutableNetworkInternal.
  */
-using SoExecutableNetworkInternal = details::SOPointer<IExecutableNetworkInternal>;
+using SoExecutableNetworkInternal = ov::runtime::SoPtr<IExecutableNetworkInternal>;
 
 }  // namespace InferenceEngine

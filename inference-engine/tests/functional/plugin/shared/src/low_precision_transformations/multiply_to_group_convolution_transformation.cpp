@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams> obj) {
+std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyToGroupConvolutionTransformationParams>& obj) {
     std::string targetDevice;
     ngraph::element::Type precision;
     ngraph::PartialShape shape;
@@ -49,6 +49,7 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
         shape,
         param.fqOnData,
         param.constant);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void MultiplyToGroupConvolutionTransformation::Run() {

@@ -14,7 +14,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FuseFakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeTransformationParams> obj) {
+std::string FuseFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeTransformationParams>& obj) {
     std::string targetDevice;
     FuseFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = obj.param;
@@ -47,6 +47,7 @@ void FuseFakeQuantizeTransformation::SetUp() {
         testValues.actual.fakeQuantizeOnData);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(FuseFakeQuantizeTransformation, CompareWithRefImpl) {

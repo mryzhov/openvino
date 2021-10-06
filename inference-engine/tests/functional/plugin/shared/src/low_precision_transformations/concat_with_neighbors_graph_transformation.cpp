@@ -16,7 +16,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(testing::TestParamInfo<ConcatNeighboringGraphTransformationParams> obj) {
+std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(const testing::TestParamInfo<ConcatNeighboringGraphTransformationParams>& obj) {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
@@ -55,6 +55,7 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 3.f} },
         "concat",
         "");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConcatWithNeighborsGraphTransformation, CompareWithRefImpl) {

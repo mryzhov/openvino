@@ -19,7 +19,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
+std::string MatMulTransformation::getTestCaseName(const testing::TestParamInfo<MatMulTransformationParams>& obj) {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -72,6 +72,7 @@ void MatMulTransformation::SetUp() {
         testValues.fqOnData2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void MatMulTransformation::Run() {

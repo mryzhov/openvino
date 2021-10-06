@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string TransposeLayerTest::getTestCaseName(testing::TestParamInfo<transposeParams> obj) {
+std::string TransposeLayerTest::getTestCaseName(const testing::TestParamInfo<transposeParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -42,6 +42,7 @@ void TransposeLayerTest::SetUp() {
     const auto transpose = std::make_shared<ngraph::opset3::Transpose>(paramOuts.at(0), inputOrderOp);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(transpose)};
     function = std::make_shared<ngraph::Function>(results, params, "Transpose");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions

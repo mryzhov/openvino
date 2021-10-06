@@ -10,7 +10,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
 
-std::string MulticlassNmsLayerTest::getTestCaseName(testing::TestParamInfo<MulticlassNmsParams> obj) {
+std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj) {
     InputShapeParams inShapeParams;
     InputPrecisions inPrecisions;
     int32_t nmsTopK, backgroundClass, keepTopK;
@@ -265,6 +265,7 @@ void MulticlassNmsLayerTest::SetUp() {
     auto nms_1_identity = std::make_shared<opset5::Multiply>(nms->output(1), opset5::Constant::create(outType, Shape {1}, {1}));
     auto nms_2_identity = std::make_shared<opset5::Multiply>(nms->output(2), opset5::Constant::create(outType, Shape {1}, {1}));
     function = std::make_shared<Function>(OutputVector {nms_0_identity, nms_1_identity, nms_2_identity}, params, "MulticlassNMS");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions

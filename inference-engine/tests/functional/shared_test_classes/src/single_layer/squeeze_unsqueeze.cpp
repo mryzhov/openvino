@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/squeeze_unsqueeze.hpp"
 
 namespace LayerTestsDefinitions {
-std::string SqueezeUnsqueezeLayerTest::getTestCaseName(testing::TestParamInfo<squeezeParams> obj) {
+std::string SqueezeUnsqueezeLayerTest::getTestCaseName(const testing::TestParamInfo<squeezeParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -49,5 +49,6 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
 
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(op)};
     function = std::make_shared<ngraph::Function>(results, params, "Squeeze");
+    functionRefs = ngraph::clone_function(*function);
 }
 } // namespace LayerTestsDefinitions

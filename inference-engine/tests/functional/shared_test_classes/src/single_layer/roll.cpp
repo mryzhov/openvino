@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string RollLayerTest::getTestCaseName(testing::TestParamInfo<rollParams> obj) {
+std::string RollLayerTest::getTestCaseName(const testing::TestParamInfo<rollParams>& obj) {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
     std::vector<int64_t> shift;
@@ -42,5 +42,6 @@ void RollLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(roll)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "roll");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

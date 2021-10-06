@@ -20,7 +20,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string GroupConvolutionQDqTransformation::getTestCaseName(testing::TestParamInfo<GroupConvolutionQDqTransformationParams> obj) {
+std::string GroupConvolutionQDqTransformation::getTestCaseName(const testing::TestParamInfo<GroupConvolutionQDqTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -53,6 +53,7 @@ void GroupConvolutionQDqTransformation::SetUp() {
         param.convertOnWeights,
         param.dequantizationOnWeights,
         {}, {}, {}, param.reshape, {}, "GroupConvolution", param.multiplyAfter);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void GroupConvolutionQDqTransformation::Run() {

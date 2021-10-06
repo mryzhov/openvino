@@ -19,7 +19,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MatMulWithConstantTransformation::getTestCaseName(testing::TestParamInfo<MatMulWithConstantTransformationParams> obj) {
+std::string MatMulWithConstantTransformation::getTestCaseName(const testing::TestParamInfo<MatMulWithConstantTransformationParams>& obj) {
     ngraph::element::Type precision;
     std::string targetDevice;
     MatMulWithConstantTransformationTestValues testValues;
@@ -71,6 +71,7 @@ void MatMulWithConstantTransformation::SetUp() {
         testValues.deqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void MatMulWithConstantTransformation::Run() {

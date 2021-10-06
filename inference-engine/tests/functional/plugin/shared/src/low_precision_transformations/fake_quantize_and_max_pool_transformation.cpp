@@ -16,7 +16,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeAndMaxPoolTransformationParams> obj) {
+std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeAndMaxPoolTransformationParams>& obj) {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
@@ -40,6 +40,7 @@ void FakeQuantizeAndMaxPoolTransformation::SetUp() {
         fakeQuantize);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(FakeQuantizeAndMaxPoolTransformation, CompareWithRefImpl) {

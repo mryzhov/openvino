@@ -15,7 +15,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string TransposeTransformation::getTestCaseName(testing::TestParamInfo<TransposeTransformationParams> obj) {
+std::string TransposeTransformation::getTestCaseName(const testing::TestParamInfo<TransposeTransformationParams>& obj) {
     ngraph::element::Type precision;
     std::string targetDevice;
     TransposeTransformationTestValues testValues;
@@ -40,6 +40,7 @@ void TransposeTransformation::SetUp() {
         testValues.transposeConstValues,
         testValues.precisionBeforeFq,
         testValues.fqOnData);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(TransposeTransformation, CompareWithRefImpl) {

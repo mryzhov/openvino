@@ -18,7 +18,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ShuffleChannelsTransformation::getTestCaseName(testing::TestParamInfo<ShuffleChannelsTransformationParams> obj) {
+std::string ShuffleChannelsTransformation::getTestCaseName(const testing::TestParamInfo<ShuffleChannelsTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -45,6 +45,7 @@ void ShuffleChannelsTransformation::SetUp() {
         param.fakeQuantizeOnData,
         param.axis,
         param.group);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 void ShuffleChannelsTransformation::Run() {

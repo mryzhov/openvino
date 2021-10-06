@@ -16,7 +16,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
+std::string ConcatTransformation::getTestCaseName(const testing::TestParamInfo<ConcatTransformationParams>& obj) {
     ngraph::element::Type precision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
@@ -52,6 +52,7 @@ void ConcatTransformation::SetUp() {
         inputShape,
         testValues.fqOnData1,
         testValues.fqOnData2);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {

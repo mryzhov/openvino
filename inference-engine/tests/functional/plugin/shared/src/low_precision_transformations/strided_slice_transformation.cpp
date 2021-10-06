@@ -24,7 +24,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<int64_t>& va
     return os;
 }
 
-std::string StridedSliceTransformation::getTestCaseName(testing::TestParamInfo<StridedSliceTransformationParams> obj) {
+std::string StridedSliceTransformation::getTestCaseName(const testing::TestParamInfo<StridedSliceTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -59,6 +59,7 @@ void StridedSliceTransformation::SetUp() {
         param.newAxisMask,
         param.shrinkAxisMask,
         param.elipsisMask);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(StridedSliceTransformation, CompareWithRefImpl) {

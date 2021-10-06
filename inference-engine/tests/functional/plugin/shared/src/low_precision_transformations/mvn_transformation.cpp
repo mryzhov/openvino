@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MVNTransformation::getTestCaseName(testing::TestParamInfo<MVNTransformationParams> obj) {
+std::string MVNTransformation::getTestCaseName(const testing::TestParamInfo<MVNTransformationParams>& obj) {
     std::string targetDevice;
     ngraph::PartialShape shape;
     ngraph::element::Type precision;
@@ -48,6 +48,7 @@ void MVNTransformation::SetUp() {
         shape,
         reductionAxes,
         normalizeVariance);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(MVNTransformation, CompareWithRefImpl) {

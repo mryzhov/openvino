@@ -17,7 +17,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string SubtractTransformation::getTestCaseName(testing::TestParamInfo<SubtractTransformationParams> obj) {
+std::string SubtractTransformation::getTestCaseName(const testing::TestParamInfo<SubtractTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
@@ -34,6 +34,7 @@ void SubtractTransformation::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     function = ngraph::builder::subgraph::SubtractFunction::getOriginal(netPrecision, inputShape);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(SubtractTransformation, CompareWithRefImpl) {

@@ -5,7 +5,7 @@
 #include "shared_test_classes/single_layer/reshape.hpp"
 
 namespace LayerTestsDefinitions {
-std::string ReshapeLayerTest::getTestCaseName(testing::TestParamInfo<reshapeParams> obj) {
+std::string ReshapeLayerTest::getTestCaseName(const testing::TestParamInfo<reshapeParams>& obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -45,6 +45,8 @@ void ReshapeLayerTest::SetUp() {
             std::make_shared<ngraph::opset1::Reshape>(paramIn[0], constNode, specialZero));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape)};
     function = std::make_shared<ngraph::Function>(results, paramsIn, "Reshape");
+    functionRefs = ngraph::clone_function(*function);
+    functionRefs->set_friendly_name("ReshapeRefs");
 }
 
 }  // namespace LayerTestsDefinitions

@@ -11,7 +11,7 @@ using ngraph::helpers::operator<<;
 
 namespace LayerTestsDefinitions {
 
-std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParams> obj) {
+std::string InterpolateLayerTest::getTestCaseName(const testing::TestParamInfo<InterpolateLayerTestParams>& obj) {
     InterpolateSpecificParams interpolateParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -93,6 +93,7 @@ void InterpolateLayerTest::SetUp() {
                                                                      interpolateAttributes);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
     function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 //Interpolate-1
@@ -157,6 +158,7 @@ void Interpolate1LayerTest::SetUp() {
 
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(interpolate)};
     function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+    functionRefs = ngraph::clone_function(*function);
 }
 
 }  // namespace LayerTestsDefinitions

@@ -19,7 +19,7 @@ using namespace InferenceEngine::details;
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatWithSplitTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithSplitTransformationParams> obj) {
+std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithSplitTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
@@ -65,6 +65,7 @@ void ConcatWithSplitTransformation::SetUp() {
         param.fqOnData1,
         param.fqOnData2,
         true);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(ConcatWithSplitTransformation, CompareWithRefImpl) {

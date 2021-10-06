@@ -15,7 +15,7 @@
 #include "lpt_ngraph_functions/variadic_split_function.hpp"
 
 namespace LayerTestsDefinitions {
-std::string VariadicSplitTransformation::getTestCaseName(testing::TestParamInfo<VariadicSplitTransformationParams> obj) {
+std::string VariadicSplitTransformation::getTestCaseName(const testing::TestParamInfo<VariadicSplitTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShapes;
     std::string targetDevice;
@@ -65,6 +65,7 @@ void VariadicSplitTransformation::SetUp() {
         param.fakeQuantize,
         param.splitedAxis,
         param.splitLengths);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(VariadicSplitTransformation, CompareWithRefImpl) {

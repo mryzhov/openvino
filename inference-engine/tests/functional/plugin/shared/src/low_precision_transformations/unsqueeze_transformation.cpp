@@ -46,7 +46,7 @@ InferenceEngine::Blob::Ptr UnsqueezeTransformation::GenerateInput(const Inferenc
         1ul);
 }
 
-std::string UnsqueezeTransformation::getTestCaseName(testing::TestParamInfo<UnsqueezeTransformationParams> obj) {
+std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInfo<UnsqueezeTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     std::string targetDevice;
@@ -76,6 +76,7 @@ void UnsqueezeTransformation::SetUp() {
         unsqueezeParam.unsqueezeAxes);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(UnsqueezeTransformation, CompareWithRefImpl) {

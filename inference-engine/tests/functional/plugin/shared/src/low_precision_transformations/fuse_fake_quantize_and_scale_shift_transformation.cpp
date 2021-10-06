@@ -14,7 +14,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams> obj) {
+std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -40,6 +40,7 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
         fakeQuantizeOnData);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(FuseFakeQuantizeAndScaleShiftTransformation, CompareWithRefImpl) {

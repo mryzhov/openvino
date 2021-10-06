@@ -14,7 +14,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string FuseMultiplyToFakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<FuseMultiplyToFakeQuantizeTransformationParams> obj) {
+std::string FuseMultiplyToFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FuseMultiplyToFakeQuantizeTransformationParams>& obj) {
     std::string targetDevice;
     FuseMultiplyToFakeQuantizeTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = obj.param;
@@ -36,6 +36,7 @@ void FuseMultiplyToFakeQuantizeTransformation::SetUp() {
         testValues.actual.dequantization);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(FuseMultiplyToFakeQuantizeTransformation, CompareWithRefImpl) {

@@ -15,7 +15,7 @@
 #include "lpt_ngraph_functions/split_function.hpp"
 
 namespace LayerTestsDefinitions {
-std::string SplitTransformation::getTestCaseName(testing::TestParamInfo<SplitTransformationParams> obj) {
+std::string SplitTransformation::getTestCaseName(const testing::TestParamInfo<SplitTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape  inputShapes;
     std::string targetDevice;
@@ -58,6 +58,7 @@ void SplitTransformation::SetUp() {
         param.fakeQuantize,
         param.splitedAxis,
         param.numSplit);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(SplitTransformation, CompareWithRefImpl) {

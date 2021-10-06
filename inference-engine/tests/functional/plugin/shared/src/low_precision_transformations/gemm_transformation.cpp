@@ -21,7 +21,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string GemmTransformation::getTestCaseName(testing::TestParamInfo<GemmTransformationParams> obj) {
+std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<GemmTransformationParams>& obj) {
     ngraph::element::Type netPrecision;
     ngraph::PartialShape inputShape;
     std::string targetDevice;
@@ -45,6 +45,7 @@ void GemmTransformation::SetUp() {
         inputShape,
         low,
         high);
+    functionRefs = ngraph::clone_function(*function);
 }
 
 TEST_P(GemmTransformation, CompareWithRefImpl) {

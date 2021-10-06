@@ -7,7 +7,7 @@
 
 namespace LayerTestsDefinitions {
 
-    std::string DeformablePSROIPoolingLayerTest::getTestCaseName(testing::TestParamInfo<deformablePSROILayerTestParams> obj) {
+    std::string DeformablePSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<deformablePSROILayerTestParams>& obj) {
         std::vector<size_t> dataShape;
         std::vector<size_t> roisShape;
         std::vector<size_t> offsetsShape;
@@ -127,5 +127,6 @@ namespace LayerTestsDefinitions {
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(defomablePSROIPooling)};
         function = std::make_shared<ngraph::Function>(results, params, "deformable_psroi_pooling");
+        functionRefs = ngraph::clone_function(*function);
     }
 }  // namespace LayerTestsDefinitions

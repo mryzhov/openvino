@@ -8,7 +8,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionBackpropDataLayerTest::getTestCaseName(testing::TestParamInfo<convBackpropDataLayerTestParamsSet> obj) {
+std::string ConvolutionBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<convBackpropDataLayerTestParamsSet>& obj) {
     convBackpropDataSpecificParams convBackpropDataParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -69,5 +69,6 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
     }
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(convBackpropData)};
     function = std::make_shared<ngraph::Function>(results, params, "convolutionBackpropData");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions

@@ -6,7 +6,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string CumSumLayerTest::getTestCaseName(testing::TestParamInfo<cumSumParams> obj) {
+std::string CumSumLayerTest::getTestCaseName(const testing::TestParamInfo<cumSumParams>& obj) {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
     int64_t axis;
@@ -37,5 +37,6 @@ void CumSumLayerTest::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::op::Result>(cumSum)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{paramData}, "cumsum");
+    functionRefs = ngraph::clone_function(*function);
 }
 }  // namespace LayerTestsDefinitions
