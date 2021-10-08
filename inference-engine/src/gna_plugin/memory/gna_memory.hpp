@@ -26,36 +26,40 @@ namespace memory {
  */
 template<class Allocator = std::allocator<uint8_t>>
 class GNAMemory {
-    std::map<rRegion, std::shared_ptr<GNAMemRequestsQueue>> _mem_queues;
+    std::map<rRegion, std::unique_ptr<GNAMemRequestsQueue>> _mem_queues;
     size_t _total = 0;
     Allocator _allocator;
     std::shared_ptr<uint8_t> heap = nullptr;
     size_t _page_alignment = 1;
 
+ private:
+    void initMemQueses() {
+        _mem_queues.insert(std::make_pair(REGION_RO, new GNAMemRequestsReadOnlyQueue()));
+        _mem_queues.insert(std::make_pair(REGION_INPUTS, new GNAMemRequestsInputsQueue()));
+        _mem_queues.insert(std::make_pair(REGION_OUTPUTS, new GNAMemRequestsOutputsQueue()));
+        _mem_queues.insert(std::make_pair(REGION_SCRATCH, new GNAMemRequestsScratchQueue()));
+        _mem_queues.insert(std::make_pair(REGION_STATES, new GNAMemRequestsStatesQueue()));
+        _mem_queues.insert(std::make_pair(REGION_AUTO, new GNAMemRequestsBindingsQueue()));
+    }
+
  public:
     explicit GNAMemory(size_t pageAlignment = 1)
         : _page_alignment(pageAlignment) {
-            _mem_queues.insert(std::make_pair(REGION_INPUTS, new GNAMemRequestsInputsQueue));
-            _mem_queues.insert(std::make_pair(REGION_OUTPUTS, new GNAMemRequestsOutputsQueue));
-            _mem_queues.insert(std::make_pair(REGION_SCRATCH, new GNAMemRequestsScratchQueue));
-            _mem_queues.insert(std::make_pair(REGION_RO, new GNAMemRequestsReadOnlyQueue));
-            _mem_queues.insert(std::make_pair(REGION_STATES, new GNAMemRequestsStatesQueue));
-            _mem_queues.insert(std::make_pair(REGION_AUTO, new GNAMemRequestsBindingsQueue));
+            initMemQueses();
         }
 
     explicit GNAMemory(const Allocator &a, size_t pageAlignment = 1)
         : _allocator(a), _page_alignment(pageAlignment) {
-            _mem_queues.insert(std::make_pair(REGION_INPUTS, new GNAMemRequestsInputsQueue));
-            _mem_queues.insert(std::make_pair(REGION_OUTPUTS, new GNAMemRequestsOutputsQueue));
-            _mem_queues.insert(std::make_pair(REGION_SCRATCH, new GNAMemRequestsScratchQueue));
-            _mem_queues.insert(std::make_pair(REGION_RO, new GNAMemRequestsReadOnlyQueue));
-            _mem_queues.insert(std::make_pair(REGION_STATES, new GNAMemRequestsStatesQueue));
-            _mem_queues.insert(std::make_pair(REGION_AUTO, new GNAMemRequestsBindingsQueue));
+            initMemQueses();
         }
 
+    virtual ~GNAMemory() {
+        // we have to deallocate regions before _allocator is destoyed
+        _mem_queues.clear();
+    }
 
-    std::shared_ptr<GNAMemRequestsQueue> getQueue(rRegion region) {
-        return _mem_queues[region];
+    GNAMemRequestsQueue *getQueue(rRegion region) {
+        return _mem_queues[region].get();
     }
 
     void *getBasePtr() {
@@ -63,23 +67,26 @@ class GNAMemory {
     }
 
     size_t getRWBytes() {
-        return ALIGN(getQueue(REGION_STATES)->calcSize(), _page_alignment);
+        return ALIGN(getQueue(REGION_SCRATCH)->calcSize(), _page_alignment);
     }
 
     size_t getTotalBytes() {
         _total = 0;
-        for (auto queue : _mem_queues) {
-            expandBindRequests(queue.second);
+        for (const auto &queue : _mem_queues) {
+            expandBindRequests(queue.second.get());
             _total += ALIGN(queue.second->calcSize(), _page_alignment);
         }
         return _total;
     }
 
-    size_t allocateRegion(std::shared_ptr<GNAMemRequestsQueue> mRequests) {
+    size_t allocateRegion(GNAMemRequestsQueue *mRequests) {
         size_t r_size = ALIGN(mRequests->getSize(), _page_alignment);
         size_t offset = 0;
         mRequests->_basePtr = allocate(r_size);
         for (auto &re : mRequests->_mem_requests) {
+            if (re._type == REQUEST_BIND) {
+                continue;
+            }
             auto sz = re._element_size * re._num_elements;
 
             if (re._ptr_out != nullptr) {
@@ -91,7 +98,7 @@ class GNAMemory {
                 } else {
                     *reinterpret_cast<void **>(re._ptr_out) = cptr;
                 }
-                std::cout << "ALLOCATED=" << static_cast<void*>(cptr) << ", size=" << re._element_size * re._num_elements << "\n";
+                // std::cout << "ALLOCATED=" << static_cast<void*>(cptr) << ", size=" << re._element_size * re._num_elements << "\n";
                 getQueue(REGION_AUTO)->iterate_binded(re, [](MemRequest & reference, MemRequest & binded) {
                     *reinterpret_cast<void **>(binded._ptr_out) =
                         binded._offset + reinterpret_cast<uint8_t *>(*reinterpret_cast<void **>(reference._ptr_out));
@@ -130,12 +137,12 @@ class GNAMemory {
      * @brief calculates size required for all requests, allocates memory and updates pointers
      */
     void commit() {
-        // getTotalBytes();
+        getTotalBytes();
         size_t heap_offset = 0;
-        for (auto queue : _mem_queues) {
+        for (const auto &queue : _mem_queues) {
             if (queue.second->calcSize() != 0) {
-                heap_offset = ALIGN(allocateRegion(queue.second), _page_alignment);
-                std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
+                heap_offset = ALIGN(allocateRegion(queue.second.get()), _page_alignment);
+                // std::cout << "heap_offset " << rRegionToStr(queue.first) << ": " << heap_offset << std::endl;
             }
         }
 #ifdef GNA_HEAP_PROFILER
@@ -153,7 +160,7 @@ class GNAMemory {
     }
 
  protected:
-    void expandBindRequests(std::shared_ptr<GNAMemRequestsQueue> mRequests) {
+    void expandBindRequests(GNAMemRequestsQueue *mRequests) {
         // 1st stage -- looking for expandable bind requests:
         for (auto &originated : mRequests->_mem_requests) {
             if (originated._type & REQUEST_BIND) continue;
@@ -174,7 +181,7 @@ class GNAMemory {
 
 #ifdef GNA_HEAP_PROFILER
     void memoryDump() {
-        for (auto queue : _mem_queues) {
+        for (const auto &queue : _mem_queues) {
             std::ofstream dumpFile("gna_memory_requests_" + std::string(rRegionToStr(queue.first)) + ".txt", std::ios::out);
             for (auto &re : queue.second->_mem_requests) {
             dumpFile << "region: " << rRegionToStr(re._region) << ", "
