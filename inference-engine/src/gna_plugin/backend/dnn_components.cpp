@@ -29,7 +29,7 @@ intel_dnn_component_t & DnnComponents::addComponent(const std::string layerName,
     currentComponent.original_layer_name = components.back().name.c_str();
     int execOrder = 0;
     if (!isDelayed) {
-        execOrder = static_cast<int>(components.size() - 1 - delayedOperations);
+        execOrder = static_cast<int>(components.size() - delayedOperations - 1);
     } else {
         // todo: not perfect - propose to create mapping table that will be printed out by extra request
         execOrder = static_cast<int>(components.size() - delayedOperations);
@@ -54,15 +54,9 @@ intel_dnn_component_t * DnnComponents::findComponent(InferenceEngine::CNNLayerPt
 }
 
 
-GNAPluginNS::backend::DnnComponentExtra * DnnComponents::findFirstComponentWithPtr(const void * __ptr) {
-    auto component = std::find_if(components.begin(),
-                                  components.end(),
-                                  [&](storage_type ::value_type &comp) {
-                                      void* ptr_inputs = &(comp.dnnComponent.ptr_inputs);
-                                      void* ptr_outputs = &(comp.dnnComponent.ptr_outputs);
-
-                                      return (ptr_inputs == __ptr) || (ptr_outputs == __ptr);
-                                  });
+GNAPluginNS::backend::DnnComponentExtra *DnnComponents::findFirstComponentWithPtr(const void * __ptr) {
+    auto component = std::find_if(components.begin(), components.end(),
+                                  [&](storage_type::value_type &comp) { return comp.dnnComponent.getAllPtrs().count(__ptr) == 1; });
 
     if (component != components.end()) {
         return &(*component);

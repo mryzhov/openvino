@@ -208,7 +208,7 @@ void  GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) 
     connectOutput(constLayer, ptr_for_const_blob, const_blob->byteSize());
     // TODO: segment type for bind, bind initializer not used - need refactor to separate bind and allocation requests
     // dont see practical use case when bind storage type need to be different that allocation type
-    gnamem->readonly().bind_initializer(ptr_for_const_blob, [const_blob](void* data, size_t size) {
+    gnamem->bind_initializer(ptr_for_const_blob, [const_blob](void* data, size_t size) {
         ie_memcpy(data, size, const_blob->buffer(), const_blob->byteSize());
         });
 }

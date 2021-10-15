@@ -14,6 +14,8 @@
 
 namespace GNAPluginNS {
 namespace backend {
+
+
 struct DnnComponentExtra {
     std::string name;
     intel_dnn_component_t dnnComponent;

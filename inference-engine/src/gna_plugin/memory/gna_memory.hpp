@@ -125,7 +125,6 @@ class GNAMemory : public GNAMemRequestsQueue {
                     } else {
                         *reinterpret_cast<void **>(re._ptr_out) = cptr;
                     }
-                    // std::cout << "ALLOCATED=" << static_cast<void*>(cptr) << ", size=" << re._element_size * re._num_elements << "\n";
                     iterate_binded(re, [](MemRequest & reference, MemRequest & binded) {
                         *reinterpret_cast<void **>(binded._ptr_out) =
                             binded._offset + reinterpret_cast<uint8_t *>(*reinterpret_cast<void **>(reference._ptr_out));
@@ -170,13 +169,16 @@ class GNAMemory : public GNAMemRequestsQueue {
 
     void setExecutionOrder(GNAPluginNS::backend::DnnComponents &dnnComponents) {
         for (auto &re : _future_heap) {
+            // default execution time from first to the last component
             std::pair<uint16_t, uint16_t> limits {0, dnnComponents.components.size()};
 
+            // try to find the component with pointer
             auto dnn_comp = (re._ptr_out != nullptr) ? dnnComponents.findFirstComponentWithPtr(re._ptr_out) : nullptr;
             if (dnn_comp != nullptr) {
                 limits = {dnn_comp->execOrder, dnn_comp->execOrder};
             }
 
+            // looking for bind requests to identify the latest component using this buffer
             if (!(re._type & REQUEST_BIND)) {
                 iterate_binded(re, [&](MemRequest & reference, MemRequest & binded) {
                     auto comp_binded = (binded._ptr_out != nullptr) ? dnnComponents.findFirstComponentWithPtr(binded._ptr_out) : nullptr;
@@ -218,7 +220,7 @@ class GNAMemory : public GNAMemRequestsQueue {
     void iterate_binded(GNAPluginNS::memory::MemRequest & reference, const T & visitor) {
         for (auto &re : _future_heap) {
             if ((re._type & REQUEST_BIND) && (re._ptr_in == reference._ptr_out)) {
-                std::cout << "  [binded=" << rTypeToStr(re._type) << ", ptr=" << re._ptr_out <<"]\n";
+                // std::cout << "  [binded=" << rTypeToStr(re._type) << ", ptr=" << re._ptr_out <<"]\n";
                 visitor(reference, re);
                 // primitive loop check
                 if (re._ptr_in == re._ptr_out) continue;
@@ -241,10 +243,12 @@ class GNAMemory : public GNAMemRequestsQueue {
     size_t getSectionSizeOptimized(GNAPluginNS::memory::rRegion regType) {
         size_t memSize = 0;
         switch (regType) {
-            case REGION_RW: {
+            case REGION_AUTO:
+            case REGION_RW:
+            case REGION_RO: {
                     std::vector<MemorySolver::Box> boxes;
                     for (int i = 0; i < _future_heap.size(); ++i) {
-                        if (_future_heap[i]._type & REQUEST_BIND || _future_heap[i]._region != REGION_RW) {
+                        if (_future_heap[i]._type & REQUEST_BIND || _future_heap[i]._region != regType) {
                             continue;
                         }
 
@@ -304,10 +308,10 @@ class GNAMemory : public GNAMemRequestsQueue {
             });
 #endif
         for (auto &re : _future_heap) {
-            if (re._type == REQUEST_BIND) continue;
+            if (re._type & REQUEST_BIND) continue;
 
             size_t current = ALIGN(re._num_elements * re._element_size + re._padding, re._alignment);
-            if (re._region == REGION_RW) {
+            if (re._region == REGION_RW && re._ptr_out != nullptr) {
                 _rw_section_size += current;
             } else {
                 _ro_section_size += current;
@@ -320,6 +324,7 @@ class GNAMemory : public GNAMemRequestsQueue {
 #ifdef GNA_HEAP_PROFILER
         std::cout << "ro_section_size: " << _ro_section_size << std::endl;
         std::cout << "rw_section_size: " << _rw_section_size << std::endl;
+        std::cout << "total: " << _total << std::endl;
 #endif
         _rw_section_size = ALIGN(_rw_section_size, _page_alignment);
         _ro_section_size = ALIGN(_ro_section_size, _page_alignment);

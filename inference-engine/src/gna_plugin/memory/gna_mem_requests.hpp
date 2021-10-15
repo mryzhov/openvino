@@ -44,8 +44,7 @@ inline const char* rRegionToStr(uint8_t region) {
 
 inline const char* rTypeToStr(uint8_t type) {
    const char* strType = "UNKNOWN";
-   uint8_t initializerMask = 0x7;
-   switch (type & initializerMask) {
+   switch (type) {
       case REQUEST_STORE:
         strType = "REQUEST_STORE";
         break;
@@ -55,8 +54,10 @@ inline const char* rTypeToStr(uint8_t type) {
       case REQUEST_BIND:
         strType = "REQUEST_BIND";
         break;
-      case REQUEST_INITIALIZER:
-        strType = "REQUEST_INITIALIZER";
+      case REQUEST_INITIALIZER | REQUEST_STORE:
+      case REQUEST_INITIALIZER | REQUEST_ALLOCATE:
+      case REQUEST_INITIALIZER | REQUEST_BIND:
+        strType = "INITIALIZER";
         break;
    }
    return strType;
