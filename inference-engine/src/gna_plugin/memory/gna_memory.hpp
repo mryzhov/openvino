@@ -15,7 +15,7 @@
 #include <functional>
 #include <iostream>
 #include "gna_lib_ver_selector.hpp"
-#include "gna_memory_solver.hpp"
+#include "memory_solver.hpp"
 #include "backend/dnn_components.hpp"
 
 #ifdef GNA_HEAP_PROFILER

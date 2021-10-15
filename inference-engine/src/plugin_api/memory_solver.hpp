@@ -14,6 +14,8 @@
 #include <map>
 #include <vector>
 
+#include <ie_common.h>
+
 /**
  * @brief Helps to solve issue of optimal memory allocation only for particular
  *        execution order.
