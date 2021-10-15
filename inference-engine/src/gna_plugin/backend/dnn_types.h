@@ -202,18 +202,6 @@ enum OvGnaType {
     OvGnaTypePwl = 8,
 };
 
-#if GNA_LIB_VER == 2
-enum OvGnaMode {
-    OvGnaModeDefault = 0,
-    OvGnaModeDisabled = -1
-};
-
-struct OvGnaTensor {
-    std::vector<uint32_t> dimensions;
-    OvGnaType type;
-    OvGnaMode mode;
-};
-
 template <class T>
 OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
     static const std::map<T, OvGnaType> m = {
@@ -227,6 +215,18 @@ OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
     }
     return r->second;
 }
+
+#if GNA_LIB_VER == 2
+enum OvGnaMode {
+    OvGnaModeDefault = 0,
+    OvGnaModeDisabled = -1
+};
+
+struct OvGnaTensor {
+    std::vector<uint32_t> dimensions;
+    OvGnaType type;
+    OvGnaMode mode;
+};
 
 inline std::string OvGnaTypeToString(OvGnaType type) {
     static const std::map<OvGnaType, std::string> typeToString = {
