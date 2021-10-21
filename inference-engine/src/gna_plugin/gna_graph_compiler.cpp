@@ -928,10 +928,6 @@ void GNAGraphCompiler::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
 void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto concatLayer = dynamic_cast<InferenceEngine::ConcatLayer *> (layer.get());
-    auto component = dnnComponents.findComponent(layer);
-    if (component != nullptr) {
-        std::cout << "found" << std::endl;
-    }
     if (concatLayer == nullptr) {
         return;
     }
