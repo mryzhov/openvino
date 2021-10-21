@@ -320,16 +320,16 @@ class GNAMemory : public GNAMemRequestsQueue {
             _rw_section_size = getSectionSizeOptimized(REGION_RW);
         }
 #ifdef GNA_HEAP_PROFILER
-        std::cout << "ro_section_size: " << _ro_section_size << std::endl;
-        std::cout << "rw_section_size: " << _rw_section_size << std::endl;
-        std::cout << "total: " << _total << std::endl;
+        gnalog() << "ro_section_size: " << _ro_section_size << std::endl;
+        gnalog() << "rw_section_size: " << _rw_section_size << std::endl;
+        gnalog() << "total: " << _total << std::endl;
 #endif
         _rw_section_size = ALIGN(_rw_section_size, _page_alignment);
         _ro_section_size = ALIGN(_ro_section_size, _page_alignment);
         _total = _rw_section_size + _ro_section_size;
 #ifdef GNA_HEAP_PROFILER
-        std::cout << "Aligned ro_section_size: " << _ro_section_size << std::endl;
-        std::cout << "Aligned rw_section_size: " << _rw_section_size << std::endl;
+        gnalog() << "Aligned ro_section_size: " << _ro_section_size << std::endl;
+        gnalog() << "Aligned rw_section_size: " << _rw_section_size << std::endl;
 #endif
     }
 };
