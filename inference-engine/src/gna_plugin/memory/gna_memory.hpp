@@ -244,7 +244,7 @@ class GNAMemory : public GNAMemRequestsQueue {
             case REGION_RW:
             case REGION_RO: {
                     std::vector<MemorySolver::Box> boxes;
-                    for (int i = 0; i < _future_heap.size(); ++i) {
+                    for (size_t i = 0; i < _future_heap.size(); ++i) {
                         // skipping BIND, cross-region and empty requests
                         if (_future_heap[i]._type & REQUEST_BIND || _future_heap[i]._region != regType || _future_heap[i]._ptr_out == nullptr) {
                             continue;
@@ -255,13 +255,13 @@ class GNAMemory : public GNAMemRequestsQueue {
                         int start = _future_heap[i]._life_limits.first;
                         int stop = _future_heap[i]._life_limits.second;
 
-                        boxes.push_back({start, stop, static_cast<int64_t>(original_with_pad), i});
+                        boxes.push_back({start, stop, static_cast<int64_t>(original_with_pad), static_cast<int64_t>(i)});
                     }
                     MemorySolver memSolver(boxes);
                     memSize = memSolver.solve();
 
                     // setting offsets
-                    for (auto box : boxes) {
+                    for (auto const & box : boxes) {
                         _future_heap[box.id]._offset = memSolver.getOffset(box.id);
                     }
                 }
