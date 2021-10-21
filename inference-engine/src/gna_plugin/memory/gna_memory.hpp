@@ -16,6 +16,7 @@
 #include <iostream>
 #include "gna_lib_ver_selector.hpp"
 #include "memory_solver.hpp"
+#include "gna_plugin_log.hpp"
 
 #ifdef GNA_HEAP_PROFILER
 #include <iomanip>
@@ -319,18 +320,17 @@ class GNAMemory : public GNAMemRequestsQueue {
         if (_is_compact_mode) {
             _rw_section_size = getSectionSizeOptimized(REGION_RW);
         }
-#ifdef GNA_HEAP_PROFILER
+
         gnalog() << "ro_section_size: " << _ro_section_size << std::endl;
         gnalog() << "rw_section_size: " << _rw_section_size << std::endl;
         gnalog() << "total: " << _total << std::endl;
-#endif
+
         _rw_section_size = ALIGN(_rw_section_size, _page_alignment);
         _ro_section_size = ALIGN(_ro_section_size, _page_alignment);
         _total = _rw_section_size + _ro_section_size;
-#ifdef GNA_HEAP_PROFILER
+
         gnalog() << "Aligned ro_section_size: " << _ro_section_size << std::endl;
         gnalog() << "Aligned rw_section_size: " << _rw_section_size << std::endl;
-#endif
     }
 };
 }  // namespace memory
