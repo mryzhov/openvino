@@ -40,6 +40,7 @@ struct DnnComponents {
      * @return
      */
     intel_dnn_component_t * findComponent(InferenceEngine::CNNLayerPtr layer);
+
     /**
      * @brief extract components in execution order
      */
