@@ -9,11 +9,22 @@
 #include <algorithm>
 #include <functional>
 
+#include <ie_api.h>
 #include <legacy/ie_layers.h>
 #include "gna_mem_requests.hpp"
 
 namespace GNAPluginNS {
 namespace memory {
+
+/**
+* @brief get layer id from legacy CNNLayer
+*/
+inline uint16_t getCNNLayerId(InferenceEngine::CNNLayerPtr layer) {
+    IE_SUPPRESS_DEPRECATED_START
+    return layer->userValue.v_int;
+    IE_SUPPRESS_DEPRECATED_END
+}
+
 /**
  * Adapter for requests submission and actual request queue
  */
@@ -35,7 +46,7 @@ public:
                           size_t alignment = 1) {
         futureHeap().push_back({regionType(), ptr_out, num_bytes, initializer, REQUEST_INITIALIZER, alignment});
         if (layer != nullptr) {
-            futureHeap().back()._life_limits = {0, layer->userValue.v_int};
+            futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
         }
     }
 
@@ -46,7 +57,7 @@ public:
                   size_t alignment = 1) {
         futureHeap().push_back({regionType(), REQUEST_STORE, ptr_out, ptr_in, 1, num_bytes, alignment});
         if (layer != nullptr) {
-            futureHeap().back()._life_limits = {0, layer->userValue.v_int};
+            futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
         }
     }
 
@@ -65,7 +76,7 @@ public:
                                     reinterpret_cast<const uint8_t *>(ptr_in) + num_bytes);
         futureHeap().push_back({regionType(), REQUEST_STORE, ptr_out, &localStorage().back().front(), 1, num_bytes, alignment});
         if (layer != nullptr) {
-            futureHeap().back()._life_limits = {0, layer->userValue.v_int};
+            futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
         }
     }
 
@@ -80,7 +91,7 @@ public:
                      size_t alignment = 1)  {
         futureHeap().push_back({regionType(), REQUEST_ALLOCATE, ptr_out, nullptr, 1, num_bytes, alignment});
         if (layer != nullptr) {
-            futureHeap().back()._life_limits = {layer->userValue.v_int, layer->userValue.v_int};
+            futureHeap().back()._life_limits = {getCNNLayerId(layer), getCNNLayerId(layer)};
         }
     }
 
@@ -99,7 +110,7 @@ public:
                   size_t num_bytes = 0)  {
         futureHeap().push_back({regionType(), REQUEST_BIND, source, dest, 1, num_bytes, 1, offset});
         if (layer != nullptr) {
-            futureHeap().back()._life_limits = {layer->userValue.v_int, layer->userValue.v_int};
+            futureHeap().back()._life_limits = {getCNNLayerId(layer), getCNNLayerId(layer)};
         }
     }
 
@@ -113,7 +124,7 @@ public:
                           std::function<void(void * data, size_t size)> initializer) {
         futureHeap().push_back({regionType(), ptr_out, 0, initializer, REQUEST_BIND, 1});
         if (layer != nullptr) {
-            futureHeap().back()._life_limits = {0, layer->userValue.v_int};
+            futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
         }
     }
 
@@ -128,7 +139,7 @@ public:
                     size_t alignment = 1) {
         futureHeap().push_back({regionType(), ptr_out, value, num_elements, alignment});
         if (layer != nullptr) {
-            futureHeap().back()._life_limits = {0, layer->userValue.v_int};
+            futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
         }
     }
 

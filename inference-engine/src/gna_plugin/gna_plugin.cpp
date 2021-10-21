@@ -921,9 +921,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     // Creating Layer primitives
-    int id{0};
+    uint16_t id = 0;
     for (auto & layer : sortedNoMem) {
+        IE_SUPPRESS_DEPRECATED_START
         layer->userValue.v_int = id++;
+        IE_SUPPRESS_DEPRECATED_END
         graphCompiler.CreateLayerPrimitive(layer);
     }
 
