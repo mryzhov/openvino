@@ -8,13 +8,13 @@
 #include <ie_common.h>
 
 // #define GNA_DEBUG
-#ifdef  GNA_DEBUG
+// #ifdef  GNA_DEBUG
 #include <iostream>
 /**
  * @brief used for creating graphviz charts, and layers dump
  */
 # define PLOT
-# define MODEL_DUMP
+// # define MODEL_DUMP
 # define GNA_HEAP_PROFILER
 # define gnalog() std::cout
 # define gnawarn() std::cerr

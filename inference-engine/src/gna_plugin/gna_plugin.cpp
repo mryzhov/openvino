@@ -102,6 +102,7 @@ constexpr uint32_t GNAPluginNS::GNAPlugin::FAKE_REQUEST_CONFIG_ID;
 using namespace InferenceEngine;
 using namespace std;
 using namespace GNAPluginNS;
+using namespace GNAPluginNS::memory;
 using namespace InferenceEngine::details;
 
 namespace InferenceEngine {
@@ -523,7 +524,7 @@ bool GNAPlugin::TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer) 
         desc.num_elements = numElem;
 
         // binding ptr for first infer request - then others will be setup during relocation
-        gnamem->bind_ptr(layer, &desc.ptrs.front(), outputPtr);
+        gnamem->getQueue(REGION_AUTO)->bind_ptr(layer, &desc.ptrs.front(), outputPtr);
     };
 
     // probing gna_primitives
@@ -979,7 +980,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // TODO: how active list will work in multioutput case
     // make room for active list
-    gnamem->reserve_ptr(nullptr, nullptr,
+    gnamem->getQueue(REGION_OUTPUTS)->reserve_ptr(nullptr, nullptr,
         ALIGN64(outputsDesc.front().num_bytes_per_element * outputsDesc.front().num_elements), 64);
 
     void *pParallelExecutionData  = nullptr;
@@ -987,7 +988,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // reserving more bytes for intermediate data in parallel case - TODO: this works incorrectly in compact mode at lest
     rwSegmentSize = gnamem->getRWBytes();
     if (gnaFlags->gna_lib_async_threads_num > 1) {
-        gnamem->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
+        gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &pParallelExecutionData, gnamem->getRWBytes() * (gnaFlags->gna_lib_async_threads_num - 1), 64);
     }
 
     gnamem->commit(gnaFlags->compact_mode);
@@ -1435,7 +1436,10 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             FILE* f = nullptr;
             static int num_infers = 0;
             {
-                f = fopen("ex_scores.txt", "w");
+                f = std::fopen("ex_scores.txt", "w");
+                if (!f) {
+                    THROW_GNA_EXCEPTION << "ex_scores.txt opening failed";
+                }
             }
             num_infers++;
             if (f) {
@@ -1567,7 +1571,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
 
     graphCompiler.setGNAMemoryPtr(gnamem);
     void *basePtr = nullptr;
-    gnamem->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
+    gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
     gnamem->commit();
 #if GNA_LIB_VER == 2
     gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>(header.layersCount)));
