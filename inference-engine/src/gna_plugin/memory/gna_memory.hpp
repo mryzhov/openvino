@@ -149,6 +149,11 @@ class GNAMemory : public GNAMemRequestsQueue {
         setupOffsets([](GNAPluginNS::memory::MemRequest & request) {
             return (request._type & REQUEST_BIND) || request._region != REGION_RO;
         }, _rw_section_size);
+
+        getTotalBytes();
+        std::cout << "Allocated RO memory: " << "[" << _ro_section_size << "]" << std::endl;
+        std::cout << "Allocated RW memory: " << "[" << _rw_section_size << "]" << std::endl;
+        std::cout << "Allocated TOTAL memory: " << "[" << _total << "]" << std::endl;
     }
 
     void *getBasePtr() {
