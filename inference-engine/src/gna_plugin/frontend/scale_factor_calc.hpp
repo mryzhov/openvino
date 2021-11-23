@@ -20,6 +20,7 @@
 #include "runtime/pwl.h"
 #include "gna_data_types.hpp"
 #include "round_float_define.hpp"
+#include "backend/gna_limitations.hpp"
 
 namespace GNAPluginNS {
 
@@ -69,6 +70,9 @@ static bool fp32eq(float p1, float p2, float accuracy = 0.00001f) {
 static std::vector<double> getPWLSlopes(const LayerInfo& info) {
     if (info.isIdentity() || info.isFakeQuantize() || info.isRelu() || info.isClamp() || info.isAbs()) {
         return { 1.0f };
+    }
+    if (info.isLinear()) {
+        return { 1 / GNALimitations::cellStateDivider };
     }
 
     return {};
@@ -390,7 +394,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
 
                 // Stop searching for statistics if previous layer does not modify input values.
                 if ((LayerInfo(prevLayer).isWeightable() && !LayerInfo(prevLayer).isWeightableIdentity())
-                    || LayerInfo(prevLayer).isEltwise() || LayerInfo(prevLayer).isActivation()) {
+                    || LayerInfo(prevLayer).isEltwise() || LayerInfo(prevLayer).isActivation()
+                    || LayerInfo(prevLayer).isDiagonal()) {
                     break;
                 }
 
@@ -457,10 +462,10 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             };
 
             auto prevLayer = CNNNetPrevLayerSkipCertain(cnnLayer, 0, skipNonFunctional);
-            auto prevLayer2 = prevLayer != nullptr? CNNNetPrevLayerSkipCertain(prevLayer, 0, skipNonFunctional): nullptr;
             if (prevLayer != nullptr &&
                 (layer.isIdentity() || layer.isFakeQuantize()) && LayerInfo(prevLayer).isWeightableIdentity()) {
                 auto prevLayerQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+                auto prevLayer2 = prevLayer != nullptr ? CNNNetPrevLayerSkipCertain(prevLayer, 0, skipNonFunctional) : nullptr;
                 if (!fp32eq(prevLayerQuant->_src_quant.GetScale(), 1.0f) &&
                     prevLayerQuant->_src_quant.IsStatsSet() &&
                     (prevLayer2 == nullptr || LayerInfo(prevLayer2).has8BOr16BOutput())) {
@@ -486,6 +491,109 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
         }
 
         return result;
+    }
+
+    bool requantizeDiagonalInput(InferenceEngine::CNNLayerPtr input, float newOutputScale, bool fakeQuantize,
+        ScaleFactorUpdateResult &result) {
+        auto layer = input;
+        while (layer && !LayerInfo(layer).isInput() && !LayerInfo(layer).isMemory() && !LayerInfo(layer).isCopy() &&
+               !LayerInfo(layer).isEltwise() && !LayerInfo(layer).isDiagonal()) {
+            auto info = LayerInfo(layer);
+            auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
+            if (info.isActivation() || info.isConst()) {
+                gnawarn() << "[WARNING] requantize " << layer->name
+                          << ". Layer new output scale: " << newOutputScale
+                          << ", was " << quantDataForInputLayer->_dst_quant.GetScale() << std::endl;
+                quantDataForInputLayer->_dst_quant.SetScale(newOutputScale);
+                result = ScaleFactorUpdateResult(layer.get());
+                return true;
+            }
+
+            if (fakeQuantize && info.isWeightableIdentity() &&
+                !fp32eq(quantDataForInputLayer->_weights_quant.GetScale(), 1.0f)) {
+                auto reducer = std::max(1.0f, quantDataForInputLayer->_dst_quant.GetScale() / newOutputScale);
+                auto newWeightsScale = std::max(1.0f, quantDataForInputLayer->_weights_quant.GetScale() / reducer);
+                quantDataForInputLayer->_weights_quant.SetScale(static_cast<int32_t>(newWeightsScale));
+                quantDataForInputLayer->_dst_quant.SetScale(quantDataForInputLayer->_weights_quant.GetScale() *
+                    quantDataForInputLayer->_src_quant.GetScale());
+
+                result = ScaleFactorUpdateResult(layer.get());
+                return true;
+            }
+
+            if (info.isFullyConnected() || info.isConvolution()) {
+                quantDataForInputLayer->_dst_quant.SetScale(newOutputScale);
+                quantDataForInputLayer->_weights_quant.SetScale(newOutputScale / quantDataForInputLayer->_src_quant.GetScale());
+                result = ScaleFactorUpdateResult(layer.get());
+                return true;
+            }
+
+            layer = InferenceEngine::CNNNetHasPrevLayer(layer.get()) ? InferenceEngine::CNNNetPrevLayer(layer) : nullptr;
+        }
+
+        return false;
+    }
+
+    void calculateDiagonalScale(InferenceEngine::CNNLayer* diagonalLayer, ScaleFactorUpdateResult &result, int infiniteLoopCount) {
+        if (!diagonalLayer) {
+            THROW_GNA_EXCEPTION << "Incorrect Diagonal Layer pointer \n";
+        }
+        bool fakeQuantize = ScaleFactorCalculator<QUANT_DESC>::IsFakeQuantize();
+
+        auto in = InferenceEngine::CNNNetPrevLayer(diagonalLayer, 0);
+        auto weights = InferenceEngine::CNNNetPrevLayer(diagonalLayer, 1);
+        auto biases = InferenceEngine::CNNNetPrevLayer(diagonalLayer, 2);
+
+        auto quantParamsIn = InferenceEngine::getInjectedData<QuantizedLayerParams>(in);
+        auto quantParamsW = InferenceEngine::getInjectedData<QuantizedLayerParams>(weights);
+        auto quantParamsB = InferenceEngine::getInjectedData<QuantizedLayerParams>(biases);
+
+        auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*diagonalLayer);
+        auto in_sf = quantParamsIn->_dst_quant.GetScale();
+        auto w_sf = quantParamsW->_dst_quant.GetScale();
+        auto b_sf = quantParamsB->_dst_quant.GetScale();
+        gnalog() << diagonalLayer->name << " in_sf=" << in_sf << " w_sf=" << w_sf << " b_sf=" << b_sf << "\n";
+
+        // restart to decrease input or weights scale factor
+        auto tryToRequantizeInputAndWeights = [&]() {
+            std::vector<uint8_t> inputs_order{0, 1};
+            /*if (infiniteLoopCount > 0) {
+                std::swap(inputs_order[0], inputs_order[1]);
+            }*/
+            for (uint8_t ix : inputs_order) {
+                auto prevLayer = InferenceEngine::CNNNetPrevLayer(diagonalLayer, ix);
+                if (requantizeDiagonalInput(prevLayer, b_sf / (ix ? in_sf : w_sf), fakeQuantize, result)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if (fp32eq(b_sf, in_sf * w_sf)) {
+            quantData->_src_quant.SetScale(in_sf);
+            quantData->_weights_quant.SetScale(w_sf);
+            quantData->_bias_quant.SetScale(b_sf);
+            quantData->_dst_quant.SetScale(b_sf);
+            return;
+        } else if (b_sf < in_sf * w_sf) {
+            // restart to decrease input or weights scale factor
+            if (tryToRequantizeInputAndWeights()) {
+                return;
+            }
+        } else {
+            // restart to decrease bias scale factor
+            auto prevLayer = InferenceEngine::CNNNetPrevLayer(diagonalLayer, 2);
+            if (requantizeDiagonalInput(prevLayer, in_sf * w_sf, fakeQuantize, result)) {
+                return;
+            }
+            gnawarn() << diagonalLayer->name <<
+                ": Trying to increase scale factors for inputs or weights, it can cause saturation\n";
+            if (tryToRequantizeInputAndWeights()) {
+                return;
+            }
+        }
+
+        THROW_GNA_EXCEPTION << "Unable to quantize " << diagonalLayer->name;
     }
 
  public :
@@ -547,7 +655,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                                 gnalog() << "[UFS] from : " << cnnLayer->name << " reached: " << layer->name;
                                 // found that direct input to concat is a indirect parent of align filter - so no link required
                                 auto info = LayerInfo(layer);
-                                if (!info.isWeightable() && !info.isActivation()) {
+                                if (!info.isWeightable() && !info.isActivation() && !info.isDiagonal()) {
                                     gnalog() << "... skipped\n";
                                     return;
                                 }
@@ -600,9 +708,11 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
 
             auto max_val = std::numeric_limits<float>::min();
             auto min_val = std::numeric_limits<float>::max();
+            auto levels = 0;
             if (quant->_dst_quant.IsStatsSet()) {
                 min_val = quant->_dst_quant.GetMinValues().front();
                 max_val = quant->_dst_quant.GetMaxValues().front();
+                levels = quant->_dst_quant.GetLevels();
             } else {
                 auto blob = cnnLayer->blobs["custom"];
                 auto blob_precision = blob->getTensorDesc().getPrecision();
@@ -624,19 +734,16 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                     if (val > max_val) max_val = val;
                     if (val < min_val) min_val = val;
                 }
+                if (fakeQuantize) {
+                    levels = (inputsSize == 2) ? MAX_VAL_2B_FEAT : MAX_VAL_1B_FEAT;
+                } else {
+                    levels = (inputsSize == 2) ? std::numeric_limits<int16_t>::max() : std::numeric_limits<int8_t>::max();
+                }
             }
 
-            auto levels = 0;
-            if (fakeQuantize) {
-                levels = (inputsSize == 2) ? MAX_VAL_2B_FEAT : MAX_VAL_1B_FEAT;
-            } else {
-                levels = (inputsSize == 2) ? std::numeric_limits<int16_t>::max() : std::numeric_limits<int8_t>::max();
-            }
+            auto scale_val = CalculateScaleFactorFromStats(levels, min_val, max_val);
 
             auto abs_val = std::max(std::abs(max_val), std::abs(min_val));
-            auto scale_val = static_cast<float>(levels) / abs_val;
-            //TODO: use FQ formula for scale factor calculation
-
             if (std::isinf(scale_val) || fp32eq(abs_val, 0.0f)) {
                 quant->_dst_quant.SetScale(fakeQuantize ? levels : 1.0f);
             } else {
@@ -689,6 +796,9 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             quant->_weights_quant.SetScale(weightsScaleFactor);
             quant->_src_quant.SetScale(inputQuant->_dst_quant.GetScale());
             quant->_dst_quant.SetScale(quant->_weights_quant.GetScale() * quant->_src_quant.GetScale());
+            return true;
+        } else if (layerInfo.isDiagonal()) {
+            calculateDiagonalScale(cnnLayer, result, infiniteLoopCount);
             return true;
         }
         quant->_src_quant.SetScale(inputQuant->_dst_quant.GetScale());

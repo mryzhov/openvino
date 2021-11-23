@@ -8,13 +8,15 @@
 #include <memory>
 #include <vector>
 #include <legacy/ie_layers.h>
+#include <legacy/layer_transform.hpp>
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
 #include "backend/gna_types.h"
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "gna_copy_layer.hpp"
-
+#include "frontend/quantized_layer_params.hpp"
+#include "gna_graph_tools.hpp"
 
 namespace GNAPluginNS {
 
@@ -59,11 +61,12 @@ class LayerInfo {
     // and when in 16-bit input mode, they have 16-bit outputs
     bool has8BOr16BOutput() const noexcept {
         IS_VALID();
-        static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
+        static InferenceEngine::details::caseless_set<std::string> layersWith8BOr16BOutputs = {"input", "split", "slice", "concat", "copy", "const"};
         return layersWith8BOr16BOutputs.find(layer->type) != layersWith8BOr16BOutputs.end() ||
                isActivation() ||
                (isCrop() && !isCropAffined()) ||
-               isPermute();
+               isPermute() ||
+               isMemory() && !isCellState();
     }
     bool has32BOutput() const noexcept {
         IS_VALID();
@@ -79,6 +82,8 @@ class LayerInfo {
             [this]() { return isPower(); },
             [this]() { return isCropAffined(); },
             [this]() { return isGemm(); },
+            [this]() { return isDiagonal(); },
+            [this]() { return isCellState(); }
         };
 
         for (auto && has32BOutputs : has32BOutputsProbes) {
@@ -136,7 +141,8 @@ class LayerInfo {
              "neghalflog",
              "softsign",
              "power",
-             "fakequantize"};
+             "fakequantize",
+             "Linear"};
 
         if (isPower()) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
@@ -173,7 +179,7 @@ class LayerInfo {
     }
     bool has32BInput() const noexcept {
         IS_VALID();
-        return isActivation() || isPooling();
+        return isActivation() || isPooling() || isCellState();
     }
     bool isInput() const noexcept {
         return isOfType("input");
@@ -200,6 +206,10 @@ class LayerInfo {
     bool isEltwise() const noexcept {
         IS_VALID();
         return nullptr != as<const InferenceEngine::EltwiseLayer*>();
+    }
+    bool isDiagonal() const noexcept {
+        IS_VALID();
+        return isOfType("Diagonal");
     }
     bool isEltwiseSum() const noexcept {
         IS_VALID();
@@ -243,6 +253,9 @@ class LayerInfo {
     }
     bool isClamp() const noexcept {
         return isOfType("clamp");
+    }
+    bool isLinear() const noexcept {
+        return isOfType("Linear");
     }
     bool isFullyConnected() const noexcept {
         return isOfType("FullyConnected") || isOfType("InnerProduct");
@@ -349,6 +362,16 @@ class LayerInfo {
 
     bool isSynthetic() const noexcept {
         return isConcatAlignFilter() || isSyntheticScaleShift() || isConvolutionFilter() || isAffineFilter();
+    }
+
+    bool isCellState() const {
+        if (!isMemory()) return false;
+        if (CNNNetHasPrevLayer(layer)) {
+            return LayerInfo(InferenceEngine::CNNNetPrevLayer(layer)).isDiagonal();
+        } else {
+            return LayerInfo(getInputTo(layer->outData[0]).begin()->second).isDiagonal();
+        }
+        return false;
     }
 
     size_t paddingSize() const {

@@ -13,7 +13,7 @@
 #include "dnn_types.h"
 #include "backend/gna_types.h"
 #include "round_float_define.hpp"
-
+#include "backend/gna_limitations.hpp"
 
 // This function performes emulatation of HW saturation of PWL segments in SW
 // by inserting additional segments when overflow would happen
@@ -268,14 +268,18 @@ void make_gna_pwl(const DnnActivation&  fun,
         }
         case kActIdentity:
         case kActKaldiLstmClipping:
-        case kActFakeQuantize: {
+        case kActFakeQuantize:
+        case kActLinear: {
             int32_t x_lower = INT32_MIN;
             int32_t x_upper = INT32_MAX;
             int16_t y_lower = y_min;
             int16_t y_upper = y_max;
-            if (fun == kActFakeQuantize && fun.fqParams.set) {
-                x_lower = std::max(static_cast<int64_t>(*fun.fqParams.input_low * in_scale), static_cast<int64_t>(x_lower));
-                x_upper = std::min(static_cast<int64_t>(*fun.fqParams.input_high * in_scale), static_cast<int64_t>(x_upper));
+            float slope_val = fun == kActLinear ? (1 / GNAPluginNS::GNALimitations::cellStateDivider) : 1.0;
+            if ((fun == kActFakeQuantize || fun == kActLinear) && fun.fqParams.set) {
+                x_lower = std::max(static_cast<int64_t>((*fun.fqParams.input_low / slope_val) * in_scale),
+                    static_cast<int64_t>(x_lower));
+                x_upper = std::min(static_cast<int64_t>((*fun.fqParams.input_high / slope_val) * in_scale),
+                    static_cast<int64_t>(x_upper));
                 y_lower = std::max(static_cast<int32_t>(*fun.fqParams.input_low * out_scale), static_cast<int32_t>(y_lower));
                 y_upper = std::min(static_cast<int32_t>(*fun.fqParams.input_high * out_scale), static_cast<int32_t>(y_upper));
             }
@@ -312,10 +316,10 @@ void make_gna_pwl(const DnnActivation&  fun,
 
             gna_pwl[1].xBase = x_lower & XBASEMASK;  // zero out the 2 lsb
             gna_pwl[1].yBase = y_lower;
-            s = gna_slope(1.0, in_scale, out_scale);
+            s = gna_slope(slope_val, in_scale, out_scale);
             gna_pwl[1].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
             gna_pwl[1].xBase = gna_pwl[1].xBase | s.slope_scale_index;
-            print_segment((int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale, gna_pwl[1].yBase / out_scale, 1.0);
+            print_segment((int32_t)(gna_pwl[1].xBase & XBASEMASK) / in_scale, gna_pwl[1].yBase / out_scale, slope_val);
 
             if (INT32_MAX > x_upper) {  // need a right segment
                 gna_pwl.push_back({

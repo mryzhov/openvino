@@ -523,15 +523,17 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
         }
         // set scale factor for input layers
         if (cnnLayer->insData.empty()) {
-            for (auto &&outData : cnnLayer->outData) {
-                outData->setPrecision(Desc::mandatory().getInputPrecision());
+            if (!LayerInfo(*cnnLayer).isCellState()) {
+                for (auto &&outData : cnnLayer->outData) {
+                    outData->setPrecision(Desc::mandatory().getInputPrecision());
+                }
             }
         } else {
             if (LayerInfo(*cnnLayer).isActivation() ||
-                    LayerInfo(*cnnLayer).isCopy() ||
-                    LayerInfo(*cnnLayer).isNonFunctional() ||
-                    LayerInfo(*cnnLayer).isPermute() ||
-                    LayerInfo(*cnnLayer).isConst()) {
+                LayerInfo(*cnnLayer).isCopy() ||
+                LayerInfo(*cnnLayer).isNonFunctional() ||
+                LayerInfo(*cnnLayer).isPermute() ||
+                LayerInfo(*cnnLayer).isConst()) {
                 // precision of activation layers is always equal input precision
                 for (auto &&outData : cnnLayer->outData) {
                     outData->setPrecision(Desc::mandatory().getInputPrecision());

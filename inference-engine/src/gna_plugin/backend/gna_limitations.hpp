@@ -31,6 +31,8 @@ constexpr uint32_t maxPoolMaxWindowSize = 6;
 constexpr uint32_t copyMaxGrouping = 8;
 constexpr uint32_t transposeMaxSize = 65528;
 
+constexpr float cellStateDivider = 100;
+
 inline bool IsTranspose2d(const std::vector<size_t>& shape) {
     return std::count_if(std::begin(shape), std::end(shape), [](size_t dim) { return dim != 1; }) == 2;
 }

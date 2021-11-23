@@ -269,6 +269,7 @@ void InsertDiagonalLayerPass::run() {
     bool lowPrecision = getPassManager()->isLowPrecision();
 
     for (auto & l : *pLayers) {
+        size_t inputIxToInsert = 0;
         if (l->insData.empty()) continue;
         auto prevLayer = CNNNetPrevLayerSkipCertain(l, 0, [](CNNLayerPtr ptr) {
             return LayerInfo(ptr).isNonFunctional();
@@ -277,6 +278,17 @@ void InsertDiagonalLayerPass::run() {
             if (LayerInfo(prevLayer).has32BOutput()) {
                 continue;
             }
+        } else if (LayerInfo(l).isDiagonal()) {
+            auto isNonFunc = [](CNNLayerPtr ptr) {
+                return LayerInfo(ptr).isNonFunctional();
+            };
+            auto input = CNNNetPrevLayerSkipCertain(l, 0, isNonFunc);
+            auto weights = CNNNetPrevLayerSkipCertain(l, 1, isNonFunc);
+            auto biases = CNNNetPrevLayerSkipCertain(l, 2, isNonFunc);
+            if (lowPrecision || !LayerInfo(biases).has8BOr16BOutput()) {
+                continue;
+            }
+            inputIxToInsert = 2;
         } else {
             auto eltwise = dynamic_cast<InferenceEngine::EltwiseLayer *>(l.get());
             if (!eltwise) {
@@ -307,7 +319,7 @@ void InsertDiagonalLayerPass::run() {
             if (lowPrecision && LayerInfo(prevLayer).has8BOr16BOutput() && LayerInfo(prevLayer1).has8BOr16BOutput())
                 continue;
         }
-        auto prevDirectLayer = CNNNetPrevLayer(l, 0);
+        auto prevDirectLayer = CNNNetPrevLayer(l, inputIxToInsert);
         insertDiagonalLayerBetween(prevDirectLayer, l, getPassManager(), 1.f);
     }
 }
@@ -1998,11 +2010,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
     };
 
     auto allowFQFuse = [](CNNLayerPtr layer) -> bool {
-        auto doNotSkup = [](CNNLayerPtr layer) {
+        /*auto doNotSkip = [](CNNLayerPtr layer) {
             return false;
         };
 
-        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkup).empty()) {
+        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkip).empty()) {
             return false;
         }
 
@@ -2017,10 +2029,10 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer, -1, skipNonFunctional);
         for (auto& l : nextLayers) {
-            if (!LayerInfo(l).isActivation()) {
+            if (!LayerInfo(l).isActivation() && !LayerInfo(l).isMemory()) {
                 return false;
             }
-        }
+        }*/
 
         return true;
     };

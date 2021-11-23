@@ -49,6 +49,8 @@ enum LayerType {
     SoftSign,
     FakeQuantize,
     Gemm,
+    Diagonal,
+    Linear,
     NO_TYPE
 };
 
@@ -88,6 +90,8 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
         { "SoftSign", SoftSign },
         { "FakeQuantize", FakeQuantize },
         {"Gemm", Gemm},
+        {"Diagonal", Diagonal},
+        {"Linear", Linear}
 };
 
 GNAPluginNS::LayerType LayerTypeFromStr(const std::string &str);

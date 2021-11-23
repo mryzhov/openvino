@@ -74,6 +74,9 @@
 #include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/substitute_softsign.hpp"
+#include "transformations/split_cell_state.hpp"
+#include "transformations/convert_mul_add_to_diagonal.hpp"
+#include "transformations/serialize.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -694,6 +697,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<DecomposeMVN>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
+        manager.register_pass<SplitCellState>();
+        manager.register_pass<ngraph::pass::Serialize>("transformed.xml", "transformed.bin");
         manager.register_pass<ConvertDWSCToScaleShifts>();
         manager.register_pass<ConvertPaddedToValidConv>();
         manager.register_pass<Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTarget, config.gnaPrecision);
@@ -722,6 +727,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<SubstituteSoftsign>();
+        manager.register_pass<ConvertToDiagonal>();
+        manager.register_pass<ngraph::pass::Serialize>("transformed_diagonal.xml", "transformed_diagonal.bin");
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
