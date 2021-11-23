@@ -125,7 +125,7 @@ public:
     void AffinePrimitive(InferenceEngine::CNNLayerPtr, bool isDiag = false);
     void ConvolutionFilterPrimitive(InferenceEngine::CNNLayerPtr);
     void ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr);
-    void DiagonalPrimitive(InferenceEngine::CNNLayerPtr);
+    void ScaleShiftPrimitive(InferenceEngine::CNNLayerPtr);
     void ConstPrimitive(InferenceEngine::CNNLayerPtr);
     void ConvolutionPrimitive(InferenceEngine::CNNLayerPtr);
     void PermutePrimitive(InferenceEngine::CNNLayerPtr);
@@ -134,6 +134,7 @@ public:
     void ConcatPrimitive(InferenceEngine::CNNLayerPtr);
     void CropPrimitive(InferenceEngine::CNNLayerPtr);
     void EltwisePrimitive(InferenceEngine::CNNLayerPtr);
+    void DiagonalPrimitive(InferenceEngine::CNNLayerPtr);
     void SplitPrimitive(InferenceEngine::CNNLayerPtr);
     void SlicePrimitive(InferenceEngine::CNNLayerPtr);
     void PWLPrimitive(InferenceEngine::CNNLayerPtr);

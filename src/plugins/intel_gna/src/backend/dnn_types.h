@@ -32,6 +32,7 @@ enum DnnActivationType : uint8_t {
     kActPow,
     kActFakeQuantize,
     kActPwl,
+    kActLinear,
     kActNumType
 };
 

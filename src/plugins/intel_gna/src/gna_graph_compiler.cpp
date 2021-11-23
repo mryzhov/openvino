@@ -1417,6 +1417,99 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 }
 
+void GNAGraphCompiler::DiagonalPrimitive(InferenceEngine::CNNLayerPtr layer) {
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    const uint32_t noOfInputsDivisor = gnaFlags->input_low_precision ?
+        GNALimitations::noOfInputsLowPrecDivisor : GNALimitations::noOfInputsDivisor;
+
+    auto inputs = layer->insData[0].lock();
+    auto weights = layer->insData[1].lock();
+    auto biases = layer->insData[2].lock();
+
+    auto nonFunctional = [](CNNLayerPtr ptr) {
+        return LayerInfo(ptr).isNonFunctional();
+    };
+    auto inputFuncLayer = CNNNetPrevLayerSkipCertain(layer, 0, nonFunctional)->outData[0];
+    auto weightsFuncLayer = CNNNetPrevLayerSkipCertain(layer, 1, nonFunctional)->outData[0];
+    auto biasesFuncLayer = CNNNetPrevLayerSkipCertain(layer, 2, nonFunctional)->outData[0];
+
+    if (quantized) {
+        if (gnaFlags->input_low_precision == false) {
+            GNA_LAYER_ASSERT(layer, inputFuncLayer->getPrecision().size() == 2);
+            GNA_LAYER_ASSERT(layer, weightsFuncLayer->getPrecision().size() == 2);
+            GNA_LAYER_ASSERT(layer, biasesFuncLayer->getPrecision().size() == 4);
+        } else {
+            // for low precision both inputs should be 1 bytes in size
+            GNA_LAYER_ASSERT(layer, inputFuncLayer->getPrecision().size() == 1);
+            GNA_LAYER_ASSERT(layer, weightsFuncLayer->getPrecision().size() == 1);
+            GNA_LAYER_ASSERT(layer, biasesFuncLayer->getPrecision().size() == 1);
+        }
+    }
+
+    auto outputs = *layer->outData.begin();
+
+    auto in_batch = GetDataDimSize(inputs, InferenceEngine::DataDimName::N);
+    auto in_total_size = std::accumulate(std::begin(inputs->getDims()), std::end(inputs->getDims()),
+        1, std::multiplies<size_t>());
+
+    auto w_batch = GetDataDimSize(weights, InferenceEngine::DataDimName::N);
+    auto w_total_size = std::accumulate(std::begin(weights->getDims()), std::end(weights->getDims()),
+        1, std::multiplies<size_t>());
+
+    auto b_batch = GetDataDimSize(biases, InferenceEngine::DataDimName::N);
+    auto b_total_size = std::accumulate(std::begin(biases->getDims()), std::end(biases->getDims()),
+        1, std::multiplies<size_t>());
+
+    if (in_batch != w_batch || in_batch != b_batch) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs with different batch sizes " << in_batch << ", " << w_batch << " and "
+                                         << b_batch << " are not supported";
+    }
+
+    if (in_total_size != w_total_size || in_total_size != b_total_size) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << " Inputs size mismatch: " << in_total_size << " ," << w_total_size
+                                         << " and " << b_total_size;
+    }
+
+    // If batch size > 1 the data is reshaped to one with batch size = 1
+    uint32_t num_rows_in = in_total_size;
+    uint32_t num_columns_in = 1;
+    uint32_t num_rows_out = num_rows_in;
+    uint32_t num_padding = ALIGN(num_rows_in, noOfInputsDivisor) - num_rows_in;
+
+    void* ptr_inputs = nullptr;
+    void* ptr_outputs = nullptr;
+    void* ptr_weights = nullptr;
+    void* ptr_biases = nullptr;
+
+    auto& currentComponent = dnnComponents.addComponent(layer->name, "diagonal");
+    dnn->InitAffineComponent(currentComponent,
+        num_rows_in + num_padding,
+        num_columns_in,
+        num_rows_out + num_padding,
+        inputs->getPrecision().size(),
+        outputs->getPrecision().size(),
+        quantized == nullptr ? weights->getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 2),
+        quantized == nullptr ? biases->getPrecision().size() : (gnaFlags->input_low_precision ? 1 : 4),
+        getScaleFactor(layer, QuantizedDataType::weights),
+        getScaleFactor(layer, QuantizedDataType::output),
+        ptr_inputs,
+        ptr_outputs,
+        ptr_weights,
+        ptr_biases,
+        true);
+
+    size_t num_data_bytes_out =
+        InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims())) * outputs->getPrecision().size();
+
+    size_t num_data_bytes_in =
+        num_columns_in * (num_rows_in + num_padding) * inputs->getPrecision().size();
+
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+    connectInput(layer, ptr_weights, num_data_bytes_in, 0, 1);
+    connectInput(layer, ptr_biases, num_data_bytes_in, 0, 2);
+}
+
 void GNAGraphCompiler::GemmPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
 
@@ -1986,6 +2079,7 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         {"softsign", kActSoftSign},
         {"fakequantize", kActFakeQuantize},
         {"pwl", kActPwl}
+        {"Linear", kActLinear}
     };
 
     auto it = supportedActivations.find(type);
@@ -2058,6 +2152,8 @@ case name:\
         GET_ACTIVATION_NAME(kActAbs);
         GET_ACTIVATION_NAME(kActNegLog);
         GET_ACTIVATION_NAME(kActNegHalfLog);
+        GET_ACTIVATION_NAME(kActFakeQuantize);
+        GET_ACTIVATION_NAME(kActLinear);
     default: break;
     }
 #endif
@@ -2217,7 +2313,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"Input"}, [](GNAGraphCompiler*, CNNLayerPtr l) {}},  // skip input layers they are not used in GNA lib, only as a memory blobs
         {{"FullyConnected", "InnerProduct"}, CREATE(AffinePrimitive)},
         {{"Gemm"}, CREATE(GemmPrimitive)},
-        {{"ScaleShift"}, CREATE(DiagonalPrimitive)},
+        {{"ScaleShift"}, CREATE(ScaleShiftPrimitive)},
         {{"ConvolutionFilter"}, CREATE(ConvolutionFilterPrimitive)},
         {{"ConcatAlignFilter"}, CREATE(ConcatAlignFilterPrimitive)},
         {{"Const"}, CREATE(ConstPrimitive)},
@@ -2238,6 +2334,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
           "neglog",
           "neghalflog",
           "pwl"},
+          "Linear"},
           CREATE(PWLPrimitive)},
         {{"Convolution"}, CREATE(ConvolutionPrimitive)},
         {{"Permute"}, CREATE(PermutePrimitive)},  // permute of certain form (2D transpose) can be assimilated in followed FC layer
@@ -2251,7 +2348,8 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{DelayedCopyLayerName}, CREATE(CopyPrimitive)},
         {{"TensorIterator"}, SKIP},
         {{"LSTMCell"}, SKIP},
-        {{"FakeQuantize"}, CREATE(PWLPrimitive)}
+        {{"FakeQuantize"}, CREATE(PWLPrimitive)},
+        {{"Diagonal"}, CREATE(DiagonalPrimitive)}
     };
     (void)layersBuilder;
     auto it = LayersBuilder::getStorage().find(layer->type);
