@@ -71,6 +71,9 @@
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 #include "transformations/remove_single_input_concat.hpp"
 #include "transformations/broadcast_const.hpp"
+#include "transformations/op_conversions/convert_mvn1_to_mvn6.hpp"
+#include "transformations/decompose_mvn.hpp"
+#include "transformations/substitute_softsign.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -687,6 +690,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
+        manager.register_pass<ngraph::pass::ConvertMVN1ToMVN6>();
+        manager.register_pass<DecomposeMVN>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
@@ -714,6 +719,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<InsertTransposeAfterConvOrPool>();
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
+        manager.register_pass<SubstituteSoftsign>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -782,6 +788,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
             passes->registerPass<SubstituteScaleShiftBroadCastPass>();
         }
 
+        if (fake_quantized)
+            passes->registerPass<SubstituteSoftSignPass>();
+
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
         passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
@@ -789,7 +798,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
 
         passes->registerPass<SubstitutePReluPass>();
-        passes->registerPass<SubstituteSoftSignPass>();
 
         passes->registerPass<ReorderMaxPoolPass>();
         passes->registerPass<EltwiseSplitOverChannelsPass>();

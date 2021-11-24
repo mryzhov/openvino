@@ -96,21 +96,6 @@ class GNAMemory : public GNAMemRequestsQueue {
         // 4th stage -- store data and updates pointers
         allocateRegion(REGION_RW, 0);
         allocateRegion(REGION_RO, _rw_section_size);
-
-        //
-        setCompactMode(false);
-        getTotalBytes();
-        std::cout << "[COMPACT] mode: " << "[" << _is_compact_mode << "]" << std::endl;
-        std::cout << "[COMPACT] Allocated RO memory: " << "[" << _ro_section_size << "]" << std::endl;
-        std::cout << "[COMPACT] Allocated RW memory: " << "[" << _rw_section_size << "]" << std::endl;
-        std::cout << "[COMPACT] Allocated TOTAL memory: " << "[" << _total << "]" << std::endl;
-        //only for the tests:
-        setCompactMode(isCompact);
-        getTotalBytes();
-        std::cout << "[COMPACT] mode: " << "[" << _is_compact_mode << "]" << std::endl;
-        std::cout << "[COMPACT] Allocated RO memory: " << "[" << _ro_section_size << "]" << std::endl;
-        std::cout << "[COMPACT] Allocated RW memory: " << "[" << _rw_section_size << "]" << std::endl;
-        std::cout << "[COMPACT] Allocated TOTAL memory: " << "[" << _total << "]" << std::endl;
     }
 
     void *getBasePtr() {
