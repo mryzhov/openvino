@@ -39,44 +39,45 @@ SplitCellState::SplitCellState() {
         auto shape = pattern_map.at(constant).get_node_shared_ptr()->get_output_shape(0);
         size_t size = std::accumulate(std::begin(shape), std::end(shape), 1, std::multiplies<size_t>());
 
-        auto constant_div = ngraph::opset8::Constant::create(read_value_node->get_element_type(),
-            shape, std::vector<float>(size, 1 / (GNALimitations::cellStateDivider)));
-        auto mul1 = std::make_shared<ngraph::opset8::Multiply>(read_value_node, constant_div);
-        new_ops.push_back(mul1);
+        auto constant_mul = ngraph::opset8::Constant::create(read_value_node->get_element_type(),
+            shape, std::vector<float>(size, GNALimitations::cellStateDivider));
+        auto floor_input = std::make_shared<ngraph::opset8::Multiply>(read_value_node, constant_mul);
+        new_ops.push_back(floor_input);
 
-        auto constant_neg = ngraph::opset8::Constant::create(read_value_node->get_element_type(),
-            shape, std::vector<float>(size, -GNALimitations::cellStateDivider));
-        auto mul2 = std::make_shared<ngraph::opset8::Multiply>(mul1, constant_neg);
-        new_ops.push_back(mul2);
-        auto add2 = std::make_shared<ngraph::opset8::Add>(mul2, read_value_node);
-        new_ops.push_back(add2);
+        auto floor = std::make_shared<ngraph::opset8::Floor>(floor_input);
+        new_ops.push_back(floor);
+
+        auto constant_div = ngraph::opset8::Constant::create(read_value_node->get_element_type(),
+            shape, std::vector<float>(size, 1 / GNALimitations::cellStateDivider));
+        auto int_part = std::make_shared<ngraph::opset8::Multiply>(floor, constant_div);
+        new_ops.push_back(int_part);
+
+        auto fp_part = std::make_shared<ngraph::opset8::Subtract>(read_value_node, int_part);
+        new_ops.push_back(fp_part);
 
         auto multiply_node = pattern_map.at(multiply).get_node_shared_ptr();
         auto add_node = pattern_map.at(add).get_node_shared_ptr();
-        auto mul_high = multiply_node->clone_with_new_inputs(ngraph::OutputVector{mul1, multiply_node->input_value(0)});
-        new_ops.push_back(mul_high);
-        auto mul_low = multiply_node->clone_with_new_inputs(ngraph::OutputVector{add2, multiply_node->input_value(0)});
-        new_ops.push_back(mul_low);
-        auto add_low = add_node->clone_with_new_inputs(ngraph::OutputVector{mul_low, add_node->input_value(1)});
-        new_ops.push_back(add_low);
+        auto mul_int = multiply_node->clone_with_new_inputs(ngraph::OutputVector{int_part, multiply_node->input_value(0)});
+        new_ops.push_back(mul_int);
+        auto mul_fp = multiply_node->clone_with_new_inputs(ngraph::OutputVector{fp_part, multiply_node->input_value(0)});
+        new_ops.push_back(fp_part);
+        auto add_fp = add_node->clone_with_new_inputs(ngraph::OutputVector{mul_fp, add_node->input_value(1)});
+        new_ops.push_back(add_fp);
 
-        auto constant_pos = ngraph::opset8::Constant::create(read_value_node->get_element_type(),
-            shape, std::vector<float>(size, GNALimitations::cellStateDivider));
-        auto mul3 = std::make_shared<ngraph::opset8::Multiply>(mul_high, constant_pos);
-        auto add3 = std::make_shared<ngraph::opset8::Add>(mul3, add_low);
-        new_ops.push_back(add3);
+        auto full_val = std::make_shared<ngraph::opset8::Add>(mul_int, add_fp);
+        new_ops.push_back(full_val);
 
         copy_runtime_info(assign_node, new_ops);
-        replace_node(assign_node->input_value(0).get_node_shared_ptr(), add3);
+        replace_node(assign_node->input_value(0).get_node_shared_ptr(), full_val);
 
         // Insert Add layer to prevent fusing of the last diagonal layer with Tanh,
         // otherwise state buffer will be between the fused layers
         auto constant_zero = ngraph::opset8::Constant::create(read_value_node->get_element_type(),
             shape, std::vector<float>(size, 0.0));
-        auto add4 = std::make_shared<ngraph::opset8::Add>(add3, constant_zero);
-        for (const auto &input : add3->get_output_target_inputs(0)) {
+        auto new_tanh_input = std::make_shared<ngraph::opset8::Add>(full_val, constant_zero);
+        for (const auto &input : full_val->get_output_target_inputs(0)) {
             if (auto tanh_node = std::dynamic_pointer_cast<ngraph::opset8::Tanh>(input.get_node()->shared_from_this())) {
-                tanh_node->input(0).replace_source_output(add4->output(0));
+                tanh_node->input(0).replace_source_output(new_tanh_input->output(0));
             }
         }
 

@@ -7,6 +7,7 @@
 #include "transformations/convert_mul_add_to_diagonal.hpp"
 #include "ops/diagonal.hpp"
 #include "ops/linear.hpp"
+#include "legacy/ngraph_ops/eltwise.hpp"
 
 #include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -31,15 +32,42 @@ ConvertMulAddToDiagonal::ConvertMulAddToDiagonal() {
     };
     auto fq_mul_in1 = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>(is_16bit_input);
     auto fq_mul_in2 = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>(is_16bit_input);
-    auto multiply = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({fq_mul_in1, fq_mul_in2});
-    auto fq_add = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({multiply, ngraph::pattern::any_input(),
+    auto constant = ngraph::pattern::wrap_type<ngraph::opset8::Constant>();
+    auto in1 = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fq_mul_in1, constant});
+    auto in2 = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{fq_mul_in2, constant});
+    auto multiply = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({in1, in2});
+    auto eltwise_multiply = ngraph::pattern::wrap_type<ngraph::op::Eltwise>({in1, in2},
+        [](const ngraph::Output<ngraph::Node>& node) {
+            auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node.get_node_shared_ptr());
+            IE_ASSERT(eltwise != nullptr);
+            return eltwise->eltwise_type == ELTWISE_TYPE::Prod;
+        });
+    auto mul_root = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{multiply, eltwise_multiply});
+    auto fq_add = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({mul_root, ngraph::pattern::any_input(),
         ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()});
     auto add = ngraph::pattern::wrap_type<ngraph::opset8::Add>({fq_add, ngraph::pattern::any_input()});
+    auto eltwise_add = ngraph::pattern::wrap_type<ngraph::op::Eltwise>({fq_add, ngraph::pattern::any_input()},
+        [](const ngraph::Output<ngraph::Node>& node) {
+            auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node.get_node_shared_ptr());
+            IE_ASSERT(eltwise != nullptr);
+            return eltwise->eltwise_type == ELTWISE_TYPE::Sum;
+        });
+    auto add_root = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{add, eltwise_add});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto multiply_node = pattern_map.at(multiply).get_node_shared_ptr();
-        auto add_node = pattern_map.at(add).get_node_shared_ptr();
+        auto multiply_it = pattern_map.find(multiply);
+        if (multiply_it == std::end(pattern_map)) {
+            multiply_it = pattern_map.find(eltwise_multiply);
+        }
+        auto multiply_node = multiply_it->second.get_node_shared_ptr();
+
+        auto add_it = pattern_map.find(add);
+        if (add_it == std::end(pattern_map)) {
+            add_it = pattern_map.find(eltwise_add);
+        }
+        auto add_node = add_it->second.get_node_shared_ptr();
+
         std::cout << "Diagonal layer is recognized: mul=" << multiply_node->get_friendly_name()
                   << ", add=" << add_node->get_friendly_name() << "\n";
 
@@ -54,7 +82,7 @@ ConvertMulAddToDiagonal::ConvertMulAddToDiagonal() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add_root, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -69,10 +97,22 @@ ConvertMulToDiagonal::ConvertMulToDiagonal() {
     auto fq_mul_in2 = ngraph::pattern::wrap_type<ngraph::opset8::FakeQuantize>({constant, ngraph::pattern::any_input(),
         ngraph::pattern::any_input(), ngraph::pattern::any_input(), ngraph::pattern::any_input()});
     auto multiply = ngraph::pattern::wrap_type<ngraph::opset8::Multiply>({fq_mul_in1, fq_mul_in2});
+    auto eltwise_multiply = ngraph::pattern::wrap_type<ngraph::op::Eltwise>({fq_mul_in1, fq_mul_in2},
+        [](const ngraph::Output<ngraph::Node>& node) {
+            auto eltwise = std::dynamic_pointer_cast<ngraph::op::Eltwise>(node.get_node_shared_ptr());
+            IE_ASSERT(eltwise != nullptr);
+            return eltwise->eltwise_type == ELTWISE_TYPE::Prod;
+        });
+    auto mul_root = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{multiply, eltwise_multiply});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto multiply_node = pattern_map.at(multiply).get_node_shared_ptr();
+        auto multiply_it = pattern_map.find(multiply);
+        if (multiply_it == std::end(pattern_map)) {
+            multiply_it = pattern_map.find(eltwise_multiply);
+        }
+        auto multiply_node = multiply_it->second.get_node_shared_ptr();
+
         std::cout << "Diagonal layer is recognized: mul=" << multiply_node->get_friendly_name() << "\n";
 
         auto shape = multiply_node->get_output_shape(0);
@@ -92,6 +132,6 @@ ConvertMulToDiagonal::ConvertMulToDiagonal() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(multiply, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_root, matcher_name);
     this->register_matcher(m, callback);
 }

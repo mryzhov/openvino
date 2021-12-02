@@ -68,11 +68,8 @@ static bool fp32eq(float p1, float p2, float accuracy = 0.00001f) {
  * @return Array of slopes for a function
  */
 static std::vector<double> getPWLSlopes(const LayerInfo& info) {
-    if (info.isIdentity() || info.isFakeQuantize() || info.isRelu() || info.isClamp() || info.isAbs()) {
+    if (info.isIdentity() || info.isFakeQuantize() || info.isRelu() || info.isClamp() || info.isAbs() || info.isLinear()) {
         return { 1.0f };
-    }
-    if (info.isLinear()) {
-        return { 1 / GNALimitations::cellStateDivider };
     }
 
     return {};
@@ -450,7 +447,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
 
             // TODO: remove clamping maximum scale factor
             result = result > max_activation_scale_factor ? max_activation_scale_factor : result;
-            if (!layer.isIdentity() && !layer.isFakeQuantize() && !layer.isRelu() && !layer.isClamp()) {
+            if (!layer.isIdentity() && !layer.isFakeQuantize() && !layer.isRelu() && !layer.isClamp() && !layer.isLinear()) {
                 result = result > activation_scale_factor ? activation_scale_factor : result;
             }
 
@@ -497,10 +494,11 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
         ScaleFactorUpdateResult &result) {
         auto layer = input;
         while (layer && !LayerInfo(layer).isInput() && !LayerInfo(layer).isMemory() && !LayerInfo(layer).isCopy() &&
-               !LayerInfo(layer).isEltwise() && !LayerInfo(layer).isDiagonal()) {
+               !LayerInfo(layer).isEltwise() && !LayerInfo(layer).isDiagonal() && !LayerInfo(layer).isLinear()) {
             auto info = LayerInfo(layer);
             auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
-            if (info.isActivation() || info.isConst()) {
+            if (info.isActivation() /*&& newOutputScale <= static_cast<float>(std::numeric_limits<int16_t>::max()) / 2*/ ||
+                info.isConst()) {
                 gnawarn() << "[WARNING] requantize " << layer->name
                           << ". Layer new output scale: " << newOutputScale
                           << ", was " << quantDataForInputLayer->_dst_quant.GetScale() << std::endl;
@@ -556,13 +554,23 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
 
         // restart to decrease input or weights scale factor
         auto tryToRequantizeInputAndWeights = [&]() {
-            std::vector<uint8_t> inputs_order{0, 1};
-            /*if (infiniteLoopCount > 0) {
-                std::swap(inputs_order[0], inputs_order[1]);
-            }*/
+            std::list<uint8_t> inputs_order;
+            for (uint8_t ix = 0; ix < 2; ++ix) {
+                auto prevLayer = InferenceEngine::CNNNetPrevLayer(diagonalLayer, ix);
+                // requantize constants with more priority
+                if (LayerInfo(prevLayer).isConst()) {
+                    inputs_order.push_front(ix);
+                } else {
+                    inputs_order.push_back(ix);
+                }
+            }
+            if (infiniteLoopCount > 0) {
+                std::swap(inputs_order.front(), inputs_order.back());
+            }
             for (uint8_t ix : inputs_order) {
                 auto prevLayer = InferenceEngine::CNNNetPrevLayer(diagonalLayer, ix);
-                if (requantizeDiagonalInput(prevLayer, b_sf / (ix ? in_sf : w_sf), fakeQuantize, result)) {
+                auto newSF = b_sf / (ix ? in_sf : w_sf);
+                if (requantizeDiagonalInput(prevLayer, newSF, fakeQuantize, result)) {
                     return true;
                 }
             }
