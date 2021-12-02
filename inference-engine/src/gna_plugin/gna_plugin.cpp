@@ -76,6 +76,7 @@
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/split_cell_state.hpp"
 #include "transformations/convert_mul_add_to_diagonal.hpp"
+#include "transformations/convert_floor_to_add.hpp"
 #include "transformations/serialize.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
@@ -699,6 +700,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<SplitCellState>();
         manager.register_pass<ngraph::pass::Serialize>("transformed.xml", "transformed.bin");
+        manager.register_pass<ConvertFloorToAdd>();
+        manager.register_pass<ngraph::pass::Serialize>("transformed_no_floor.xml", "transformed_no_floor.bin");
         manager.register_pass<ConvertDWSCToScaleShifts>();
         manager.register_pass<ConvertPaddedToValidConv>();
         manager.register_pass<Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTarget, config.gnaPrecision);
@@ -727,8 +730,6 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ReorderActivationAndPooling>();
         manager.register_pass<RemoveSingleInputConcat>();
         manager.register_pass<SubstituteSoftsign>();
-        manager.register_pass<ConvertToDiagonal>();
-        manager.register_pass<ngraph::pass::Serialize>("transformed_diagonal.xml", "transformed_diagonal.bin");
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -742,6 +743,10 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
               transormations
         */
         manager.register_pass<BroadcastAddMultiplyConst>();
+        // Depends on BroadcastAddMultiplyConst transformation
+        manager.register_pass<ngraph::pass::Serialize>("before_diagonal.xml", "before_diagonal.bin");
+        //manager.register_pass<ConvertToDiagonal>();
+        manager.register_pass<ngraph::pass::Serialize>("transformed_diagonal.xml", "transformed_diagonal.bin");
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         const auto& pass_config = manager.get_pass_config();
@@ -765,6 +770,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
+    NetPass::ConvertPrecision(network, Precision::FP64, Precision::FP32);
 
     //  Check the input network
     std::string error;

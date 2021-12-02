@@ -104,9 +104,15 @@ double pivot_search(std::vector<pwl_t>& result,
         for (int i = 0; i < N; i++) {
             epsilon[i].resize(j + 1);
             epsilon[i][j] = sgn * (first_deriv_f(t[i][j]) * (alpha[i][j] - t[i][j]) + f(t[i][j]) - f(alpha[i][j]));
+            if (std::isnan(epsilon[i][j])) {
+                THROW_GNA_EXCEPTION << "Failed to converge in pivot_search!";
+            }
         }
         epsilon[N].resize(j + 1);
         epsilon[N][j] = sgn * (first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + f(t[N - 1][j]) - f(alpha[N][j]));
+        if (std::isnan(epsilon[N][j])) {
+            THROW_GNA_EXCEPTION << "Failed to converge in pivot_search!";
+        }
 
         // Figure 4:  Test for completion
         max_epsilon_prev = max_epsilon;
@@ -116,7 +122,7 @@ double pivot_search(std::vector<pwl_t>& result,
             if (fabs(epsilon[i][j]) > max_epsilon) max_epsilon = fabs(epsilon[i][j]);
             if (fabs(epsilon[i][j]) < min_epsilon) min_epsilon = fabs(epsilon[i][j]);
         }
-        if ((j == iter_num) || (max_epsilon - min_epsilon < threshold * min_epsilon)) {
+        if (max_epsilon - min_epsilon < threshold * min_epsilon) {
             pwl_t value;
             result.resize(0);
             epsilon_final = (max_epsilon + min_epsilon) / 4.0;  // Andrzej's modification
@@ -135,9 +141,6 @@ double pivot_search(std::vector<pwl_t>& result,
             value.alpha = alpha[N][j];
             value.beta = sgn * first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + sgn * f(t[N - 1][j]) - epsilon_final;
             result.push_back(value);
-            if (j == iter_num) {
-                THROW_GNA_EXCEPTION << "Failed to converge in pivot_search!";
-            }
             return(epsilon_final);
         }
 
@@ -1131,7 +1134,9 @@ void PwlApply32(intel_dnn_component_t *component,
         case kActLinear: {
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] = ptr_in[i * num_columns + j] / GNAPluginNS::GNALimitations::cellStateDivider;
+                    ptr_out[i * num_columns + j] =
+                        static_cast<int>(ptr_in[i * num_columns + j] * GNAPluginNS::GNALimitations::cellStateDivider) /
+                        GNAPluginNS::GNALimitations::cellStateDivider;
                 }
             }
             break;

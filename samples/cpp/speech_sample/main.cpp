@@ -127,7 +127,7 @@ void ClearScoreError(score_error_t* error) {
  * @param totalError pointer to total score error struct
  * @return none.
  */
-void UpdateScoreError(score_error_t* error, score_error_t* totalError) {
+void UpdateScoreError(score_error_t* error, score_error_t* totalError, size_t frameInd) {
     totalError->numErrors += error->numErrors;
     totalError->numScores += error->numScores;
     totalError->sumRmsError += error->rmsError;
@@ -135,6 +135,7 @@ void UpdateScoreError(score_error_t* error, score_error_t* totalError) {
     totalError->sumSquaredError += error->sumSquaredError;
     if (error->maxError > totalError->maxError) {
         totalError->maxError = error->maxError;
+        std::cout << "frameInd=" << frameInd << " error=" << totalError->maxError << "\n";
     }
     totalError->sumRelError += error->sumRelError;
     totalError->sumSquaredRelError += error->sumSquaredRelError;
@@ -1054,7 +1055,7 @@ int main(int argc, char* argv[]) {
                                         &frameError,
                                         inferRequest.numFramesThisBatch,
                                         numFrameElementsReference);
-                                    UpdateScoreError(&frameError, &totalError);
+                                    UpdateScoreError(&frameError, &totalError, inferRequest.frameIndex);
                                 }
                                 if (FLAGS_pc) {
                                     // retrieve new counters

@@ -274,7 +274,7 @@ void make_gna_pwl(const DnnActivation&  fun,
             int32_t x_upper = INT32_MAX;
             int16_t y_lower = y_min;
             int16_t y_upper = y_max;
-            float slope_val = fun == kActLinear ? (1 / GNAPluginNS::GNALimitations::cellStateDivider) : 1.0;
+            float slope_val = 1.0;
             if ((fun == kActFakeQuantize || fun == kActLinear) && fun.fqParams.set) {
                 x_lower = std::max(static_cast<int64_t>((*fun.fqParams.input_low / slope_val) * in_scale),
                     static_cast<int64_t>(x_lower));
