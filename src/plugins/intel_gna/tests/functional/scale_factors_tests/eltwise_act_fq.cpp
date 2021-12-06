@@ -78,11 +78,11 @@ protected:
     void SetUp() override {
         InferenceEngine::Precision netPrecision;
         std::pair<float, float> inputValues;
-        ngraph::helpers::ActivationTypes act;
+        ngraph::helpers::ActivationTypes actType;
 
-        std::tie(netPrecision, targetDevice, configuration, inputValues, act) = this->GetParam();
+        std::tie(netPrecision, targetDevice, configuration, inputValues, actType) = this->GetParam();
         std::tie(inputDataMin, inputDataMax) = inputValues;
-        if (act == ngraph::helpers::ActivationTypes::Log) {
+        if (actType == ngraph::helpers::ActivationTypes::Log) {
             // clamp not positive values
             inputDataMin = 1.0e-3;
             // get error threshold value from PWL error
@@ -107,15 +107,18 @@ protected:
         auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(add, lowNode, highNode,
             lowNode, highNode, levels32);
 
-        auto tanh = ngraph::builder::makeActivation(fq, ngPrc, act);
+        auto act = ngraph::builder::makeActivation(fq, ngPrc, actType);
 
-        auto lowNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, { std::tanh(2 * inputDataMin) });
-        auto highNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, { std::tanh(2 * inputDataMax) });
-        auto fqOut = std::make_shared<ngraph::opset8::FakeQuantize>(tanh, lowNodeOut, highNodeOut,
+        float minVal = CalculateAct(actType, 2 * inputDataMin);
+        float maxVal = CalculateAct(actType, 2 * inputDataMax);
+        float maxAbsVal = std::max(std::abs(minVal), std::abs(maxVal));
+        auto lowNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, { -maxAbsVal });
+        auto highNodeOut = ngraph::builder::makeConstant<float>(ngPrc, {1}, { maxAbsVal });
+        auto fqOut = std::make_shared<ngraph::opset8::FakeQuantize>(act, lowNodeOut, highNodeOut,
             lowNodeOut, highNodeOut, levels16);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset8::Result>(fqOut)};
-        function = std::make_shared<ngraph::Function>(results, params, "TanhFq");
+        function = std::make_shared<ngraph::Function>(results, params, "EltwiseActFq");
     }
 
     float inputDataMax = 1.0;
@@ -124,6 +127,28 @@ protected:
     const size_t levels32 = std::numeric_limits<uint32_t>::max();
     // to reproduce the problem with quite big distance between min int and min value from stats
     const size_t sf_reducer = 100;
+
+private:
+    float CalculateAct(ngraph::helpers::ActivationTypes act, float x) {
+        switch (act) {
+            case ngraph::helpers::ActivationTypes::Sigmoid:
+                return 1 / (1 + std::exp(-x));
+            case ngraph::helpers::ActivationTypes::Tanh:
+                return std::tanh(x);
+            case ngraph::helpers::ActivationTypes::Relu:
+                return x < 0 ? 0 : x;
+            case ngraph::helpers::ActivationTypes::Exp:
+                return std::exp(x);
+            case ngraph::helpers::ActivationTypes::Log:
+                return std::log(x);
+            case ngraph::helpers::ActivationTypes::Sign:
+                return x == 0 ? 0 : (x < 0 ? -1 : 1);
+            case ngraph::helpers::ActivationTypes::Abs:
+                return std::abs(x);
+            default:
+                return 0.0;
+        }
+    }
 };
 
 TEST_P(EltwiseActFqTest, CompareWithRefImpl) {
@@ -138,7 +163,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<std::map<std::string, std::string>> configs = {
     {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_PWL_MAX_ERROR_PERCENT", "0.025"}
+        {"GNA_PWL_MAX_ERROR_PERCENT", "0.07"},
+        {"GNA_COMPACT_MODE", "NO"}
     }
 };
 
@@ -153,7 +179,6 @@ const std::vector<ngraph::helpers::ActivationTypes> activationTypes = {
     ngraph::helpers::ActivationTypes::Sigmoid,
     ngraph::helpers::ActivationTypes::Tanh,
     ngraph::helpers::ActivationTypes::Relu,
-    ngraph::helpers::ActivationTypes::Exp,
     ngraph::helpers::ActivationTypes::Log,
     ngraph::helpers::ActivationTypes::Sign,
     ngraph::helpers::ActivationTypes::Abs
@@ -166,5 +191,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_base, EltwiseActFqTest,
         ::testing::ValuesIn(configs),
         ::testing::ValuesIn(inputValues),
         ::testing::ValuesIn(activationTypes)),
+    EltwiseActFqTest::getTestCaseName);
+
+const std::vector<std::pair<float, float>> inputValuesExp = {
+    {-1.0, 1.0},
+    {-0.04, 0.04}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_exp, EltwiseActFqTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA),
+        ::testing::ValuesIn(configs),
+        ::testing::ValuesIn(inputValuesExp),
+        ::testing::Values(ngraph::helpers::ActivationTypes::Exp)),
     EltwiseActFqTest::getTestCaseName);
 } // namespace LayerTestsDefinitions

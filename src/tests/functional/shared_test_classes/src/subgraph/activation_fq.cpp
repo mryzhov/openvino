@@ -76,7 +76,14 @@ namespace SubgraphTestsDefinitions {
     }
 
 InferenceEngine::Blob::Ptr ActivationFakeQuantizeSubgraphTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution,
-                                            seed);
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
+    blob->allocate();
+
+    auto* rawBlobDataPtr = blob->buffer().as<float*>();
+    std::vector<float> values = CommonTestUtils::generate_float_numbers(blob->size(), inputDataMin, inputDataMax);
+    for (size_t i = 0; i < blob->size(); i++) {
+        rawBlobDataPtr[i] = values[i];
+    }
+    return blob;
 }
 } // namespace SubgraphTestsDefinitions

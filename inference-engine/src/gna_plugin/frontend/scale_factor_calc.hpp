@@ -445,12 +445,6 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                 result = max_activation_scale_factor;
             }
 
-            // TODO: remove clamping maximum scale factor
-            result = result > max_activation_scale_factor ? max_activation_scale_factor : result;
-            if (!layer.isIdentity() && !layer.isFakeQuantize() && !layer.isRelu() && !layer.isClamp()) {
-                result = result > activation_scale_factor ? activation_scale_factor : result;
-            }
-
             // Take input scale factor from previous layer if previous layer does not modify
             // input values
             bool usePrevScaleFactor = false;

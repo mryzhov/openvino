@@ -527,8 +527,8 @@ void PwlDesignOpt(const DnnActivation activation_type,
     auto minInputStats = 0.0f;
     auto maxInputStats = 0.0f;
     if (activation_type.srcFQParams.set) {
-        minInputStats = std::min(*activation_type.srcFQParams.input_low, *activation_type.srcFQParams.input_high) * 1.25f;
-        maxInputStats = std::max(*activation_type.srcFQParams.input_low, *activation_type.srcFQParams.input_high) * 1.25f;
+        minInputStats = std::min(*activation_type.srcFQParams.input_low, *activation_type.srcFQParams.input_high);
+        maxInputStats = std::max(*activation_type.srcFQParams.input_low, *activation_type.srcFQParams.input_high);
     }
     switch (activation_type) {
         case kActSigmoid: {
@@ -569,32 +569,28 @@ void PwlDesignOpt(const DnnActivation activation_type,
             make_gna_pwl(activation_type, pwl, activation_type.args.clamp.low, activation_type.args.clamp.high,
                          scale_in, scale_out, low_precision, ptr_segment);
             break;
-        case kActLog: {
-            double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
-            break;
-        }
-        case kActNegLog: {
-            double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
-            break;
-        }
+        case kActLog:
+        case kActNegLog:
         case kActNegHalfLog: {
-            double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((static_cast<double>(INT32_MAX) / scale_in) < LOG_DOMAIN) ? (static_cast<double>(INT32_MAX) / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
+            auto minOutputStats = 0.0f;
+            if (activation_type.fqParams.set) {
+                minOutputStats = std::min(*activation_type.fqParams.input_low, *activation_type.fqParams.input_high);
+            }
+            auto x_min = exp(minOutputStats);
+            double default_x_min = (1 + ~XBASEMASK) / scale_in;
+            auto minInput = (activation_type.fqParams.set && x_min > default_x_min) ? x_min : default_x_min;
+            auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
+            auto maxInput = (activation_type.srcFQParams.set && absMax < LOG_DOMAIN) ? absMax : LOG_DOMAIN;
+            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActExp: {
-            double x_min = -log(scale_out);
-            double x_max = x_min + log(INT16_MAX);
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
+            auto absMax = std::max(std::abs(minInputStats), std::abs(maxInputStats));
+            auto minInput = activation_type.srcFQParams.set ? -absMax : -log(scale_out);
+            auto maxInput = activation_type.srcFQParams.set ? absMax : (log(INT16_MAX) - log(scale_out));
+            pwl = pwl_search(activation_type, minInput, maxInput, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, minInput, maxInput, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
         case kActSign:

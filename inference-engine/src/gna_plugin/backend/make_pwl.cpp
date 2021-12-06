@@ -106,11 +106,12 @@ static std::vector<gna_pwl_segment_t> create_multisegment_gna_pwl(const std::vec
         }
 
         auto s = gna_slope(pwl[i].m, in_scale, out_scale);
+        double beta = std::min(max_y_val, std::max(min_y_val, pwl[i].beta));
         xbase = ((static_cast<int32_t> (in_scale * pwl[i].alpha)) & XBASEMASK) | s.slope_scale_index;
-        ybase = FLOAT_TO_INT16(pwl[i].beta * out_scale);
+        ybase = FLOAT_TO_INT16(beta * out_scale);
         slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
         gna_pwl.push_back({xbase, ybase, slope});
-        print_segment(pwl[i].alpha, pwl[i].beta, pwl[i].m);
+        print_segment(pwl[i].alpha, beta, pwl[i].m);
     }
 
     if (!fake_quantize && add_last_seg) {
@@ -146,48 +147,76 @@ void make_gna_pwl(const DnnActivation&  fun,
         case kActTanh:
         case kActSoftSign: {
             // insert extra segment for x values < l_bound
-            double min_x_val;
-            double min_y_val;
+            double x_lower;
+            double y_lower;
+            double y_upper = 1.0;
             if (fun == kActSigmoid) {
-                min_y_val = fun.fqParams.set ? pwl[0].beta : 0;
-                min_x_val = -pwl[0].b / pwl[0].m;
+                x_lower = -pwl.front().b / pwl.front().m;
+                y_lower = 0.0;
             } else if (fun == kActTanh) {
-                min_y_val = fun.fqParams.set ? pwl[0].beta : -1.0;
-                min_x_val = (-1.0 - pwl[0].b) / pwl[0].m;
+                x_lower = (-1.0 - pwl.front().b) / pwl.front().m;
+                y_lower = -1.0;
             } else {
-                min_y_val = fun.fqParams.set ? pwl[0].beta : -1.0;
-                min_x_val = (-1.0 - pwl[0].b) / pwl[0].m;
+                x_lower = (-1.0 - pwl.front().b) / pwl.front().m;
+                y_lower = -1.0;
             }
-            double max_y_val = fun.fqParams.set ? pwl.back().beta : 1.0;
-            double max_x_val = fun.srcFQParams.set ? u_bound : (1.0 - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;
+
+            if (fun.fqParams.set) {
+                y_lower = std::max(static_cast<double>(*fun.fqParams.input_low), y_lower);
+                y_upper = std::min(static_cast<double>(*fun.fqParams.input_high), y_upper);
+            }
+
+            bool fake_quantize = fun.srcFQParams.set && fun.fqParams.set;
+            double min_x_val = x_lower;
+            size_t last_pwl_ix = fake_quantize ? pwl_size - 1 : pwl_size - 2;
+            double max_x_val = (1.0 - pwl[last_pwl_ix].b) / pwl[last_pwl_ix].m;
+            double min_y_val = fake_quantize && pwl.front().beta >= y_lower ? pwl.front().beta : y_lower;
+            double max_y_val = fake_quantize && pwl.back().beta <= y_upper ? pwl.back().beta : y_upper;
             gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, true);
+                fake_quantize, true);
             break;
         }
         case kActExp: {
             double min_x_val = -pwl[0].b / pwl[0].m;
-            double max_x_val = (y_max/out_scale - pwl[pwl_size - 2].b) / pwl[pwl_size - 2].m;
-            double min_y_val = fun.fqParams.set ? pwl[0].beta : 0;
-            double max_y_val = fun.fqParams.set ? pwl.front().beta : y_max / out_scale;
+            size_t last_pwl_ix = fun.fqParams.set ? pwl_size - 1 : pwl_size - 2;
+            double max_x_val = (y_max / out_scale - pwl[last_pwl_ix].b) / pwl[last_pwl_ix].m;
+
+            double y_lower = 0.0;
+            double y_upper = y_max / out_scale;
+            if (fun.fqParams.set) {
+                y_lower = std::max(static_cast<double>(*fun.fqParams.input_low), y_lower);
+                y_upper = std::min(static_cast<double>(*fun.fqParams.input_high), y_upper);
+            }
+
+            double min_y_val = fun.fqParams.set && pwl.front().beta >= y_lower ? pwl.front().beta : y_lower;
+            double max_y_val = fun.fqParams.set && pwl.back().beta <= y_upper ? pwl.back().beta : y_upper;
+
             gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
                 fun.fqParams.set, true);
             break;
         }
-        case kActLog: {
-            double min_x_val = (1 + ~XBASEMASK) / in_scale;
-            double max_x_val = INT32_MAX / in_scale;
-            double min_y_val = y_min / out_scale;
-            double max_y_val = y_max / out_scale;
-            gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
-                fun.fqParams.set, false);
-            break;
-        }
+        case kActLog:
         case kActNegLog:
         case kActNegHalfLog: {
-            double min_x_val = 1 + ~XBASEMASK;
-            double max_x_val = INT32_MAX / in_scale;
-            double min_y_val = y_max / out_scale;
-            double max_y_val = y_min / out_scale;
+            double min_x_val = fun.fqParams.set ? l_bound : (1 + ~XBASEMASK) / in_scale;
+            double max_x_val = fun.fqParams.set ? u_bound : INT32_MAX / in_scale;
+
+            double y_lower = y_min / out_scale;
+            double y_upper = y_max / out_scale;
+            if (fun.fqParams.set) {
+                y_lower = std::max(static_cast<double>(*fun.fqParams.input_low), y_lower);
+                y_upper = std::min(static_cast<double>(*fun.fqParams.input_high), y_upper);
+            }
+
+            double min_y_val, max_y_val;
+            if (fun == kActLog) {
+                min_y_val = fun.fqParams.set && pwl.front().beta >= y_lower ? pwl.front().beta : y_lower;
+                max_y_val = fun.fqParams.set && pwl.back().beta <= y_upper ? pwl.back().beta : y_upper;
+            } else {
+                min_y_val = fun.fqParams.set && pwl.front().beta <= y_upper ? pwl.front().beta : y_upper;
+                max_y_val = fun.fqParams.set && pwl.back().beta >= y_lower ? pwl.back().beta : y_lower;
+            }
+
             gna_pwl = create_multisegment_gna_pwl(pwl, in_scale, out_scale, min_x_val, max_x_val, min_y_val, max_y_val,
                 fun.fqParams.set, false);
             break;
@@ -202,11 +231,11 @@ void make_gna_pwl(const DnnActivation&  fun,
             int32_t y_lower = y_min;
             int16_t y_upper = y_max;
             if (fun.fqParams.set) {
-                x_lower = std::max(FLOAT_TO_INT64(*fun.fqParams.input_low * 1.25 * in_scale), static_cast<int64_t>(x_lower));
-                x_upper = std::min(FLOAT_TO_INT64(*fun.fqParams.input_high * 1.25 * in_scale), static_cast<int64_t>(x_upper));
+                x_lower = std::max(FLOAT_TO_INT64(*fun.fqParams.input_low * in_scale), static_cast<int64_t>(x_lower));
+                x_upper = std::min(FLOAT_TO_INT64(*fun.fqParams.input_high * in_scale), static_cast<int64_t>(x_upper));
                 // y_lower can be reduced with negative slope
-                y_lower = *fun.fqParams.input_low * 1.25 * out_scale;
-                y_upper = std::min(FLOAT_TO_INT32(*fun.fqParams.input_high * 1.25 * out_scale), static_cast<int32_t>(y_upper));
+                y_lower = *fun.fqParams.input_low * out_scale;
+                y_upper = std::min(FLOAT_TO_INT32(*fun.fqParams.input_high * out_scale), static_cast<int32_t>(y_upper));
             } else {
                 if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
                 if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
