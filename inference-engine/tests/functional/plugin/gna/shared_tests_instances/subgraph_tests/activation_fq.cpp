@@ -25,7 +25,8 @@ const ConfigType configFP32 = {
 
 const ConfigType configSWExact = {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-        {"GNA_COMPACT_MODE", "NO"}
+        {"GNA_COMPACT_MODE", "NO"},
+        {"GNA_PWL_MAX_ERROR_PERCENT", "0.07"}
 };
 
 const std::vector<std::pair<std::string, ConfigType>> gnaQuantModes = {
