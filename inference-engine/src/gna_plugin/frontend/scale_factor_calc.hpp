@@ -440,7 +440,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto maxOutValue = quantizedParams->_dst_quant.GetMaxValues().front();
             auto absMax = std::max(std::abs(minOutValue), std::abs(maxOutValue));
 
-            result = CalculateScaleFactorFromStats(quantizedParams->_dst_quant.GetLevels(), minOutValue, maxOutValue);
+            auto levels = std::min(quantizedParams->_dst_quant.GetLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max()));
+            result = CalculateScaleFactorFromStats(levels, minOutValue, maxOutValue);
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
                 result = max_activation_scale_factor;
             }
@@ -487,8 +488,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
     bool requantizeDiagonalInput(InferenceEngine::CNNLayerPtr input, float newOutputScale, bool fakeQuantize,
         ScaleFactorUpdateResult &result) {
         auto layer = input;
-        while (layer && !LayerInfo(layer).isInput() && !LayerInfo(layer).isMemory() && !LayerInfo(layer).isCopy() &&
-               !LayerInfo(layer).isEltwise() && !LayerInfo(layer).isDiagonal()) {
+        while (layer && !LayerInfo(layer).isInput() && !LayerInfo(layer).isMemory() && !LayerInfo(layer).isCopy()) {
+            size_t prevInputIdx = 0;
             auto info = LayerInfo(layer);
             auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
             if (info.isActivation() || info.isConst()) {
@@ -527,7 +528,24 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                 return true;
             }
 
-            layer = InferenceEngine::CNNNetHasPrevLayer(layer.get()) ? InferenceEngine::CNNNetPrevLayer(layer) : nullptr;
+            if (LayerInfo(layer).isEltwise() || LayerInfo(layer).isDiagonal()) {
+                if (!LayerInfo(input).has32BOutput()) {
+                    break;
+                }
+
+                for (uint8_t ix = 0; ix < 2; ++ix) {
+                    if (LayerInfo(InferenceEngine::CNNNetPrevLayer(layer, ix)).has32BOutput()) {
+                        prevInputIdx = ix;
+                        break;
+                    }
+                }
+                auto prevLayer = InferenceEngine::CNNNetPrevLayer(layer, prevInputIdx);
+                auto prevQuantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
+                newOutputScale *= prevQuantData->_dst_quant.GetScale() / quantDataForInputLayer->_dst_quant.GetScale();
+            }
+
+            layer = InferenceEngine::CNNNetHasPrevLayer(layer.get(), prevInputIdx) ?
+                InferenceEngine::CNNNetPrevLayer(layer, prevInputIdx) : nullptr;
         }
 
         return false;

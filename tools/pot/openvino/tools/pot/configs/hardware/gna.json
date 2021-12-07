@@ -49,9 +49,6 @@
         },
         {
             "type": "Add",
-            "attributes": {
-                "scales": "unified"
-            },
             "quantization": {
                 "activations": "q16_a",
                 "weights": "q16_w"
