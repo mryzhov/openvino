@@ -88,8 +88,9 @@ ConvertFloorToAdd::ConvertFloorToAdd() {
         auto constant_zero2 = ngraph::opset8::Constant::create(first_fq->get_element_type(),
             shape, std::vector<float>(size, 0.0));
         auto diagonal1 = std::make_shared<Diagonal>(constant_zero1, constant_zero2, first_fq);
-        auto diagonal1_fq = fq_add1_node->clone_with_new_inputs(ngraph::OutputVector{diagonal1, fq_add1_node->input_value(1),
-            fq_add1_node->input_value(2), fq_add1_node->input_value(3), fq_add1_node->input_value(4)});
+        auto diagonal1_fq = std::make_shared<ngraph::opset8::FakeQuantize>(diagonal1, first_fq_node->input_value(1),
+            first_fq_node->input_value(2), first_fq_node->input_value(3), first_fq_node->input_value(4),
+            std::numeric_limits<uint16_t>::max());
 
         copy_runtime_info(mu2_node, ngraph::NodeVector{diagonal1, diagonal1, diagonal1_fq});
         replace_node(mu2_node, diagonal1_fq);

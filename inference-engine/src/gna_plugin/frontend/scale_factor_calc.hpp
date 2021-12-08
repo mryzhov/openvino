@@ -498,6 +498,14 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto info = LayerInfo(layer);
             auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
             if (info.isActivation() || info.isConst()) {
+                auto actQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
+                if (actQuant->_dst_quant.IsStatsSet()) {
+                    auto actMaxSF = CalculateScaleFactorFromStats(actQuant->_dst_quant.GetLevels(),
+                        actQuant->_dst_quant.GetMinValues().front(), actQuant->_dst_quant.GetMaxValues().front());
+                    if (newOutputScale > actMaxSF) {
+                        return false;
+                    }
+                }
                 gnawarn() << "[WARNING] requantize " << layer->name
                           << ". Layer new output scale: " << newOutputScale
                           << ", was " << quantDataForInputLayer->_dst_quant.GetScale() << std::endl;

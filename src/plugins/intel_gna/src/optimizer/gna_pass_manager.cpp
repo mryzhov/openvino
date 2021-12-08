@@ -2072,6 +2072,20 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
     };
 
     auto allowFQFuse = [this](CNNLayerPtr layer) -> bool {
+        auto prev = CNNNetPrevLayer(layer, 0);
+        if (!LayerInfo(prev).isDiagonal()) {
+            return true;
+        }
+        auto in0 = CNNNetPrevLayer(prev, 0);
+        auto in1 = CNNNetPrevLayer(prev, 1);
+        auto in2 = CNNNetPrevLayer(prev, 2);
+        if (LayerInfo(in2).isFakeQuantize()) {
+            in2 = CNNNetPrevLayer(in2, 0);
+        }
+        if (LayerInfo(in0).isConst() && LayerInfo(in1).isConst() && LayerInfo(in2).isMemory()) {
+            return false;
+        }
+
        /* auto skipNonFunctionalOrMemory = [](CNNLayerPtr layer) {
             return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isMemory();
         };
