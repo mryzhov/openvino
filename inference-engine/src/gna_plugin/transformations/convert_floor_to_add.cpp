@@ -12,7 +12,6 @@
 #include <ngraph/rt_info.hpp>
 
 #include "backend/gna_limitations.hpp"
-#include "ops/linear.hpp"
 #include "ops/diagonal.hpp"
 
 using namespace GNAPluginNS;
@@ -89,16 +88,15 @@ ConvertFloorToAdd::ConvertFloorToAdd() {
         auto constant_zero2 = ngraph::opset8::Constant::create(first_fq->get_element_type(),
             shape, std::vector<float>(size, 0.0));
         auto diagonal1 = std::make_shared<Diagonal>(constant_zero1, constant_zero2, first_fq);
-        auto identity = std::make_shared<Linear>(diagonal1);
-        auto identity_fq = fq_add1_node->clone_with_new_inputs(ngraph::OutputVector{identity, fq_add1_node->input_value(1),
+        auto diagonal1_fq = fq_add1_node->clone_with_new_inputs(ngraph::OutputVector{diagonal1, fq_add1_node->input_value(1),
             fq_add1_node->input_value(2), fq_add1_node->input_value(3), fq_add1_node->input_value(4)});
 
-        copy_runtime_info(mu2_node, ngraph::NodeVector{diagonal1, identity, identity_fq});
-        replace_node(mu2_node, identity_fq);
+        copy_runtime_info(mu2_node, ngraph::NodeVector{diagonal1, diagonal1, diagonal1_fq});
+        replace_node(mu2_node, diagonal1_fq);
 
         auto constant_neg = ngraph::opset8::Constant::create(first_fq->get_element_type(),
             shape, std::vector<float>(size, -1.0));
-        auto diagonal3 = std::make_shared<Diagonal>(identity_fq, constant_neg, first_fq->input_value(0));
+        auto diagonal3 = std::make_shared<Diagonal>(diagonal1_fq, constant_neg, first_fq->input_value(0));
 
         /*auto last_fq = std::dynamic_pointer_cast<ngraph::opset8::FakeQuantize>(last_fq_node);
         auto floor_const_node = pattern_map.at(const1).get_node_shared_ptr();

@@ -141,8 +141,7 @@ class LayerInfo {
              "neghalflog",
              "softsign",
              "power",
-             "fakequantize",
-             "Linear"};
+             "fakequantize"};
 
         if (isPower()) {
             auto powerLayer = as<const InferenceEngine::PowerLayer*>();
@@ -253,9 +252,6 @@ class LayerInfo {
     }
     bool isClamp() const noexcept {
         return isOfType("clamp");
-    }
-    bool isLinear() const noexcept {
-        return isOfType("Linear");
     }
     bool isFullyConnected() const noexcept {
         return isOfType("FullyConnected") || isOfType("InnerProduct");

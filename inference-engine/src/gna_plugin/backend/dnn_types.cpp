@@ -21,8 +21,7 @@ const char *intel_dnn_activation_name[kActNumType] = {
         "kActNegHalfLog",
         "kActSoftSign",
         "kActPow",
-        "kActFakeQuantize",
-        "kActLinear"
+        "kActFakeQuantize"
 };
 
 const char *intel_dnn_softmax_name[kSoftmaxNumType] = {

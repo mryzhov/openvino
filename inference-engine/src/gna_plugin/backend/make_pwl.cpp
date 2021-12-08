@@ -268,14 +268,13 @@ void make_gna_pwl(const DnnActivation&  fun,
         }
         case kActIdentity:
         case kActKaldiLstmClipping:
-        case kActFakeQuantize:
-        case kActLinear: {
+        case kActFakeQuantize: {
             int32_t x_lower = INT32_MIN;
             int32_t x_upper = INT32_MAX;
             int16_t y_lower = y_min;
             int16_t y_upper = y_max;
             float slope_val = 1.0;
-            if ((fun == kActFakeQuantize || fun == kActLinear) && fun.fqParams.set) {
+            if (fun == kActFakeQuantize && fun.fqParams.set) {
                 x_lower = std::max(static_cast<int64_t>((*fun.fqParams.input_low / slope_val) * in_scale),
                     static_cast<int64_t>(x_lower));
                 x_upper = std::min(static_cast<int64_t>((*fun.fqParams.input_high / slope_val) * in_scale),

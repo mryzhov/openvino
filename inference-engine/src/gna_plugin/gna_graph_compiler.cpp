@@ -1958,8 +1958,7 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         {"neghalflog", kActNegHalfLog},
         {"identity", kActIdentity},
         {"softsign", kActSoftSign},
-        {"fakequantize", kActFakeQuantize},
-        {"Linear", kActLinear}
+        {"fakequantize", kActFakeQuantize}
     };
 
     auto it = supportedActivations.find(type);
@@ -2035,7 +2034,6 @@ case name:\
         GET_ACTIVATION_NAME(kActNegLog);
         GET_ACTIVATION_NAME(kActNegHalfLog);
         GET_ACTIVATION_NAME(kActFakeQuantize);
-        GET_ACTIVATION_NAME(kActLinear);
     default: break;
     }
 #endif
@@ -2211,8 +2209,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
           "sign",
           "abs",
           "neglog",
-          "neghalflog",
-          "Linear"},
+          "neghalflog"},
           CREATE(PWLPrimitive)},
         {{"Convolution"}, CREATE(ConvolutionPrimitive)},
         {{"Permute"}, CREATE(PermutePrimitive)},  // permute of certain form (2D transpose) can be assimilated in followed FC layer
