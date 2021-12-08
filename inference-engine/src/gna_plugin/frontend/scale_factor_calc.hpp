@@ -68,7 +68,7 @@ static bool fp32eq(float p1, float p2, float accuracy = 0.00001f) {
  * @return Array of slopes for a function
  */
 static std::vector<double> getPWLSlopes(const LayerInfo& info) {
-    if (info.isIdentity() || info.isFakeQuantize() || info.isRelu() || info.isClamp() || info.isAbs() || info.isLinear()) {
+    if (info.isIdentity() || info.isFakeQuantize() || info.isRelu() || info.isClamp() || info.isAbs()) {
         return { 1.0f };
     }
 
@@ -447,7 +447,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
 
             // TODO: remove clamping maximum scale factor
             result = result > max_activation_scale_factor ? max_activation_scale_factor : result;
-            if (!layer.isIdentity() && !layer.isFakeQuantize() && !layer.isRelu() && !layer.isClamp() && !layer.isLinear()) {
+            if (!layer.isIdentity() && !layer.isFakeQuantize() && !layer.isRelu() && !layer.isClamp()) {
                 result = result > activation_scale_factor ? activation_scale_factor : result;
             }
 
@@ -494,11 +494,10 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
         ScaleFactorUpdateResult &result) {
         auto layer = input;
         while (layer && !LayerInfo(layer).isInput() && !LayerInfo(layer).isMemory() && !LayerInfo(layer).isCopy() &&
-               !LayerInfo(layer).isEltwise() && !LayerInfo(layer).isDiagonal() && !LayerInfo(layer).isLinear()) {
+               !LayerInfo(layer).isEltwise() && !LayerInfo(layer).isDiagonal()) {
             auto info = LayerInfo(layer);
             auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
-            if (info.isActivation() /*&& newOutputScale <= static_cast<float>(std::numeric_limits<int16_t>::max()) / 2*/ ||
-                info.isConst()) {
+            if (info.isActivation() || info.isConst()) {
                 gnawarn() << "[WARNING] requantize " << layer->name
                           << ". Layer new output scale: " << newOutputScale
                           << ", was " << quantDataForInputLayer->_dst_quant.GetScale() << std::endl;

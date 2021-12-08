@@ -2153,7 +2153,6 @@ case name:\
         GET_ACTIVATION_NAME(kActNegLog);
         GET_ACTIVATION_NAME(kActNegHalfLog);
         GET_ACTIVATION_NAME(kActFakeQuantize);
-        GET_ACTIVATION_NAME(kActLinear);
     default: break;
     }
 #endif

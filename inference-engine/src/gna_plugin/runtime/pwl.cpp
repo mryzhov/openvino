@@ -625,9 +625,6 @@ void PwlDesignOpt(const DnnActivation activation_type,
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, low_precision, ptr_segment);
             break;
         }
-        case kActLinear: {
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, low_precision, ptr_segment);
-        }
         default:
             break;
     }
@@ -1127,16 +1124,6 @@ void PwlApply32(intel_dnn_component_t *component,
                         ptr_out[offset] = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
                             (levels - 1) * (output_high - output_low) + output_low;
                     }
-                }
-            }
-            break;
-        }
-        case kActLinear: {
-            for (uint32_t i = num_row_start; i <= num_row_end; i++) {
-                for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    ptr_out[i * num_columns + j] =
-                        static_cast<int>(ptr_in[i * num_columns + j] * GNAPluginNS::GNALimitations::cellStateDivider) /
-                        GNAPluginNS::GNALimitations::cellStateDivider;
                 }
             }
             break;

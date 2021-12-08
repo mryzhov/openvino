@@ -98,9 +98,7 @@
 #include "transformations/markup_fusable_transpose.hpp"
 #include "transformations/insert_identity_layer.hpp"
 #include "transformations/split_cell_state.hpp"
-#include "transformations/convert_mul_add_to_diagonal.hpp"
 #include "transformations/convert_floor_to_add.hpp"
-#include "transformations/serialize.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -698,9 +696,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<SplitCellState>();
-        manager.register_pass<ngraph::pass::Serialize>("transformed.xml", "transformed.bin");
         manager.register_pass<ConvertFloorToAdd>();
-        manager.register_pass<ngraph::pass::Serialize>("transformed_no_floor.xml", "transformed_no_floor.bin");
         manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
         manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
         manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTargetValue, config.gnaPrecision);
