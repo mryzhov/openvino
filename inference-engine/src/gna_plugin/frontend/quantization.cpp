@@ -257,6 +257,7 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
 
             channel_multiplier = scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT);
         }
+        channel_multiplier = channel_multiplier > 0 ? channel_multiplier : 1;
 
         ptr_int_biases[i].multiplier = static_cast<uint8_t> (channel_multiplier + 0.5f);
         if (channel_multiplier > MAX_OUT_MULTIPLIER) {

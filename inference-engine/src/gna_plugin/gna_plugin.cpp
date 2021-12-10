@@ -76,6 +76,7 @@
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/split_cell_state.hpp"
 #include "transformations/convert_floor_to_add.hpp"
+#include "transformations/serialize.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -697,6 +698,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<SplitCellState>();
+        manager.register_pass<ngraph::pass::Serialize>("transformed_lstm_test.xml", "transformed_lstm_test.bin");
         manager.register_pass<ConvertFloorToAdd>();
         manager.register_pass<ConvertDWSCToScaleShifts>();
         manager.register_pass<ConvertPaddedToValidConv>();
