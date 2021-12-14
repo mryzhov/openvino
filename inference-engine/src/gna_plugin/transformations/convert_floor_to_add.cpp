@@ -88,8 +88,11 @@ ConvertFloorToAdd::ConvertFloorToAdd() {
         auto constant_zero2 = ngraph::opset8::Constant::create(first_fq->get_element_type(),
             shape, std::vector<float>(size, 0.0));
         auto diagonal1 = std::make_shared<Diagonal>(constant_zero1, constant_zero2, first_fq);
-        auto diagonal1_fq = std::make_shared<ngraph::opset8::FakeQuantize>(diagonal1, first_fq_node->input_value(1),
-            first_fq_node->input_value(2), first_fq_node->input_value(3), first_fq_node->input_value(4),
+        auto diagonal1_fq = std::make_shared<ngraph::opset8::FakeQuantize>(diagonal1,
+            first_fq_node->input_value(1),
+            first_fq_node->input_value(2),
+            first_fq_node->input_value(3),
+            first_fq_node->input_value(4),
             std::numeric_limits<uint16_t>::max());
 
         copy_runtime_info(mu2_node, ngraph::NodeVector{diagonal1, diagonal1, diagonal1_fq});
@@ -98,19 +101,6 @@ ConvertFloorToAdd::ConvertFloorToAdd() {
         auto constant_neg = ngraph::opset8::Constant::create(first_fq->get_element_type(),
             shape, std::vector<float>(size, -1.0));
         auto diagonal3 = std::make_shared<Diagonal>(diagonal1_fq, constant_neg, first_fq->input_value(0));
-
-        /*auto last_fq = std::dynamic_pointer_cast<ngraph::opset8::FakeQuantize>(last_fq_node);
-        auto floor_const_node = pattern_map.at(const1).get_node_shared_ptr();
-        auto floor_const = std::dynamic_pointer_cast<ngraph::opset8::Constant>(floor_const_node);
-        IE_ASSERT(last_fq != nullptr && floor_const != nullptr);
-
-        auto floor_const_vector = floor_const->get_vector<float>();
-        float floor_fq_max = (last_fq->get_levels() - 1) / (2 * floor_const_vector.front());
-        float floor_fq_min = -floor_fq_max;
-        auto floor_fq_max_node = ngraph::opset8::Constant::create(first_fq->get_element_type(), {}, &floor_fq_max);
-        auto floor_fq_min_node = ngraph::opset8::Constant::create(first_fq->get_element_type(), {}, &floor_fq_min);
-        auto fq_floor = last_fq_node->clone_with_new_inputs(ngraph::OutputVector{identity, last_fq_node->input_value(1),
-            last_fq_node->input_value(2), last_fq_node->input_value(3), last_fq_node->input_value(4)});*/
 
         copy_runtime_info(add1_node, ngraph::NodeVector{diagonal3});
         replace_node(add1_node, diagonal3);

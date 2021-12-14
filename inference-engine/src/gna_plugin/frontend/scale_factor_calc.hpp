@@ -440,6 +440,10 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto maxOutValue = quantizedParams->_dst_quant.GetMaxValues().front();
             auto absMax = std::max(std::abs(minOutValue), std::abs(maxOutValue));
 
+            if (layer.isFakeQuantize()) {
+                return GNALimitations::cellStateDivider;
+            }
+
             auto levels = std::min(quantizedParams->_dst_quant.GetLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max()));
             result = CalculateScaleFactorFromStats(levels, minOutValue, maxOutValue);
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
@@ -492,15 +496,18 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             size_t prevInputIdx = 0;
             auto info = LayerInfo(layer);
             auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
-            if (info.isActivation() || info.isConst()) {
-                auto actQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
-                if (actQuant->_dst_quant.IsStatsSet()) {
-                    auto actMaxSF = CalculateScaleFactorFromStats(actQuant->_dst_quant.GetLevels(),
-                        actQuant->_dst_quant.GetMinValues().front(), actQuant->_dst_quant.GetMaxValues().front());
-                    if (newOutputScale > actMaxSF) {
-                        return false;
-                    }
+            if (quantDataForInputLayer->_dst_quant.IsStatsSet()) {
+                auto levels = LayerInfo(layer).has32BOutput() ? std::numeric_limits<uint32_t>::max() :
+                    std::numeric_limits<uint16_t>::max();
+                auto maxSF = CalculateScaleFactorFromStats(levels, quantDataForInputLayer->_dst_quant.GetMinValues().front(),
+                    quantDataForInputLayer->_dst_quant.GetMaxValues().front());
+                if (newOutputScale > maxSF) {
+                    gnalog() << layer->name << ": Scale factor " << newOutputScale << " is too large. The maximum scale factor: "
+                        << maxSF << "\n";
+                    return false;
                 }
+            }
+            if (info.isActivation() || info.isConst()) {
                 gnawarn() << "[WARNING] requantize " << layer->name
                           << ". Layer new output scale: " << newOutputScale
                           << ", was " << quantDataForInputLayer->_dst_quant.GetScale() << std::endl;
@@ -608,14 +615,12 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                 return;
             }
         } else {
+            if (tryToRequantizeInputAndWeights()) {
+                return;
+            }
             // restart to decrease bias scale factor
             auto prevLayer = InferenceEngine::CNNNetPrevLayer(diagonalLayer, 2);
             if (requantizeDiagonalInput(prevLayer, in_sf * w_sf, fakeQuantize, result)) {
-                return;
-            }
-            gnawarn() << diagonalLayer->name <<
-                ": Trying to increase scale factors for inputs or weights, it can cause saturation\n";
-            if (tryToRequantizeInputAndWeights()) {
                 return;
             }
         }
