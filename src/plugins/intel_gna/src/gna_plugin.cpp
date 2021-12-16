@@ -697,7 +697,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<SplitCellState>();
-        manager.register_pass<ngraph::pass::Serialize>("transformed_lstm_test.xml", "transformed_lstm_test.bin");
+        manager.register_pass<ngraph::pass::Serialize>("transformed.xml", "transformed.bin");
         manager.register_pass<ConvertFloorToAdd>();
         manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
         manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();

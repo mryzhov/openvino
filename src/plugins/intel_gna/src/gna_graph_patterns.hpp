@@ -10,6 +10,7 @@
 #include "gna_upstream_iterator.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "ops/util/util.hpp"
+#include "frontend/quantized_layer_params.hpp"
 
 namespace GNAPluginNS {
 

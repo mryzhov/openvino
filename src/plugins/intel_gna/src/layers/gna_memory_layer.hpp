@@ -63,4 +63,7 @@ public:
      */
     float scale_factor = 1.0f;
 };
+
+bool Is32BitState(InferenceEngine::CNNLayer* layer);
+
 }  // namespace GNAPluginNS

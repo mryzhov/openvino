@@ -21,6 +21,8 @@
 #include "gna_data_types.hpp"
 #include "round_float_define.hpp"
 #include "backend/gna_limitations.hpp"
+#include "weights_converter.hpp"
+#include "layer_quantizer.hpp"
 
 namespace GNAPluginNS {
 

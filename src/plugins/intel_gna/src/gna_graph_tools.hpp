@@ -836,5 +836,4 @@ inline uint32_t GetDataDimByName(InferenceEngine::DataPtr data, DataDimName dimN
     auto dims = data->getDims();
     return GetDimFromBack(dims, backOffsets[dimIxInNCHW]);
 }
-
 }  // namespace InferenceEngine
