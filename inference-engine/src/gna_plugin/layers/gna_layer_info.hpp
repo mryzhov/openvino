@@ -16,7 +16,7 @@
 #include "gna_lib_ver_selector.hpp"
 #include "gna_copy_layer.hpp"
 #include "frontend/quantized_layer_params.hpp"
-#include "gna_graph_tools.hpp"
+#include "gna_memory_layer.hpp"
 
 namespace GNAPluginNS {
 
@@ -66,7 +66,7 @@ class LayerInfo {
                isActivation() ||
                (isCrop() && !isCropAffined()) ||
                isPermute() ||
-               isMemory() && !isCellState();
+               isMemory() && !Is32BitState(layer);
     }
     bool has32BOutput() const noexcept {
         IS_VALID();
@@ -83,7 +83,7 @@ class LayerInfo {
             [this]() { return isCropAffined(); },
             [this]() { return isGemm(); },
             [this]() { return isDiagonal(); },
-            [this]() { return isCellState(); }
+            [this]() { return Is32BitState(layer); }
         };
 
         for (auto && has32BOutputs : has32BOutputsProbes) {
@@ -178,7 +178,7 @@ class LayerInfo {
     }
     bool has32BInput() const noexcept {
         IS_VALID();
-        return isActivation() || isPooling() || isCellState();
+        return isActivation() || isPooling() || Is32BitState(layer);
     }
     bool isInput() const noexcept {
         return isOfType("input");
@@ -358,16 +358,6 @@ class LayerInfo {
 
     bool isSynthetic() const noexcept {
         return isConcatAlignFilter() || isSyntheticScaleShift() || isConvolutionFilter() || isAffineFilter();
-    }
-
-    bool isCellState() const {
-        if (!isMemory()) return false;
-        if (CNNNetHasPrevLayer(layer)) {
-            return LayerInfo(InferenceEngine::CNNNetPrevLayer(layer)).isDiagonal();
-        } else {
-            return LayerInfo(getInputTo(layer->outData[0]).begin()->second).isDiagonal();
-        }
-        return false;
     }
 
     size_t paddingSize() const {

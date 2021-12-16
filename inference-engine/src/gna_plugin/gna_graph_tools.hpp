@@ -820,5 +820,4 @@ inline uint32_t GetDataDimSize(InferenceEngine::DataPtr data, DataDimName dimNam
     }
     return GetDataDimSize(data, backOffsets[dimIxInNCHW]);
 }
-
 }  // namespace InferenceEngine

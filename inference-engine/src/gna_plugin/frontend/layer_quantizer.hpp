@@ -523,7 +523,7 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
         }
         // set scale factor for input layers
         if (cnnLayer->insData.empty()) {
-            if (!LayerInfo(*cnnLayer).isCellState()) {
+            if (!Is32BitState(cnnLayer)) {
                 for (auto &&outData : cnnLayer->outData) {
                     outData->setPrecision(Desc::mandatory().getInputPrecision());
                 }
