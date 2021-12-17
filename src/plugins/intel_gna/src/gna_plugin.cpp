@@ -98,8 +98,6 @@
 #include "transformations/markup_fusable_transpose.hpp"
 #include "transformations/insert_identity_layer.hpp"
 #include "transformations/split_cell_state.hpp"
-#include "transformations/convert_floor_to_add.hpp"
-#include "transformations/serialize.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -697,8 +695,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ngraph::pass::GRUCellDecomposition>();
         manager.register_pass<ngraph::pass::LSTMCellDecomposition>();
         manager.register_pass<SplitCellState>();
-        manager.register_pass<ngraph::pass::Serialize>("transformed.xml", "transformed.bin");
-        manager.register_pass<ConvertFloorToAdd>();
         manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
         manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
         manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(effectiveGnaCompileTargetValue, config.gnaPrecision);
@@ -800,7 +796,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
-    NetPass::ConvertPrecision(network, Precision::FP64, Precision::FP32);
 
     //  Check the network
     std::string error;

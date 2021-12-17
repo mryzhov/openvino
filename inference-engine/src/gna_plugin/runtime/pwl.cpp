@@ -122,7 +122,7 @@ double pivot_search(std::vector<pwl_t>& result,
             if (fabs(epsilon[i][j]) > max_epsilon) max_epsilon = fabs(epsilon[i][j]);
             if (fabs(epsilon[i][j]) < min_epsilon) min_epsilon = fabs(epsilon[i][j]);
         }
-        if (/*j == iter_num ||*/ max_epsilon - min_epsilon < threshold * min_epsilon) {
+        if (max_epsilon - min_epsilon < threshold * min_epsilon) {
             pwl_t value;
             result.resize(0);
             epsilon_final = (max_epsilon + min_epsilon) / 4.0;  // Andrzej's modification
@@ -141,9 +141,6 @@ double pivot_search(std::vector<pwl_t>& result,
             value.alpha = alpha[N][j];
             value.beta = sgn * first_deriv_f(t[N - 1][j]) * (alpha[N][j] - t[N - 1][j]) + sgn * f(t[N - 1][j]) - epsilon_final;
             result.push_back(value);
-            /*if (j == iter_num) {
-                THROW_GNA_EXCEPTION << "Failed to converge in pivot_search!";
-            }*/
             return(epsilon_final);
         }
 

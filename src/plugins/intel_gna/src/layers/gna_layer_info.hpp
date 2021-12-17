@@ -8,7 +8,6 @@
 #include <memory>
 #include <vector>
 #include <legacy/ie_layers.h>
-#include <legacy/layer_transform.hpp>
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
 #include "backend/gna_types.h"
