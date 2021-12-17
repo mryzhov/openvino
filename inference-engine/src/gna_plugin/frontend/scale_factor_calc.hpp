@@ -70,7 +70,7 @@ static bool fp32eq(float p1, float p2, float accuracy = 0.00001f) {
  * @return Array of slopes for a function
  */
 static std::vector<double> getPWLSlopes(const LayerInfo& info) {
-    if (info.isIdentity() || info.isFakeQuantize() || info.isRelu() || info.isClamp() || info.isAbs()) {
+    if (info.isIdentity() || info.isRelu() || info.isClamp() || info.isAbs()) {
         return { 1.0f };
     }
 
@@ -442,10 +442,6 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto maxOutValue = quantizedParams->_dst_quant.GetMaxValues().front();
             auto absMax = std::max(std::abs(minOutValue), std::abs(maxOutValue));
 
-            if (layer.isFakeQuantize()) {
-                return GNALimitations::cellStateDivider;
-            }
-
             auto levels = std::min(quantizedParams->_dst_quant.GetLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max()));
             result = CalculateScaleFactorFromStats(levels, minOutValue, maxOutValue);
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
@@ -505,7 +501,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                     quantDataForInputLayer->_dst_quant.GetMaxValues().front());
                 if (newOutputScale > maxSF) {
                     gnalog() << layer->name << ": Scale factor " << newOutputScale << " is too large. The maximum scale factor: "
-                        << maxSF << "\n";
+                        << maxSF << " levels=" << levels << " min=" << quantDataForInputLayer->_dst_quant.GetMinValues().front()
+                        << " max=" << quantDataForInputLayer->_dst_quant.GetMaxValues().front() << "\n";
                     return false;
                 }
             }
@@ -578,7 +575,6 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
         auto in_sf = quantParamsIn->_dst_quant.GetScale();
         auto w_sf = quantParamsW->_dst_quant.GetScale();
         auto b_sf = quantParamsB->_dst_quant.GetScale();
-        gnalog() << diagonalLayer->name << " in_sf=" << in_sf << " w_sf=" << w_sf << " b_sf=" << b_sf << "\n";
 
         // restart to decrease input or weights scale factor
         auto tryToRequantizeInputAndWeights = [&]() {

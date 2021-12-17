@@ -135,7 +135,6 @@ void UpdateScoreError(score_error_t* error, score_error_t* totalError, size_t fr
     totalError->sumSquaredError += error->sumSquaredError;
     if (error->maxError > totalError->maxError) {
         totalError->maxError = error->maxError;
-        std::cout << "frameInd=" << frameInd << " error=" << totalError->maxError << "\n";
     }
     totalError->sumRelError += error->sumRelError;
     totalError->sumSquaredRelError += error->sumSquaredRelError;

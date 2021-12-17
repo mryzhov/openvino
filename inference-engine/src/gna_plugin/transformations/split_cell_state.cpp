@@ -51,8 +51,6 @@ SplitCellState::SplitCellState() {
         auto assign_fq_node = pattern_map.at(assign_fq).get_node_shared_ptr();
         auto assign_node = pattern_map.at(assign).get_node_shared_ptr();
 
-        std::cout << "Cell state recognized: " << assign_node->get_friendly_name() << "\n";
-
         ngraph::NodeVector new_ops;
         auto shape = pattern_map.at(constant).get_node_shared_ptr()->get_output_shape(0);
         size_t size = std::accumulate(std::begin(shape), std::end(shape), 1, std::multiplies<size_t>());
@@ -78,10 +76,10 @@ SplitCellState::SplitCellState() {
 
         auto create_fq = [el_type](std::shared_ptr<ngraph::Node> input, float min_val, float max_val, size_t levels) {
             return std::make_shared<ngraph::opset8::FakeQuantize>(input,
-                ngraph::opset8::Constant::create(el_type, ngraph::Shape{1}, std::vector<float>(1, min_val)),
-                ngraph::opset8::Constant::create(el_type, ngraph::Shape{1}, std::vector<float>(1, max_val)),
-                ngraph::opset8::Constant::create(el_type, ngraph::Shape{1}, std::vector<float>(1, min_val)),
-                ngraph::opset8::Constant::create(el_type, ngraph::Shape{1}, std::vector<float>(1, max_val)),
+                ngraph::opset8::Constant::create(el_type, ngraph::Shape{}, std::vector<float>(1, min_val)),
+                ngraph::opset8::Constant::create(el_type, ngraph::Shape{}, std::vector<float>(1, max_val)),
+                ngraph::opset8::Constant::create(el_type, ngraph::Shape{}, std::vector<float>(1, min_val)),
+                ngraph::opset8::Constant::create(el_type, ngraph::Shape{}, std::vector<float>(1, max_val)),
                 levels);
         };
 

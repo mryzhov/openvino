@@ -8,14 +8,12 @@
 #include <memory>
 #include <vector>
 #include <legacy/ie_layers.h>
-#include <legacy/layer_transform.hpp>
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
 #include "backend/gna_types.h"
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "gna_copy_layer.hpp"
-#include "frontend/quantized_layer_params.hpp"
 #include "gna_memory_layer.hpp"
 
 namespace GNAPluginNS {

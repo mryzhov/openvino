@@ -2024,30 +2024,6 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             return false;
         }
 
-        /*auto doNotSkip = [](CNNLayerPtr layer) {
-            return false;
-        };
-
-        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkip).empty()) {
-            return false;
-        }
-
-        auto skipNonFunctional = [](CNNLayerPtr layer) {
-            return LayerInfo(layer).isNonFunctional();
-        };
-
-        auto prevLayer = CNNNetPrevLayerSkipCertain(layer, 0, skipNonFunctional);
-        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst() || LayerInfo(prevLayer).isMemory()) {
-            return true;
-        }
-
-        auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer, -1, skipNonFunctional);
-        for (auto& l : nextLayers) {
-            if (!LayerInfo(l).isActivation() && !LayerInfo(l).isMemory()) {
-                return false;
-            }
-        }*/
-
         return true;
     };
 

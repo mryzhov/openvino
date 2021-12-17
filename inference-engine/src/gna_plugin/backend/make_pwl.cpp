@@ -13,7 +13,6 @@
 #include "dnn_types.h"
 #include "backend/gna_types.h"
 #include "round_float_define.hpp"
-#include "backend/gna_limitations.hpp"
 
 // This function performes emulatation of HW saturation of PWL segments in SW
 // by inserting additional segments when overflow would happen
