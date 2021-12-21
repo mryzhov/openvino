@@ -442,7 +442,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto maxOutValue = quantizedParams->_dst_quant.GetMaxValues().front();
             auto absMax = std::max(std::abs(minOutValue), std::abs(maxOutValue));
 
-            auto levels = std::min(quantizedParams->_dst_quant.GetLevels(), static_cast<size_t>(std::numeric_limits<uint16_t>::max()));
+            auto levels = std::min(quantizedParams->_dst_quant.GetLevels(), std::numeric_limits<uint16_t>::max() + 1ul);
             result = CalculateScaleFactorFromStats(levels, minOutValue, maxOutValue);
             if (std::isinf(result) || fp32eq(absMax, 0.0f)) {
                 result = max_activation_scale_factor;
@@ -495,8 +495,8 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
             auto info = LayerInfo(layer);
             auto quantDataForInputLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(*layer);
             if (quantDataForInputLayer->_dst_quant.IsStatsSet()) {
-                auto levels = LayerInfo(layer).has32BOutput() ? std::numeric_limits<uint32_t>::max() :
-                    std::numeric_limits<uint16_t>::max();
+                auto levels = LayerInfo(layer).has32BOutput() ? (std::numeric_limits<uint32_t>::max() + 1ul) :
+                    (std::numeric_limits<uint16_t>::max() + 1ul);
                 auto maxSF = CalculateScaleFactorFromStats(levels, quantDataForInputLayer->_dst_quant.GetMinValues().front(),
                     quantDataForInputLayer->_dst_quant.GetMaxValues().front());
                 if (newOutputScale > maxSF) {
