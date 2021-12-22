@@ -31,7 +31,7 @@ bool Is32BitState(InferenceEngine::CNNLayer* layer) {
         levels = quant.GetLevels();
     }
 
-    return levels == std::numeric_limits<uint32_t>::max() + 1ul;
+    return levels == static_cast<size_t>(std::numeric_limits<uint32_t>::max()) + 1;
 }
 
 }  // namespace GNAPluginNS
