@@ -58,8 +58,8 @@ SplitCellState::SplitCellState() {
         auto el_type = read_value_node->get_element_type();
 
         // Change states precision to 32-bits
-        size_t levels_32 = std::numeric_limits<uint32_t>::max() + 1ul;
-        size_t levels_16 = std::numeric_limits<uint16_t>::max() + 1ul;
+        size_t levels_32 = static_cast<size_t>(std::numeric_limits<uint32_t>::max()) + 1;
+        size_t levels_16 = static_cast<size_t>(std::numeric_limits<uint16_t>::max()) + 1;
         bool clamp_values = true;
         const float clamped_val = 3.0;
 
