@@ -85,6 +85,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
         check_number_of_inputs(model->inputs().size(), numInputFiles);
+        // ------------------------------ Get Available Devices ------------------------------------------------------
         const ov::Layout tensor_layout{"NC"};
         ov::preprocess::PrePostProcessor proc(model);
         for (int i = 0; i < model->inputs().size(); i++) {
@@ -206,7 +207,7 @@ int main(int argc, char* argv[]) {
             }
             if (!FLAGS_m.empty()) {
                 for (size_t i = 0; i < outputs.size(); i++) {
-                    model->add_output(outputs[i], ports[i]);
+                    model->add_output(outputs[i], ports[i]).get_tensor().set_element_type(ov::element::f32);
                 }
             }
         }
@@ -456,7 +457,7 @@ int main(int argc, char* argv[]) {
                         for (int i = 0; i < model->inputs().size(); i++) {
                             inferRequest.inferRequest.set_input_tensor(
                                 i,
-                                ov::runtime::Tensor(ov::element::f32, model->inputs()[i].get_shape(), inputFrame[0]));
+                                ov::runtime::Tensor(ov::element::f32, model->inputs()[i].get_shape(), inputFrame[i]));
                         }
                         /* Starting inference in asynchronous mode*/
                         inferRequest.inferRequest.start_async();
