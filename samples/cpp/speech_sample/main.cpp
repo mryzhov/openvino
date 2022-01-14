@@ -85,6 +85,7 @@ int main(int argc, char* argv[]) {
         slog::info << "Loading model files:" << slog::endl << FLAGS_m << slog::endl;
         std::shared_ptr<ov::Model> model = core.read_model(FLAGS_m);
         check_number_of_inputs(model->inputs().size(), numInputFiles);
+        // ------------------------------ Get Available Devices ------------------------------------------------------
         const ov::Layout tensor_layout{"NC"};
         ov::preprocess::PrePostProcessor proc(model);
         for (int i = 0; i < model->inputs().size(); i++) {
