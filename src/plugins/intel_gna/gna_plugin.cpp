@@ -494,7 +494,7 @@ bool GNAPlugin::TryToInitOutput(const std::string &portName, InferenceEngine::CN
 
         outputs_.at(portName).ptrs.resize(gnaFlags->gna_lib_async_threads_num);
         outputs_.at(portName).orientation = orientation;
-        outputs_.at(portName).num_bytes_per_element = numBytesPerElem;
+        outputs_.at(portName).set_precision(numBytesPerElem);
         outputs_.at(portName).scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : GNAPluginNS::kScaleFactorDefault;
         outputs_.at(portName).num_elements = numElem;
 
@@ -1342,7 +1342,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                 THROW_GNA_EXCEPTION << "Transposed data size (" << transposed_data_size
                                     << ") do not match output buffer length of " << elementsPerBatch;
             }
-            ConvertTensorFromNCHWToNHWC(outputDesc.num_bytes_per_element,
+            ConvertTensorFromNCHWToNHWC(outputDesc.tensor_precision.size(),
                                         batchSize,
                                         elementsPerBatch,
                                         reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]),

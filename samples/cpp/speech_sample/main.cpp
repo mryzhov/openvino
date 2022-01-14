@@ -206,7 +206,7 @@ int main(int argc, char* argv[]) {
             }
             if (!FLAGS_m.empty()) {
                 for (size_t i = 0; i < outputs.size(); i++) {
-                    model->add_output(outputs[i], ports[i]);
+                    model->add_output(outputs[i], ports[i]).get_tensor().set_element_type(ov::element::f32);
                 }
             }
         }
@@ -456,7 +456,7 @@ int main(int argc, char* argv[]) {
                         for (int i = 0; i < model->inputs().size(); i++) {
                             inferRequest.inferRequest.set_input_tensor(
                                 i,
-                                ov::runtime::Tensor(ov::element::f32, model->inputs()[i].get_shape(), inputFrame[0]));
+                                ov::runtime::Tensor(ov::element::f32, model->inputs()[i].get_shape(), inputFrame[i]));
                         }
                         /* Starting inference in asynchronous mode*/
                         inferRequest.inferRequest.start_async();
