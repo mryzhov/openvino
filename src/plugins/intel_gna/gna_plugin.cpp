@@ -233,7 +233,8 @@ void GNAPlugin::ExportScores(void *ptr_dst,
     } else {
         if (precision_out == Precision::I32 || precision_out == Precision::FP32) {
             switch (precision_in) {
-                case Precision::I8 : {
+                case Precision::I8 :
+                case Precision::I32 : {
                     for (uint32_t i = 0; i < num_frames; i++) {
                         void* ptr_dst_vec = reinterpret_cast<uint8_t*>(ptr_dst) + i * num_vector_elements * sizeof(float);
                         const void* ptr_src_vec = reinterpret_cast<const uint8_t*>(ptr_src) + i * num_vector_stride * sizeof(float);
@@ -1347,7 +1348,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
                         elementsPerBatch,
                         elementsPerBatch,
                         elementsPerBatch,
-                        outputBlob->getTensorDesc().getPrecision(),
+                        outputDesc.tensor_precision,
                         outputDesc.model_precision);
 
         if (gnadevice) {
