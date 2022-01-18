@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
 #include <utility>
@@ -158,22 +159,12 @@ size_t getBatchSize(const benchmark_app::InputsInfo& inputs_info) {
         }
     }
     if (batch_size == 0) {
+        slog::warn << "No batch dimension was found at any input, asssuming batch to be 1. Beware: this might affect "
+                      "FPS calculation."
+                   << slog::endl;
         batch_size = 1;
     }
     return batch_size;
-}
-
-size_t getModelInputBatchSize(const ov::Model& model) {
-    try {
-        auto& param = model.get_parameters()[0];
-        auto layout = param->get_layout();
-        return param->get_shape().at(ov::layout::batch_idx(layout));
-    } catch (...) {
-        slog::warn
-            << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
-            << slog::endl;
-        return 1;  // Default batch value
-    }
 }
 
 std::string getShapeString(const ov::Shape& shape) {
@@ -658,6 +649,7 @@ std::vector<benchmark_app::InputsInfo> getInputsInfo(const std::string& shape_st
 
 #ifdef USE_OPENCV
 void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
+    slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
     auto plugin_to_opencv_format = [](const std::string& str) -> std::string {
         if (str.find("_") != std::string::npos) {
             slog::warn
@@ -685,6 +677,7 @@ void dump_config(const std::string& filename, const std::map<std::string, std::m
 }
 
 void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config) {
+    slog::warn << "YAML and XML formats for config file won't be supported soon." << slog::endl;
     auto opencv_to_plugin_format = [](const std::string& str) -> std::string {
         std::string new_str(str);
         auto pos = new_str.find("_");
@@ -705,6 +698,44 @@ void load_config(const std::string& filename, std::map<std::string, std::map<std
         for (auto iit = device.begin(); iit != device.end(); ++iit) {
             auto item = *iit;
             config[opencv_to_plugin_format(device.name())][item.name()] = item.string();
+        }
+    }
+}
+#else
+void dump_config(const std::string& filename, const std::map<std::string, std::map<std::string, std::string>>& config) {
+    nlohmann::json jsonConfig;
+    for (const auto& item : config) {
+        std::string deviceName = item.first;
+        for (const auto& option : item.second) {
+            jsonConfig[deviceName][option.first] = option.second;
+        }
+    }
+
+    std::ofstream ofs(filename);
+    if (!ofs.is_open()) {
+        throw std::runtime_error("Can't load config file \"" + filename + "\".");
+    }
+
+    ofs << jsonConfig;
+}
+
+void load_config(const std::string& filename, std::map<std::string, std::map<std::string, std::string>>& config) {
+    std::ifstream ifs(filename);
+    if (!ifs.is_open()) {
+        throw std::runtime_error("Can't load config file \"" + filename + "\".");
+    }
+
+    nlohmann::json jsonConfig;
+    try {
+        ifs >> jsonConfig;
+    } catch (const nlohmann::json::parse_error& e) {
+        throw std::runtime_error("Can't parse config file \"" + filename + "\".\n" + e.what());
+    }
+
+    for (const auto& item : jsonConfig.items()) {
+        std::string deviceName = item.key();
+        for (const auto& option : item.value().items()) {
+            config[deviceName][option.key()] = option.value().get<std::string>();
         }
     }
 }
