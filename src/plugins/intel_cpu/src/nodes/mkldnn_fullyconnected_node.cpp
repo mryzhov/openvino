@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -514,6 +514,55 @@ void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<MemoryDescPtr>
     }
     createDescriptorInternal(MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc)->getDnnlDesc(),
                              MemoryDescUtils::convertToDnnlMemoryDesc(outDesc)->getDnnlDesc());
+}
+
+void MKLDNNFullyConnectedNode::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
+
+    for (auto& desc : descs) {
+        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine());
+        while (static_cast<bool>(itpd)) {
+            // 3D FC requires implicit reshape so strides should be defined
+            auto supportsUndefStridesAndOffset = [&]() {
+                return getOutputShapeAtPort(0).getRank() == 2;
+            };
+
+            NodeConfig config;
+            config.dynBatchSupport = true;
+            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+                PortConfig portConfig;
+                portConfig.inPlace = -1;
+                portConfig.constant = false;
+                auto desc = getSrcMemDesc(itpd, i);
+                if (supportsUndefStridesAndOffset()) {
+                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                } else {
+                    portConfig.desc = std::move(desc);
+                }
+                config.inConfs.push_back(portConfig);
+            }
+
+            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+                PortConfig portConfig;
+                portConfig.inPlace = canBeInPlace() ? 0 : -1;
+                portConfig.constant = false;
+                auto desc = getDstMemDesc(itpd, i);
+                if (supportsUndefStridesAndOffset()) {
+                    portConfig.desc = desc->as<BlockedMemoryDesc>()->cloneWithUndefStridesAndOffset();
+                } else {
+                    portConfig.desc = std::move(desc);
+                }
+                config.outConfs.push_back(portConfig);
+            }
+
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+            if (!itpd.next_impl())
+                break;
+        }
+    }
 }
 
 std::shared_ptr<MemoryDesc> MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
