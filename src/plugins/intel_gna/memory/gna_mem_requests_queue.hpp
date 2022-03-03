@@ -128,7 +128,7 @@ public:
         }
     }
 
-    /**
+    /**`
      * @brief allocates buffer and set all its values to T value
      */
     template<class T>

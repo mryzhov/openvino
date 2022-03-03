@@ -17,6 +17,8 @@
 #include "memory/polymorph_allocator.hpp"
 #include "memory/gna_memory.hpp"
 
+using namespace GNAPluginNS::memory;
+
 struct TranspositionInfo {
     bool transpose;
     size_t num_transpose_rows;
@@ -33,8 +35,8 @@ static inline bool FoundPartToTranspose(const std::vector<TranspositionInfo> &tr
 
 namespace GNAPluginNS {
     using dnn_ptr = std::shared_ptr<CPPWrapper<Gna2Model>>;
-    using allocator_type = GNAPluginNS::memory::PolymorphAllocator<uint8_t>;
-    using gna_memory_type = GNAPluginNS::memory::GNAMemory<allocator_type>;
+    using allocator_type = PolymorphAllocator<uint8_t>;
+    using gna_memory_type = GNAMemory<allocator_type>;
     using DnnComponentsForLayer = std::list<std::pair<std::string, intel_dnn_component_t>>;
     using MemoryConnection = std::list<std::pair<std::string, GNAMemoryLayer>>;
     using ConcatConnection = std::unordered_map<std::string, GNAConcatLayer>;

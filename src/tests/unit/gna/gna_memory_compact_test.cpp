@@ -3,9 +3,18 @@
 //
 
 #include <vector>
+#include <memory>
+
 #include <gtest/gtest.h>
 #include <legacy/ie_layers.h>
+#include <legacy/graph_tools.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
+#include "ngraph_functions/builders.hpp"
 #include "memory/gna_memory.hpp"
+#include "gna_plugin.hpp"
+#include "gna_fused_iterator.hpp"
+#include "gna_data_types.hpp"
+
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS::memory;
@@ -247,4 +256,113 @@ TEST_F(GNAMemoryCompactTest, canOptimizeReservePtrWithOffset) {
     mem.commit(isCompact);
     ASSERT_EQ(mem.getRWBytes(), 4 * sizeof(float));
     ASSERT_EQ(mem.getTotalBytes(), 4 * sizeof(float));
+}
+
+
+class GNAMemoryTest : public GNAPluginNS::memory::GNAMemory<GNAPluginNS::memory::PolymorphAllocator<uint8_t>> {
+using GNAMemory::GNAMemory;
+public:
+    // GNAMemoryTest(const std::allocator<uint8_t> &a) :
+    //     GNAPluginNS::memory::GNAMemory<std::allocator<uint8_t>>(a) {}
+    void Test() {
+        for (auto &re : _future_heap) {
+            if (re._region != REGION_RW) continue;
+            std::cout << "life_time: " << re._life_limits.first << ":"
+                      << re._life_limits.second << ", " << std::endl;
+        }
+    }
+    // std::vector<MemRequest> _future_heap;
+    // std::vector<MemRequest> & futureHeap() override {
+    //     return _future_heap;
+    // }
+};
+
+class GNACompactTest : public ::testing::Test {
+ protected:
+    void SetUp() override {}
+};
+
+// using allocator_type = GNAPluginNS::memory::PolymorphAllocator<uint8_t>;
+// using gna_memory_type = GNAMemoryTest;
+
+class GNAPluginTested : public GNAPluginNS::GNAPlugin {
+// using GNAPlugin::GNAPlugin;
+// using allocator_type = std::allocator<uint8_t>;
+// using gna_memory_type = GNAMemoryTest;
+
+protected:
+    // GNAGraphCompilerTest graphCompiler;
+    // std::shared_ptr<GNAMemoryTest> gnamem;
+    // GNAPluginTested() : GNAPluginNS::GNAPlugin() {}
+    // std::shared_ptr<GNAMemoryTest> gnamem;
+    // void InitGNADevice() {
+    //     gnamem.reset(new GNAMemoryTest(make_polymorph<std::allocator<uint8_t>>()));
+    //     graphCompiler.setGNAMemoryPtr(gnamem);
+    // }
+
+public:
+    // GNAGraphCompilerTest graphCompiler;
+    std::shared_ptr<GNAMemoryTest> gnamem_t;
+    GNAPluginTested() : GNAPluginNS::GNAPlugin() {
+        // auto mem_alloc = std::make_shared<GNAMemoryTest>(make_polymorph<std::allocator<uint8_t>>());
+        // gnamem.reset(new GNAMemoryTest(std::allocator<uint8_t>()));
+        // gnamem.reset(new GNAMemoryTest(make_polymorph<std::allocator<uint8_t>>()));
+        gnamem_t = std::make_shared<GNAMemoryTest>(make_polymorph<std::allocator<uint8_t>>());
+        gnamem = gnamem_t;
+        // gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
+    }
+    void Test() {
+        for (auto &dnn_comp : graphCompiler.dnnComponents.components) {
+            std::cout << dnn_comp.name << std::endl;
+            ASSERT_EQ(dnn_comp.dnnComponent.ptr_inputs, dnn_comp.dnnComponent.ptr_inputs);
+            std::cout << dnn_comp.dnnComponent.ptr_inputs << std::endl;
+            std::cout << dnn_comp.dnnComponent.ptr_outputs << std::endl;
+            std::cout << dnn_comp.dnnComponent.op.affine.ptr_biases << std::endl;
+            std::cout << dnn_comp.dnnComponent.op.affine.ptr_weights << std::endl;
+            std::cout << dnn_comp.dnnComponent.op.conv1D.ptr_biases << std::endl;
+            std::cout << dnn_comp.dnnComponent.op.conv1D.ptr_filters << std::endl;
+            std::cout << dnn_comp.dnnComponent.op.conv2D.ptr_biases << std::endl;
+            std::cout << dnn_comp.dnnComponent.op.conv2D.ptr_filters << std::endl;
+            std::cout << dnn_comp.dnnComponent.op.pwl.ptr_segments << std::endl;
+        }
+        gnamem_t->Test();
+        // graphCompiler.Test();
+        // for (auto &re : graphCompiler) {
+        //     if (re._region != REGION_RW) continue;
+        //     std::cout << "life_time: " << re._life_limits.first << ":"
+        //               << re._life_limits.second << ", " << std::endl;
+        // }
+    }
+};
+
+TEST_F(GNACompactTest, orderingFusedLayers) {
+    // ov::SupportedOpsMap plugin_cfg({{"GNA_DEVICE_MODE", "GNA_SW_FP32"}});
+    auto plugin = GNAPluginTested();
+    // std::shared_ptr<GNAMemoryTest> gnamem = std::make_shared<GNAMemoryTest>(std::allocator<uint8_t>());
+    // plugin.graphCompiler.setGNAMemoryPtr(gnamem);
+
+    ov::Shape input_shape =  { 1, 8, 20, 16 };
+    ov::Strides strides = { 1, 1 };
+    ov::Strides dilations = { 1, 1 };
+    ov::CoordinateDiff pad_begin(0, 0), pad_end(0, 0);
+    auto weights = ngraph::builder::makeConstant<float>(ov::element::f32, { 8, 8, 1, 1 }, { 1.f });
+
+    auto input = std::make_shared<ngraph::opset8::Parameter>(ov::element::f32, input_shape);
+    auto conv = std::make_shared<ngraph::opset8::Convolution>(input, weights, strides, pad_begin, pad_end, dilations);
+    auto activation = ngraph::builder::makeActivation(conv, ov::element::f32, ngraph::helpers::ActivationTypes::Sigmoid);
+    auto maxpool = ngraph::builder::makePooling(activation, {1, 1}, {0, 0}, {0, 0}, {1, 1}, ngraph::op::RoundingType::FLOOR,
+                                                    ngraph::op::PadType::VALID, false, ngraph::helpers::PoolingTypes::MAX);
+
+    auto result = std::make_shared<ngraph::opset8::Result>(maxpool);
+    auto function = std::make_shared<ov::Model>(ov::ResultVector({result}), ov::ParameterVector({input}), "convolution");
+    //
+    InferenceEngine::CNNNetwork cnn_network(function);
+    plugin.LoadNetwork(cnn_network);
+    plugin.Test();
+
+    std::vector<CNNLayerPtr> layers = InferenceEngine::details::CNNNetSortTopologically(cnn_network);
+    std::cout << cnn_network.layerCount();
+    for (auto layer : layers) {
+        std::cout << layer->name << " : " << layer->userValue.v_int << std::endl;
+    }
 }
