@@ -9,7 +9,7 @@
 #include <cmath>
 
 #include "backend/gna_types.h"
-#include "gna_plugin_log.hpp"
+#include "log/gna_plugin_log.hpp"
 #include "quantized_layer_params.hpp"
 #include "quantization.h"
 #include "gna_graph_tools.hpp"
