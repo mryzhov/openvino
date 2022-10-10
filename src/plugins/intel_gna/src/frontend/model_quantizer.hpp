@@ -79,7 +79,7 @@ class ModelQuantizer {
 
         float lc_sf = GNAPluginNS::kScaleFactorDefault;
         if (inputs.empty()) {
-            ov::intel_gna::log::error() << "Inputs structure is empty, will be used default scale factor: " << lc_sf << std::endl;
+            ov::intel_gna::log::warning() << "Inputs structure is empty, will be used default scale factor: " << lc_sf << std::endl;
         } else {
             lc_sf = inputs.Get().begin()->scale_factor;
         }

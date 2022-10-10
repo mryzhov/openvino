@@ -240,7 +240,7 @@ static bool requantizeInput(InferenceEngine::CNNLayerPtr input, float newOutputS
         }
     }
     if (info.isActivation() || info.isConst()) {
-        ov::intel_gna::log::error() << "[WARNING] requantize " << layer->name
+        ov::intel_gna::log::warning() << "requantize " << layer->name
                     << ". Layer new output scale: " << newOutputScale
                     << ", was " << quantDataForInputLayer->_dst_quant.GetScale() << std::endl;
         quantDataForInputLayer->_dst_quant.SetScale(newOutputScale);
@@ -284,7 +284,7 @@ static bool requantizeInput(InferenceEngine::CNNLayerPtr input, float newOutputS
             auto restartedPrevLayer = InferenceEngine::CNNNetPrevLayer(layer, ix);
             auto otherPrevLayer = InferenceEngine::CNNNetPrevLayer(layer, !ix);
             if (infiniteLoopCount % 2 == 1) {
-                ov::intel_gna::log::error() << "[WARNING] going into the loop: swap inputs order for Eltwise Multiply" << std::endl;
+                ov::intel_gna::log::warning() << "going into the loop: swap inputs order for Eltwise Multiply" << std::endl;
                 std::swap(restartedPrevLayer, otherPrevLayer);
             }
             auto otherPrevQuantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*otherPrevLayer);
@@ -693,7 +693,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer*, QUANT_DESC> {
                         return true;
                     }
 
-                    ov::intel_gna::log::error() << "[INFO] quantization : input scale factor (" << inputQuant->_dst_quant.GetScale() << ")"
+                    ov::intel_gna::log::info() << "quantization : input scale factor (" << inputQuant->_dst_quant.GetScale() << ")"
                         << " for " << cnnLayer->name << ", that is child of " << prevLayer->name << " doesnt match : "
                         << activation_scale_factor << ", restarting from corresponding memory: " << input->name << std::endl;
 
@@ -914,7 +914,7 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*, QUANT_DESC> {
                         return true;
                     }
                     // we unable to rescale the input - results might be bad
-                    ov::intel_gna::log::error() << "[INFO] weights saturated for " << eltwiseLayer->name << "\n";
+                    ov::intel_gna::log::info() << "weights saturated for " << eltwiseLayer->name << "\n";
                 }
 
                 if (!quantData->_dst_quant.IsStatsSet()) {
@@ -1284,7 +1284,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*, QUANT_DESC> {
 
             if (static_cast<uint64_t>(tmp_dst_quant_scale * quant->_src_quant.GetScale()) >
                 static_cast<uint64_t>(limit - 1) * std::get<0>(*itt)) {
-                ov::intel_gna::log::error() << "Output scale for " << wl->name
+                ov::intel_gna::log::warning() << "Output scale for " << wl->name
                     << " too large and are being reduced. Else saturations likely will happen \n";
                 // reduce weight scale according experimental heuristic
                 while ((itt + 1) != thresholds.end() && quant->_dst_quant.GetScale() * quant->_src_quant.GetScale() /
@@ -1460,7 +1460,7 @@ class ScaleFactorCalculator {
                 }
             } else {
                 if (!info.isSynthetic()) {
-                    ov::intel_gna::log::error() << "The layer (" << ptr->name << ") has not quantization statistics\n";
+                    ov::intel_gna::log::warning() << "The layer (" << ptr->name << ") has not quantization statistics\n";
                 }
 
                 return GetOptionalWeightsBytesSize();
