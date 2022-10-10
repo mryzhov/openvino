@@ -79,18 +79,18 @@ class ModelQuantizer {
 
         float lc_sf = GNAPluginNS::kScaleFactorDefault;
         if (inputs.empty()) {
-            GnaLog::LogErr() << "Inputs structure is empty, will be used default scale factor: " << lc_sf << std::endl;
+            ov::intel_gna::log::error() << "Inputs structure is empty, will be used default scale factor: " << lc_sf << std::endl;
         } else {
             lc_sf = inputs.Get().begin()->scale_factor;
         }
 
         LayersQuantizer<T> lc(lc_sf);
         auto sortedNewNet = InferenceEngine::details::CNNNetSortTopologically(copiedNet);
-        GnaLog::LogDebug() << "Sorted layers: " << std::endl;
+        ov::intel_gna::log::debug() << "Sorted layers: " << std::endl;
         for (auto &&layer : sortedNewNet) {
             auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
             quantData->lowPrecision = lowPrecision;
-            GnaLog::LogDebug() << layer->name << std::endl;
+            ov::intel_gna::log::debug() << layer->name << std::endl;
         }
         /// filling scale factors for input layers, memory layers will have scaleFactor of 1.0 by default
         InferenceEngine::InputsDataMap dm = copiedNet.getInputsInfo();
@@ -160,22 +160,22 @@ class ModelQuantizer {
                         std::distance(infiniteLoopHistory.rbegin(),
                             std::find_if_not(infiniteLoopHistory.rbegin(), infiniteLoopHistory.rend(),
                                 [&infiniteLoopHistory](const std::string& str) { return str == infiniteLoopHistory.back(); })) > 3)) {
-                    GnaLog::LogDebug() << "infiniteLoopPattern:\n";
+                    ov::intel_gna::log::debug() << "infiniteLoopPattern:\n";
                     for (const auto& s : infiniteLoopPattern) {
-                        GnaLog::LogDebug() << "\t " << s << '\n';
+                        ov::intel_gna::log::debug() << "\t " << s << '\n';
                     }
                     infiniteLoopPattern.clear();
                     int patternLength = (infiniteLoopHistory.size() - i) / 2;
-                    GnaLog::LogDebug() << "patternLength: " << patternLength << '\n';
+                    ov::intel_gna::log::debug() << "patternLength: " << patternLength << '\n';
                     for (int j = 0; j < patternLength; j++) {
                         infiniteLoopPattern.emplace_back(infiniteLoopHistory[infiniteLoopHistory.size() - patternLength + j]);
                     }
-                    GnaLog::LogDebug() << "infiniteLoopHistory:\n";
+                    ov::intel_gna::log::debug() << "infiniteLoopHistory:\n";
                     for (const auto& s : infiniteLoopHistory) {
-                        GnaLog::LogDebug() << "\t " << s << '\n';
+                        ov::intel_gna::log::debug() << "\t " << s << '\n';
                     }
                     infiniteLoopHistory.clear();
-                    GnaLog::LogDebug() << "infinite loop detected\n";
+                    ov::intel_gna::log::debug() << "infinite loop detected\n";
                     break;
                 }
 
@@ -191,7 +191,7 @@ class ModelQuantizer {
                         infiniteLoopHistory.end(), infiniteLoopPattern.begin())) {
                     infiniteLoopCount = 0;
                     infiniteLoopPattern.clear();
-                    GnaLog::LogDebug() << "infinite loop fixed\n";
+                    ov::intel_gna::log::debug() << "infinite loop fixed\n";
                 }
             }
 
