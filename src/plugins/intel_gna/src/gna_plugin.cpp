@@ -97,6 +97,7 @@
 #include "transformations/split_eltwise.hpp"
 #include "transformations/markup_fusable_transpose.hpp"
 #include "transformations/insert_identity_layer.hpp"
+#include "transformations/gather_remove.hpp"
 
 #include <ngraph/opsets/opset7.hpp>
 
@@ -744,6 +745,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
         manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
         manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+
+        manager.register_pass<ov::intel_gna::pass::GatherRemove>(&subgraph_cpu_map);
+
         const auto& pass_config = manager.get_pass_config();
 
         // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
