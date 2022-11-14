@@ -100,6 +100,7 @@
 #include "transformations/substitute_softsign.hpp"
 #include "transformations/swap_input_matmul_gna.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
+#include "transformations/gather_remove.hpp"
 
 inline uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
@@ -800,6 +801,9 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
         manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
         manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
+
+        manager.register_pass<ov::intel_gna::pass::GatherRemove>(&subgraph_cpu_map);
+
         const auto& pass_config = manager.get_pass_config();
 
         // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
