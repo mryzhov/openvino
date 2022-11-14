@@ -42,6 +42,7 @@ namespace intel_gna {
     using SplitConnection = std::unordered_map<std::string, GNASplitLayer>;
     using CropConnection = std::unordered_map<std::string, GNACropLayer>;
     using ConstConnections = std::unordered_map<std::string, void*>;
+    using SubgraphCPUMap = std::unordered_map<std::string, std::shared_ptr<ov::Model>>;
 
 }  // namespace intel_gna
 }  // namespace ov
