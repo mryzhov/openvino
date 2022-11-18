@@ -101,6 +101,8 @@
 
 #include <ngraph/opsets/opset7.hpp>
 
+#include "ngraph/pass/visualize_tree.hpp" // DEBUG
+
 #include <gna2-model-api.h>
 #include <gna2-common-api.h>
 
@@ -746,7 +748,11 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
         manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
 
+        manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
+        manager.register_pass<ov::intel_gna::pass::GatherIESubstitute>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("./1afterGatherIESubstitute.png"); // DEBUG
         manager.register_pass<ov::intel_gna::pass::GatherRemove>(&subgraph_cpu_map);
+        manager.register_pass<ngraph::pass::VisualizeTree>("./2after.png"); // DEBUG
 
         const auto& pass_config = manager.get_pass_config();
 
