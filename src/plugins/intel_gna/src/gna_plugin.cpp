@@ -341,7 +341,6 @@ GNAPlugin::GNAPlugin() :
     graphCompiler(config) {
     Init();
     UpdateFieldsFromConfig();
-    InitGNADevice();
 }
 
 std::string GNAPluginNS::GNAPlugin::GetCompileTarget() const {
@@ -358,7 +357,6 @@ GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) :
     Init();
     SetConfig(configMap);
     log::set_log_level(gnaFlags->log_level);
-    InitGNADevice();
 }
 
 void GNAPlugin::Init() {
@@ -667,6 +665,9 @@ void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
 
 void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "LoadNetwork");
+
+    InitGNADevice();
+
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
 
     std::string effectiveGnaCompileTargetValue = effectiveGnaCompileTarget();
@@ -1590,6 +1591,8 @@ void GNAPlugin::SetName(const std::string & pluginName) noexcept {
 }
 
 InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::istream& networkModel) {
+    InitGNADevice();
+
     auto header = GNAModelSerial::ReadHeader(networkModel);
 
     void* basePtr = nullptr;
