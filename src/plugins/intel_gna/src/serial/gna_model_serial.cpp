@@ -15,21 +15,55 @@
 #include <malloc.h>
 #else
 #include <mm_malloc.h>
+#endif
+
+#include "openvino/runtime/core.hpp"
+#include "transformations/serialize.hpp"
+
 #include <serial/headers/2dot2/gna_model_header.hpp>
 #include <serial/headers/2dot5/gna_model_header.hpp>
 #include <serial/headers/2dot7/gna_model_header.hpp>
 #include <serial/headers/2dot8/gna_model_header.hpp>
-
-#endif
+#include <serial/headers/2dot9/gna_model_header.hpp>
+#include "serial/headers/latest/gna_model_header.hpp"
 
 #include "gna2_model_helper.hpp"
-
 #include "gna_plugin.hpp"
 #include "gna_model_serial.hpp"
-#include "serial/headers/latest/gna_model_header.hpp"
+#include "preprocessing.hpp"
+
 #include "common/versioning.hpp"
 
+#ifdef GNA_DEBUG
+#include <ngraph/pass/manager.hpp>
+#include "transformations/serialize.hpp"
+#endif
+
 using namespace ov::intel_gna;
+
+/**
+ * @struct mem_stringbuf
+ * @brief This struct puts memory buffer to stringbuf.
+ */
+class mem_stringbuf : public std::streambuf {
+    std::string data;
+protected:
+    virtual int_type overflow (int_type c) override {
+        if (c != EOF) {
+            data.push_back(c);
+        }
+        return c;
+    }
+public:
+    std::string& get_data() {
+        return data;
+    }
+};
+
+inline size_t get_buffer_size(std::stringstream& stream) {
+    stream.seekp(0, std::ios::end);
+    return stream.tellp();
+}
 
 inline void writeNBytes(const void *ptr, uint32_t size, std::ostream & os) {
     os.write(static_cast<const char*>(ptr), size);
@@ -37,7 +71,8 @@ inline void writeNBytes(const void *ptr, uint32_t size, std::ostream & os) {
 
 template <class T>
 inline void writeBits(const T & obj, std::ostream & os) {
-    os.write(reinterpret_cast<const char *>(&obj), sizeof(T));
+    size_t size = sizeof(T);
+    os.write(reinterpret_cast<const char *>(&obj), size);
 }
 
 inline void writeString(const std::string &str, std::ostream &os) {
@@ -169,10 +204,11 @@ header_latest::ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
                 case 6:
                 case 7:
                 case 8:
+                case 9:
                     readNBytes(&header, sizeof(header_latest::ModelHeader), is);
                     break;
                 default:
-                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 8 and is: " << header.version.minor;
+                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 9 and is: " << header.version.minor;
             }
             break;
         default:
@@ -217,10 +253,11 @@ header_latest::RuntimeEndPoint GNAModelSerial::ReadEndPoint(std::istream &is) {
                     break;
                 }
                 case 8:
+                case 9:
                     readNBytes(&endPoint, sizeof(header_latest::RuntimeEndPoint), is);
                     break;
                 default:
-                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 8 and is: "
+                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 9 and is: "
                                         << model_header_.version.minor;
             }
             break;
@@ -289,7 +326,7 @@ void GNAModelSerial::Import(void *basePointer,
         }
     }
     // 5. Read Inputs endpoints
-    ImportInputs(is, basePointer, inputs);
+    ImportNodes(is, basePointer, inputs);
     // 6. Read output names
     if (model_header_.version.major == 2) {
         for (auto outputIndex = 0; outputIndex < model_header_.nOutputs; outputIndex++) {
@@ -298,7 +335,7 @@ void GNAModelSerial::Import(void *basePointer,
         }
     }
     // 7. Read outputs
-    ImportOutputs(is, basePointer, outputs);
+    ImportNodes(is, basePointer, outputs);
 
     for (auto operation = gna2model_->Operations; operation != gna2model_->Operations + gna2model_->NumberOfOperations; ++operation) {
         readNBits<32>(operation->Type, is);
@@ -473,6 +510,28 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         for (const auto &tname : input.tensor_names) {
             writeString(tname, os);
         }
+        // write pre_processing model
+        if(input.pre_post_process_model) {
+            // allocate buffer for ir.xml
+            std::ostringstream xml_buf;
+            // allocate buffer for ir.bin
+            std::ostringstream bin_buf;
+
+            // serialize IR to stream buffer (.xml + .bin)
+            ov::pass::Serialize serializer(xml_buf, bin_buf);
+            serializer.run_on_model(input.pre_post_process_model);
+
+            // write IR
+            writeString(xml_buf.str(), os);
+
+            // write BIN
+            size_t ir_bin_size = bin_buf.str().size();
+            writeBits(ir_bin_size, os);
+            writeNBytes(bin_buf.str().c_str(), ir_bin_size, os);
+        } else {
+            // write empty string to detect  that model is absent during the import
+            writeString("", os);
+        }
     }
     // 6. Write outputs names
     for (auto &output : outputs_.Get()) {
@@ -486,6 +545,29 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
         // write the output tensor names
         for (auto &tname : output.tensor_names) {
             writeString(tname, os);
+        }
+
+        // write pre_processing model
+        if(output.pre_post_process_model) {
+            // allocate buffer for ir.xml
+            std::ostringstream xml_buf;
+            // allocate buffer for ir.bin
+            std::ostringstream bin_buf;
+
+            // serialize IR to stream buffer (.xml + .bin)
+            ov::pass::Serialize serializer(xml_buf, bin_buf);
+            serializer.run_on_model(output.pre_post_process_model);
+
+            // write IR
+            writeString(xml_buf.str(), os);
+
+            // write BIN
+            size_t ir_bin_size = bin_buf.str().size();
+            writeBits(ir_bin_size, os);
+            writeNBytes(bin_buf.str().c_str(), ir_bin_size, os);
+        } else {
+            // write empty string to detect  that model is absent during the import
+            writeString("", os);
         }
     }
     // 8. Write layers
@@ -561,59 +643,49 @@ void GNAModelSerial::Export(const GnaAllocations& allocations, std::ostream& os)
     version_.Export(os);
 }
 
-void GNAModelSerial::ImportInputs(std::istream &is, void* basePtr, GnaInputs &inputs) {
-    for (auto &input : inputs.Get()) {
+template <class T>
+void GNAModelSerial::ImportNodes(std::istream &is, void* base_ptr, T &nodes) {
+    for (auto &node : nodes.Get()) {
         header_latest::RuntimeEndPoint ep = ReadEndPoint(is);
 
-        input.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + ep.descriptor_offset));
-        input.orientation = ep.orientation;
-        input.num_elements = ep.elements_count;
-        input.scale_factor = ep.scaleFactor;
-        input.model_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
-        input.set_precision(ep.element_size);
-        input.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
-        input.allocated_size = input.get_required_size();
+        node.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (base_ptr) + ep.descriptor_offset));
+        node.orientation = ep.orientation;
+        node.num_elements = ep.elements_count;
+        node.scale_factor = ep.scaleFactor;
+        node.model_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
+        node.set_precision(ep.element_size);
+        node.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
+        node.allocated_size = node.get_required_size();
 
         auto inputDims = InferenceEngine::SizeVector();
         for (auto i = 0; i < ep.shape.NumberOfDimensions; ++i) {
             inputDims.push_back(ep.shape.Dimensions[i]);
         }
-        input.dims = inputDims;
+        node.dims = inputDims;
 
         // read tensor names
         for (uint8_t tId = 0; tId < ep.tensor_names_count; ++tId) {
-            input.tensor_names.insert(readString(is));
+            node.tensor_names.insert(readString(is));
         }
+        AppendTensorNameIfNeeded(node);
 
-        AppendTensorNameIfNeeded(input);
-    }
-}
+        // read preprocessing model
+        if (model_header_.version.major == 2 && model_header_.version.minor >= 9)
+        {
+            std::string ir_xml_str = readString(is);
+            if(!ir_xml_str.empty()) {
+                //read IR bin
+                size_t ir_bin_size = 0;
+                readBits(ir_bin_size, is);
 
-void GNAModelSerial::ImportOutputs(std::istream &is, void* basePtr, GnaOutputs &outputs) {
-    for (auto &output : outputs.Get()) {
-        header_latest::RuntimeEndPoint ep = ReadEndPoint(is);
+                ov::Tensor ir_bin_tensor(ov::element::u8, ov::Shape({ir_bin_size}));
+                readNBytes(ir_bin_tensor.data(), ir_bin_size, is);
 
-        output.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + ep.descriptor_offset));
-        output.orientation = ep.orientation;
-        output.num_elements = ep.elements_count;
-        output.scale_factor = ep.scaleFactor;
-        output.set_precision(ep.element_size);
-        output.model_precision = InferenceEngine::Precision(static_cast<InferenceEngine::Precision::ePrecision>(ep.precision));
-        output.model_layout = static_cast<InferenceEngine::Layout>(ep.layout);
-        output.allocated_size = output.get_required_size();
-
-        auto outputDims = InferenceEngine::SizeVector();
-        for (auto i = 0; i < ep.shape.NumberOfDimensions; ++i) {
-            outputDims.push_back(ep.shape.Dimensions[i]);
+                // restore model
+                ov::Core core;
+                node.pre_post_process_model = core.read_model(ir_xml_str, ir_bin_tensor);
+            }
         }
-        output.dims = outputDims;
-
-        // read tensor names
-        for (uint8_t tId = 0; tId < ep.tensor_names_count; ++tId) {
-            output.tensor_names.insert(readString(is));
-        }
-
-        AppendTensorNameIfNeeded(output);
     }
 }
 
