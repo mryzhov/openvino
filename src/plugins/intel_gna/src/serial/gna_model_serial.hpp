@@ -46,8 +46,6 @@ private:
 
     void ImportTranspositionInfo(std::istream &is, std::string &name, std::vector<TranspositionInfo> &transpositionInfo);
 
-    void ExportTranspositionInfo(std::ostream &os, const TranspositionInfoMap &transpositionInfoMap) const;
-
     /**
      * @brief Update input or output description to support importing of < 2.8 format where tensor_names were not present
      * @param nodeDesc input or output description to be appended

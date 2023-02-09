@@ -34,7 +34,7 @@
 #include "gna_fused_iterator.hpp"
 #include "backend/am_intel_dnn.hpp"
 #include "memory/gna_memory_state.hpp"
-#include "gna_model_serial.hpp"
+#include "serial/gna_model_serial.hpp"
 #include "runtime/gna_float_runtime.hpp"
 #include <layers/gna_fake_quantize_layer.hpp>
 #include "gna_graph_patterns.hpp"
@@ -602,14 +602,6 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
         transpose_inputs_info.insert({inputLayer->name, transpositionInfo});
         log::debug() << "Input " << inputLayer->name << " transposition info: \n";
         printTranspositionInfo(transpositionInfo);
-
-        // find transpose info
-        auto transp_it = transpose_inputs_info.find(inputLayer->name);
-        if (transp_it != transpose_inputs_info.end() && !transp_it->second.empty()) {
-            const TranspositionInfo& t_info = transp_it->second.front();
-            (*inputs_ptr_).at(inputLayer->name).pre_post_process_model =
-                to_pre_post_process_model(inputLayer->outData[0]->getDims(), t_info.num_transpose_rows, t_info.num_transpose_columns);
-    }
     }
 
     auto outputsMap = net.getOutputsInfo();
@@ -629,14 +621,6 @@ void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNN
         transpose_outputs_info.insert({outLayer->name, transpositionInfo});
         log::debug() << "Output " << outLayer->name << " transposition info: \n";
         printTranspositionInfo(transpositionInfo);
-
-        // find transpose info
-        auto transp_it = transpose_outputs_info.find(outLayer->name);
-        if (transp_it != transpose_outputs_info.end() && !transp_it->second.empty()) {
-            const TranspositionInfo& t_info = transp_it->second.front();
-            outputs_.at(outLayer->name).pre_post_process_model =
-                to_pre_post_process_model(outLayer->outData[0]->getDims(), t_info.num_transpose_rows, t_info.num_transpose_columns);
-        }
     }
 }
 
@@ -718,11 +702,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-
-        manager.register_pass<ngraph::pass::VisualizeTree>("./0before.png"); // DEBUG
         manager.register_pass<ov::intel_gna::pass::GatherRemove>(&subgraph_cpu_map);
-        manager.register_pass<ngraph::pass::VisualizeTree>("./1after.png"); // DEBUG
-
         fake_quantized = ngraph::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
@@ -772,7 +752,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.register_pass<ov::intel_gna::pass::MarkupFusableTranspose>();
         manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
-        manager.register_pass<ov::pass::Serialize>("gna_model.xml", "gna_model.bin");
         /*
           Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
           ngraph::pass::ConvertOpSet1ToLegacy -> ngraph::pass::BiasFusions ->
@@ -806,8 +785,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
         manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
         manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
-
-
         const auto& pass_config = manager.get_pass_config();
 
         // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
@@ -1164,6 +1141,15 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
                  {TranspositionInfo{dnn->do_rotate_input, dnn->num_rotate_rows, dnn->num_rotate_columns}}});
         }
     }
+
+    //TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
+    if (!transpose_inputs_info.empty()) {
+        convert_transpose_map_to_model(transpose_inputs_info, inputs_ptr_->Get());
+    }
+    if (!transpose_outputs_info.empty()) {
+        convert_transpose_map_to_model(transpose_outputs_info, outputs_.Get());
+    }
+
     DumpXNNToFile();
 
 #ifdef PLOT
@@ -1702,6 +1688,14 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
             transpose_outputs_info.insert(
                 {output.first, {{header.doRotateOutput, header.nRotateOutputRows, header.nRotateOutputColumns}}});
         }
+    }
+
+    //TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
+    if(!transpose_inputs_info.empty()) {
+        convert_transpose_map_to_model(transpose_inputs_info, inputs_ptr_->Get());
+    }
+    if(!transpose_outputs_info.empty()) {
+        convert_transpose_map_to_model(transpose_outputs_info, outputs_.Get());
     }
 
     for (auto&& memory : mt) {

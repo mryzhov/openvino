@@ -25,6 +25,7 @@
 #include "gna_plugin_config.hpp"
 #include <legacy/ie_util_internal.hpp>
 #include <gna2-model-api.h>
+#include "preprocessing.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -211,6 +212,17 @@ protected:
                     uint32_t num_vector_stride,
                     intel_dnn_orientation_t orientation,
                     float scaleFactor);
+
+    template <class T1, class T2>
+    inline void convert_transpose_map_to_model(T1& transposes, T2& nodes) {
+        for (auto && node : nodes)
+        {
+            auto t_it = transposes.find(node.name);
+            if (t_it != transposes.end() && !t_it->second.empty()) {
+                node.pre_post_process_model = to_pre_post_process_model(t_it->second);
+            }
+        }
+    };
 
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
