@@ -62,7 +62,8 @@
 #include "memory/gna_memory_state.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "orientation_helper.hpp"
-#include "preprocessing.hpp"
+#include "pre_post_process/preprocessing.hpp"
+#include "pre_post_process/transposition_info.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_factory.hpp"
 #include "request/worker_pool_impl.hpp"
@@ -79,7 +80,6 @@
 #include "transformations/decompose_2d_convolution.hpp"
 #include "transformations/decompose_mvn.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
-#include "transformations/gather_remove.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/insert_copy_layer.hpp"
 #include "transformations/insert_identity_layer.hpp"
@@ -748,7 +748,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         const auto& graph = clonedNetwork.getFunction();
         ngraph::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
-        manager.register_pass<ov::intel_gna::pass::GatherRemove>(&subgraph_cpu_map);
         fake_quantized = ov::op::util::has_op_with_type<ngraph::opset7::FakeQuantize>(graph);
         // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
         // and we need to run the ConvertPrecision transformation to support old networks.
@@ -1745,7 +1744,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
         }
     }
 
-    // TODO: Need to remove this conversation when ngraph NCHW<->NHWC transformation is enabled
+    //  Support models versions <= 2.8
     if (!transpose_inputs_info.empty()) {
         ConvertTransposeMapToModel(transpose_inputs_info, inputs_ptr_->Get());
     }
