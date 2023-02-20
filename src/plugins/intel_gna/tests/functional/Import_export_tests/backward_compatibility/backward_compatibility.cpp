@@ -70,8 +70,6 @@ public:
         const auto compiledExecNetwork = executableNetwork;
         auto model = TestDataHelpers::get_data_path() + "/gna/" + m_export_model_name;
 
-        executableNetwork.Export(model);
-
         const auto importedExecNetwork = core->ImportNetwork(model, targetDevice, configuration);
 
         GenerateInputs();
@@ -195,8 +193,7 @@ const std::vector<ov::element::Type> input_precisions = {
 const std::vector<std::map<std::string, std::string>> export_configs_legacy = {
         {
                 {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_SCALE_FACTOR_0", "327.67"},
-                {"GNA_SCALE_FACTOR_1", "327.67"}
+                {"GNA_SCALE_FACTOR_0", "327.67"}
         }
 };
 
@@ -223,17 +220,17 @@ const std::vector<std::map<std::string, std::string>> import_configs = {
         }
 };
 
-const std::vector<std::string> export_models_legacy = {"export2dot1.blob", "export2dot2.blob", "export2dot3.blob", "export2dot4.blob"};
-const std::vector<std::string> export_models = {"export2dot8.blob"};
+const std::vector<std::string> export_models_legacy = {"export2dot1.blob", "export2dot2.blob", "export2dot3.blob", "export2dot4.blob", "export2dot5.blob"};
+const std::vector<std::string> export_models = {"export2dot6.blob", "export2dot7.blob", "export2dot8.blob", "export2dot9.blob"};
 
-// INSTANTIATE_TEST_SUITE_P(smoke_OldVersion, BackwardCompatibilityLegacy,
-//                         ::testing::Combine(
-//                                 ::testing::ValuesIn(input_precisions),
-//                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
-//                                 ::testing::ValuesIn(export_models_legacy),
-//                                 ::testing::ValuesIn(export_configs_legacy),
-//                                 ::testing::ValuesIn(import_configs_legacy)),
-//                         BackwardCompatibilityLegacy::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_OldVersion, BackwardCompatibilityLegacy,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(input_precisions),
+                                ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                ::testing::ValuesIn(export_models_legacy),
+                                ::testing::ValuesIn(export_configs_legacy),
+                                ::testing::ValuesIn(import_configs_legacy)),
+                        BackwardCompatibilityLegacy::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_OldVersion, BackwardCompatibility,
                         ::testing::Combine(
