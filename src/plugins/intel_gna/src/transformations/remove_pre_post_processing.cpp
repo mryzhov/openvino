@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/gather_remove.hpp"
+#include "transformations/remove_pre_post_processing.hpp"
 
 #include <openvino/cc/ngraph/itt.hpp>
 #include "openvino/pass/pass.hpp"
