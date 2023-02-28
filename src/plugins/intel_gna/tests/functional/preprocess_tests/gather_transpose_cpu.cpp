@@ -28,6 +28,26 @@ std::vector<size_t> MakeIndexes(size_t size) {
     return indexes;
 }
 
+std::vector<size_t> MakeTransposeOrder(const std::vector<size_t>& input_shape) {
+    std::vector<size_t> transpose_order;
+    switch (input_shape.size())
+    {
+    case 2:
+        transpose_order = {1, 0};
+        break;
+    case 3:
+        transpose_order = {0, 2, 1};
+        break;
+    case 4:
+        transpose_order = {0, 2, 3, 1};
+        break;
+    default:
+        break;
+    }
+
+    return transpose_order;
+}
+
 }  // namespace
 
 typedef std::tuple<std::vector<size_t>,                // Input shape
@@ -56,37 +76,41 @@ public:
         }
         return result.str();
     }
+
+protected:
+    void InitTestModel();
+    void SetUp() override {
+        abs_threshold = std::numeric_limits<int32_t>::max();
+        rel_threshold = std::numeric_limits<int32_t>::max();
+        std::tie(m_input_shape, m_net_type, targetDevice, m_conf) = this->GetParam();
+
+        std::vector<InputShape> input_shapes = static_shapes_to_test_representation({m_input_shape, m_input_shape});
+        configuration.insert(m_conf.begin(), m_conf.end());
+
+        init_input_shapes(input_shapes);
+    }
+
+    ov::element::Type m_net_type;
+    std::vector<size_t> m_input_shape;
+    std::map<std::string, std::string> m_conf;
 };
 
 class RemoveGatherInput : public PreprocessBaseTest {
 protected:
-    void SetUp() override {
-        ov::element::Type net_type;
-        std::vector<size_t> input_shape;
-        std::map<std::string, std::string> conf;
-        abs_threshold = std::numeric_limits<int32_t>::max();
-        rel_threshold = std::numeric_limits<int32_t>::max();
-
-        std::tie(input_shape, net_type, targetDevice, conf) = this->GetParam();
-
-        std::vector<InputShape> input_shapes = static_shapes_to_test_representation({input_shape, input_shape});
-        configuration.insert(conf.begin(), conf.end());
-
-        init_input_shapes(input_shapes);
-
-        auto params = ngraph::builder::makeParams(net_type, {input_shape});
+    void InitTestModel() {
+        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         const std::vector<size_t> indexes = MakeIndexes(input_shape_size);
         auto gather_indexes = Constant::create(ov::element::i64, ov::Shape{indexes.size()}, indexes);
-        const size_t gather_axis = 1;
+        const size_t gather_axis = m_input_shape.size() - 1;
         auto gather_axis_const = Constant::create(ov::element::i64, ov::Shape{}, {gather_axis});
         auto gather_node = std::make_shared<Gather>(params[0], gather_indexes, gather_axis_const);
 
-        auto mul_input_const = Constant::create(net_type, input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto mul_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto matmul_node = std::make_shared<Multiply>(gather_node, mul_input_const);
 
-        auto add_input_const = Constant::create(net_type, input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto add_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
 
         ov::ResultVector results{std::make_shared<Result>(add_node)};
@@ -96,33 +120,20 @@ protected:
 
 class RemoveGatherOutput : public PreprocessBaseTest {
 protected:
-    void SetUp() override {
-        ov::element::Type net_type;
-        std::vector<size_t> input_shape;
-        std::map<std::string, std::string> conf;
-        abs_threshold = std::numeric_limits<int32_t>::max();
-        rel_threshold = std::numeric_limits<int32_t>::max();
-
-        std::tie(input_shape, net_type, targetDevice, conf) = this->GetParam();
-
-        std::vector<InputShape> input_shapes = static_shapes_to_test_representation({input_shape, input_shape});
-        configuration.insert(conf.begin(), conf.end());
-
-        init_input_shapes(input_shapes);
-
-        auto params = ngraph::builder::makeParams(net_type, {input_shape});
+    void InitTestModel() {
+        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
 
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
-        auto mul_input_const = Constant::create(net_type, input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto mul_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto matmul_node = std::make_shared<Multiply>(params[0], mul_input_const);
 
-        auto add_input_const = Constant::create(net_type, input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto add_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
 
         const std::vector<size_t> indexes = MakeIndexes(input_shape_size);
         auto gather_indexes = Constant::create(ov::element::i64, ov::Shape{indexes.size()}, indexes);
-        const size_t gather_axis = 1;
+        const size_t gather_axis = m_input_shape.size() - 1;
         auto gather_axis_const = Constant::create(ov::element::i64, ov::Shape{}, {gather_axis});
         auto gather_node = std::make_shared<Gather>(add_node, gather_indexes, gather_axis_const);
 
@@ -133,50 +144,23 @@ protected:
 
 class RemoveTransposeInput : public PreprocessBaseTest {
 protected:
-    void SetUp() override {
-        ov::element::Type net_type;
-        std::vector<size_t> input_shape;
-        std::map<std::string, std::string> conf;
-        abs_threshold = std::numeric_limits<int32_t>::max();
-        rel_threshold = std::numeric_limits<int32_t>::max();
-
-        std::tie(input_shape, net_type, targetDevice, conf) = this->GetParam();
-        std::vector<size_t> transpose_order;
-        switch (input_shape.size())
-        {
-        case 2:
-            transpose_order = {1, 0};
-            break;
-        case 3:
-            transpose_order = {0, 2, 1};
-            break;
-        case 4:
-            transpose_order = {0, 2, 3, 1};
-            break;
-        default:
-            break;
-        }
-
+    void InitTestModel() {
+        std::vector<size_t> transpose_order = MakeTransposeOrder(m_input_shape);
         std::vector<size_t> transpose_shape;
         for (size_t i : transpose_order) {
-            transpose_shape.push_back(input_shape[i]);
+            transpose_shape.push_back(m_input_shape[i]);
         }
 
-        std::vector<InputShape> input_shapes = static_shapes_to_test_representation({input_shape, input_shape});
-        configuration.insert(conf.begin(), conf.end());
-
-        init_input_shapes(input_shapes);
-
-        auto params = ngraph::builder::makeParams(net_type, {input_shape});
+        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
         auto transpose_const = std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
         auto transpose_node = std::make_shared<Transpose>(params[0], transpose_const);
 
-        auto mul_input_const = Constant::create(net_type, transpose_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto mul_input_const = Constant::create(m_net_type, transpose_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto matmul_node = std::make_shared<Multiply>(transpose_node, mul_input_const);
 
-        auto add_input_const = Constant::create(net_type, transpose_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto add_input_const = Constant::create(m_net_type, transpose_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
 
         ov::ResultVector results{std::make_shared<Result>(add_node)};
@@ -186,51 +170,23 @@ protected:
 
 class RemoveTransposeOutput : public PreprocessBaseTest {
 protected:
-    void SetUp() override {
-        ov::element::Type net_type;
-        std::vector<size_t> input_shape;
-        std::map<std::string, std::string> conf;
-        abs_threshold = std::numeric_limits<int32_t>::max();
-        rel_threshold = std::numeric_limits<int32_t>::max();
-
-        std::tie(input_shape, net_type, targetDevice, conf) = this->GetParam();
-
-        std::vector<InputShape> input_shapes = static_shapes_to_test_representation({input_shape, input_shape});
-        configuration.insert(conf.begin(), conf.end());
-        init_input_shapes(input_shapes);
-
-        std::vector<size_t> transpose_order;
-        switch (input_shape.size())
-        {
-        case 2:
-            transpose_order = {1, 0};
-            break;
-        case 3:
-            transpose_order = {0, 2, 1};
-            break;
-        case 4:
-            transpose_order = {0, 2, 3, 1};
-            break;
-        default:
-            break;
-        }
-
+    void InitTestModel() {
+        std::vector<size_t> transpose_order = MakeTransposeOrder(m_input_shape);
         std::vector<size_t> transpose_shape;
         for (size_t i : transpose_order) {
-            transpose_shape.push_back(input_shape[i]);
+            transpose_shape.push_back(m_input_shape[i]);
         }
 
-        auto params = ngraph::builder::makeParams(net_type, {input_shape});
+        auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
 
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
-        auto mul_input_const = Constant::create(net_type, input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto mul_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto matmul_node = std::make_shared<Multiply>(params[0], mul_input_const);
 
-        auto add_input_const = Constant::create(net_type, input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto add_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
 
-        // std::vector<size_t> transpose_order = MakeIndexes(input_shape.size());
         auto transpose_const = std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
         auto transpose_node = std::make_shared<Transpose>(add_node, transpose_const);
 
@@ -240,18 +196,22 @@ protected:
 };
 
 TEST_P(RemoveTransposeInput, CompareWithRefs) {
+    InitTestModel();
     run();
 }
 
 TEST_P(RemoveTransposeOutput, CompareWithRefs) {
+    InitTestModel();
     run();
 }
 
 TEST_P(RemoveGatherInput, CompareWithRefs) {
+    InitTestModel();
     run();
 }
 
 TEST_P(RemoveGatherOutput, CompareWithRefs) {
+    InitTestModel();
     run();
 }
 
@@ -260,15 +220,19 @@ std::vector<std::map<std::string, std::string>> configs = {
     {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}
 };
 
-const std::vector<std::vector<size_t>> input_shapes = {
+const std::vector<std::vector<size_t>> input_shapes_transpose = {
     {2, 64}, {1, 2, 64}, {1, 2, 4, 16}
+};
+
+const std::vector<std::vector<size_t>> input_shapes_gather = {
+    {1, 128}
 };
 
 const ov::element::TypeVector input_precisions = {ov::element::f32};
 
 INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
                          RemoveGatherInput,
-                         ::testing::Combine(::testing::Values( std::vector<size_t>{1, 128}),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_gather),
                                             ::testing::ValuesIn(input_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
@@ -276,7 +240,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
 
 INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
                          RemoveGatherOutput,
-                         ::testing::Combine(::testing::Values(std::vector<size_t>{1, 128}),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_gather),
                                             ::testing::ValuesIn(input_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
@@ -284,7 +248,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
 
 INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
                          RemoveTransposeInput,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_transpose),
                                             ::testing::ValuesIn(input_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
@@ -292,7 +256,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
 
 INSTANTIATE_TEST_SUITE_P(smoke_preprocess,
                          RemoveTransposeOutput,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_transpose),
                                             ::testing::ValuesIn(input_precisions),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                             ::testing::ValuesIn(configs)),
