@@ -5,11 +5,12 @@
 #include "transformations/remove_pre_post_processing.hpp"
 
 #include <openvino/cc/ngraph/itt.hpp>
-#include "openvino/pass/pass.hpp"
 #include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
+
+#include "openvino/pass/pass.hpp"
 
 using namespace ov::opset9;
 using namespace ov::intel_gna::pass;
@@ -25,9 +26,8 @@ void RemoveSingleInputNodeFromFunction(std::shared_ptr<ov::Node> node) {
 
     std::shared_ptr<ov::Node> node_parent = node->get_input_node_shared_ptr(0);
     if (!std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
-        auto reshape_const_node = std::make_shared<Constant>(ov::element::i64,
-                                                             ov::Shape{output_node_shape.size()},
-                                                             output_node_shape);
+        auto reshape_const_node =
+            std::make_shared<Constant>(ov::element::i64, ov::Shape{output_node_shape.size()}, output_node_shape);
         node_parent = std::make_shared<Reshape>(node_parent, reshape_const_node, false);
     }
 
@@ -63,7 +63,8 @@ bool RemoveInputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mode
             if (std::dynamic_pointer_cast<ov::opset1::Gather>(target_node) ||
                 std::dynamic_pointer_cast<ov::opset1::Transpose>(target_node)) {
                 if (m_subgraph_cpu_map) {
-                    m_subgraph_cpu_map->emplace(param_node.get_node_shared_ptr()->get_friendly_name(), CopySingleInputNodeFromFunction(target_node));
+                    m_subgraph_cpu_map->emplace(param_node.get_node_shared_ptr()->get_friendly_name(),
+                                                CopySingleInputNodeFromFunction(target_node));
                 }
                 RemoveSingleInputNodeFromFunction(target_node);
                 result = true;
@@ -85,7 +86,8 @@ bool RemoveOutputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mod
             if (std::dynamic_pointer_cast<ov::opset1::Gather>(r_input_node) ||
                 std::dynamic_pointer_cast<ov::opset1::Transpose>(r_input_node)) {
                 if (m_subgraph_cpu_map) {
-                    m_subgraph_cpu_map->emplace(r_node->get_friendly_name(), CopySingleInputNodeFromFunction(r_input_node));
+                    m_subgraph_cpu_map->emplace(r_node->get_friendly_name(),
+                                                CopySingleInputNodeFromFunction(r_input_node));
                 }
                 RemoveSingleInputNodeFromFunction(r_input_node);
                 result = true;

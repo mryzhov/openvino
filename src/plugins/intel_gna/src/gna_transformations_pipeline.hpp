@@ -7,8 +7,8 @@
 #include <memory>
 
 #include "cpp/ie_cnn_network.h"
-#include "gna_plugin_config.hpp"
 #include "gna_data_types.hpp"
+#include "gna_plugin_config.hpp"
 #include "openvino/core/model.hpp"
 
 namespace ov {
