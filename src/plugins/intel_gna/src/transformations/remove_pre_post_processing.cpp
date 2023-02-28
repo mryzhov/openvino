@@ -1,0 +1,97 @@
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/gather_remove.hpp"
+
+#include <openvino/cc/ngraph/itt.hpp>
+#include "openvino/pass/pass.hpp"
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset9.hpp>
+#include <openvino/pass/manager.hpp>
+#include <openvino/pass/pattern/op/wrap_type.hpp>
+
+using namespace ov::opset9;
+using namespace ov::intel_gna::pass;
+
+namespace {
+
+/*
+  works only if we have one date input and one output
+ */
+void RemoveSingleInputNodeFromFunction(std::shared_ptr<ov::Node> node) {
+    const ov::Shape input_node_shape = node->get_input_shape(0);
+    const ov::Shape output_node_shape = node->get_output_shape(0);
+
+    std::shared_ptr<ov::Node> node_parent = node->get_input_node_shared_ptr(0);
+    if (!std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
+        auto reshape_const_node = std::make_shared<Constant>(ov::element::i64,
+                                                             ov::Shape{output_node_shape.size()},
+                                                             output_node_shape);
+        node_parent = std::make_shared<Reshape>(node_parent, reshape_const_node, false);
+    }
+
+    ov::replace_output_update_name(node->output(0), node_parent->output(0));
+}
+
+/*
+  Support only one data node as 0 input
+ */
+std::shared_ptr<ov::Model> CopySingleInputNodeFromFunction(std::shared_ptr<ov::Node> node) {
+    const ov::Shape& input_shape = node->get_input_shape(0);
+    const ov::element::Type& input_type = node->get_input_element_type(0);
+
+    auto param = std::make_shared<Parameter>(input_type, input_shape);
+    ov::OutputVector input_nodes = node->input_values();
+    input_nodes[0] = param;
+    auto node_copy = node->clone_with_new_inputs(input_nodes);
+    auto result = std::make_shared<Result>(node_copy);
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+}
+
+}  // namespace
+
+bool RemoveInputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_FUNCTION_SCOPE(RemoveInputsProcessing);
+    bool result = false;
+    for (const auto& param_node : model->inputs()) {
+        for (auto& param_target : param_node.get_target_inputs()) {
+            auto target_node = param_target.get_node()->shared_from_this();
+
+            // Parameter -> Transpose, Parameter -> Gather
+            if (std::dynamic_pointer_cast<ov::opset1::Gather>(target_node) ||
+                std::dynamic_pointer_cast<ov::opset1::Transpose>(target_node)) {
+                if (m_subgraph_cpu_map) {
+                    m_subgraph_cpu_map->emplace(param_node.get_node_shared_ptr()->get_friendly_name(), CopySingleInputNodeFromFunction(target_node));
+                }
+                RemoveSingleInputNodeFromFunction(target_node);
+                result = true;
+            }
+        }
+    }
+
+    return result;
+}
+
+bool RemoveOutputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_FUNCTION_SCOPE(RemoveOutputsProcessing);
+    bool result = false;
+    for (std::shared_ptr<ov::Node> r_node : model->get_results()) {
+        for (auto& r_input : r_node->input_values()) {
+            auto r_input_node = r_input.get_node_shared_ptr();
+
+            // Transpose -> Result, Gather -> Result
+            if (std::dynamic_pointer_cast<ov::opset1::Gather>(r_input_node) ||
+                std::dynamic_pointer_cast<ov::opset1::Transpose>(r_input_node)) {
+                if (m_subgraph_cpu_map) {
+                    m_subgraph_cpu_map->emplace(r_node->get_friendly_name(), CopySingleInputNodeFromFunction(r_input_node));
+                }
+                RemoveSingleInputNodeFromFunction(r_input_node);
+                result = true;
+            }
+        }
+    }
+
+    return result;
+}

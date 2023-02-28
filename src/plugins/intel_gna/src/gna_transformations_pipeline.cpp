@@ -53,6 +53,7 @@
 #include "transformations/swap_input_matmul_gna.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/remove_pre_post_processing.hpp"
 
 #include "debug_new_pass.hpp"
 #ifdef DEBUG_USE_NEW_PASS
@@ -67,7 +68,7 @@
 namespace ov {
 namespace intel_gna {
 
-void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
+void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model, ov::intel_gna::PrePostProcessModels* subgraph_cpu_map) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply");
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
@@ -126,6 +127,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     manager.register_pass<ov::pass::TransposeToReshape>();
+    manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
+    manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
 #endif
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
