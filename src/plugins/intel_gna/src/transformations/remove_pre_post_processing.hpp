@@ -31,7 +31,8 @@ namespace pass {
 class RemoveInputsProcessing : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("RemoveInputsProcessing", "0");
-    RemoveInputsProcessing(ov::intel_gna::PrePostProcessModels* subgraph_cpu_map = nullptr) : m_subgraph_cpu_map(subgraph_cpu_map) {}
+    RemoveInputsProcessing(ov::intel_gna::PrePostProcessModels* subgraph_cpu_map = nullptr)
+        : m_subgraph_cpu_map(subgraph_cpu_map) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
@@ -57,7 +58,8 @@ private:
 class RemoveOutputsProcessing : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("RemoveOutputsProcessing", "0");
-    RemoveOutputsProcessing(ov::intel_gna::PrePostProcessModels* subgraph_cpu_map = nullptr) : m_subgraph_cpu_map(subgraph_cpu_map) {}
+    RemoveOutputsProcessing(ov::intel_gna::PrePostProcessModels* subgraph_cpu_map = nullptr)
+        : m_subgraph_cpu_map(subgraph_cpu_map) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:

@@ -1,17 +1,17 @@
 // Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <string>
-#include <vector>
 #include <map>
 #include <numeric>
+#include <string>
+#include <vector>
 
 #include "common_test_utils/common_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 using namespace InferenceEngine;
 using namespace ov::opset9;
@@ -30,8 +30,7 @@ std::vector<size_t> MakeIndexes(size_t size) {
 
 std::vector<size_t> MakeTransposeOrder(const std::vector<size_t>& input_shape) {
     std::vector<size_t> transpose_order;
-    switch (input_shape.size())
-    {
+    switch (input_shape.size()) {
     case 2:
         transpose_order = {1, 0};
         break;
@@ -57,7 +56,8 @@ typedef std::tuple<std::vector<size_t>,                // Input shape
                    >
     preprocessTestParamsSet;
 
-class PreprocessBaseTest : public testing::WithParamInterface<preprocessTestParamsSet>, virtual public SubgraphBaseTest {
+class PreprocessBaseTest : public testing::WithParamInterface<preprocessTestParamsSet>,
+                           virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<preprocessTestParamsSet>& obj) {
         std::vector<size_t> input_shape;
@@ -107,10 +107,14 @@ protected:
         auto gather_axis_const = Constant::create(ov::element::i64, ov::Shape{}, {gather_axis});
         auto gather_node = std::make_shared<Gather>(params[0], gather_indexes, gather_axis_const);
 
-        auto mul_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto mul_input_const = Constant::create(m_net_type,
+                                                m_input_shape,
+                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto matmul_node = std::make_shared<Multiply>(gather_node, mul_input_const);
 
-        auto add_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto add_input_const = Constant::create(m_net_type,
+                                                m_input_shape,
+                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
 
         ov::ResultVector results{std::make_shared<Result>(add_node)};
@@ -125,10 +129,14 @@ protected:
 
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
-        auto mul_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto mul_input_const = Constant::create(m_net_type,
+                                                m_input_shape,
+                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto matmul_node = std::make_shared<Multiply>(params[0], mul_input_const);
 
-        auto add_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto add_input_const = Constant::create(m_net_type,
+                                                m_input_shape,
+                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
 
         const std::vector<size_t> indexes = MakeIndexes(input_shape_size);
@@ -154,13 +162,18 @@ protected:
         auto params = ngraph::builder::makeParams(m_net_type, {m_input_shape});
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
-        auto transpose_const = std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
+        auto transpose_const =
+            std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
         auto transpose_node = std::make_shared<Transpose>(params[0], transpose_const);
 
-        auto mul_input_const = Constant::create(m_net_type, transpose_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto mul_input_const = Constant::create(m_net_type,
+                                                transpose_shape,
+                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto matmul_node = std::make_shared<Multiply>(transpose_node, mul_input_const);
 
-        auto add_input_const = Constant::create(m_net_type, transpose_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto add_input_const = Constant::create(m_net_type,
+                                                transpose_shape,
+                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
 
         ov::ResultVector results{std::make_shared<Result>(add_node)};
@@ -181,13 +194,18 @@ protected:
 
         const size_t input_shape_size = ov::shape_size(params[0]->get_shape());
 
-        auto mul_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto mul_input_const = Constant::create(m_net_type,
+                                                m_input_shape,
+                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto matmul_node = std::make_shared<Multiply>(params[0], mul_input_const);
 
-        auto add_input_const = Constant::create(m_net_type, m_input_shape, CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
+        auto add_input_const = Constant::create(m_net_type,
+                                                m_input_shape,
+                                                CommonTestUtils::generate_float_numbers(input_shape_size, -0.2f, 0.2f));
         auto add_node = std::make_shared<Add>(matmul_node, add_input_const);
 
-        auto transpose_const = std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
+        auto transpose_const =
+            std::make_shared<Constant>(ov::element::i8, ov::Shape{transpose_order.size()}, transpose_order);
         auto transpose_node = std::make_shared<Transpose>(add_node, transpose_const);
 
         ov::ResultVector results{std::make_shared<Result>(transpose_node)};
@@ -215,18 +233,12 @@ TEST_P(RemoveGatherOutput, CompareWithRefs) {
     run();
 }
 
-std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}
-};
+std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
+                                                           {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
-const std::vector<std::vector<size_t>> input_shapes_transpose = {
-    {2, 64}, {1, 2, 64}, {1, 2, 4, 16}
-};
+const std::vector<std::vector<size_t>> input_shapes_transpose = {{2, 64}, {1, 2, 64}, {1, 2, 4, 16}};
 
-const std::vector<std::vector<size_t>> input_shapes_gather = {
-    {1, 128}
-};
+const std::vector<std::vector<size_t>> input_shapes_gather = {{1, 128}};
 
 const ov::element::TypeVector input_precisions = {ov::element::f32};
 
