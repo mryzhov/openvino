@@ -85,12 +85,12 @@ std::vector<int64_t> GetNormalizedGatherIndices(const std::shared_ptr<Constant>&
     return NormalizeGatherIndices(indices->cast_vector<int64_t>());
 }
 
-std::vector<int64_t> CombineGatherPermutations(const std::vector<int64_t>& input_gather_indices, const std::vector<int64_t>& output_gather_indices) {
+std::vector<int64_t> ApplyGatherPermutation(const std::vector<int64_t>& input_gather_indices, const std::vector<int64_t>& output_gather_indices) {
     if (input_gather_indices.size() != output_gather_indices.size())
         return {};
     std::vector<int64_t> result(input_gather_indices.size());
     for (size_t i = 0; i < result.size(); ++i) {
-        result[i] = input_gather_indices[output_gather_indices[i]];
+        result[output_gather_indices[i]] = input_gather_indices[i];
     }
 
     return result;
@@ -107,9 +107,9 @@ bool IsPointlessPermutation(const std::vector<int64_t>& indices) {
 std::shared_ptr<Gather> FuseGatherNodes(TransformationInfo& info) {
     const std::vector<int64_t> input_gather_indices = GetNormalizedGatherIndices(info.input_indices_const);
     const std::vector<int64_t> output_gather_indices = GetNormalizedGatherIndices(info.output_indices_const);
-    const std::vector<int64_t> result_gather_indices = CombineGatherPermutations(input_gather_indices, output_gather_indices);
+    const std::vector<int64_t> result_gather_indices = ApplyGatherPermutation(input_gather_indices, output_gather_indices);
     if (IsPointlessPermutation(result_gather_indices)) {
-        ov::replace_output_update_name(info.output_gather->output(0), info.input_gather->input_value(0));
+        info.input_gather->input_value(0).replace(info.output_gather->output(0));
         return {};
     }
 
@@ -120,7 +120,7 @@ std::shared_ptr<Gather> FuseGatherNodes(TransformationInfo& info) {
     auto new_axis_const = info.output_axis_const->clone_with_new_inputs({});
     auto new_gather = std::make_shared<Gather>(info.input_gather->input_value(0), new_indices_const, new_axis_const);
 
-    ov::replace_node(info.output_gather, new_gather);
+    info.input_gather->input(0).replace_source_output(new_gather->output(0));
     copy_runtime_info(info.input_gather, {new_gather, new_indices_const, new_axis_const});
     new_gather->set_friendly_name(info.output_gather->get_friendly_name());
 
