@@ -12,6 +12,8 @@
 
 #include "itt.hpp"
 #include "transformations/gather_sinking_unary.hpp"
+#include "transformations/gather_sinking_binary.hpp"
+#include "transformations/gather_sinking_fuse.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
@@ -21,11 +23,15 @@ using namespace ov::intel_gna::pass;
 GatherSinkingGeneralForward::GatherSinkingGeneralForward() {
     MATCHER_SCOPE(GatherSinkingGeneralForward);
     add_matcher<GatherSinkingUnaryForward>();
+    add_matcher<GatherSinkingBinaryForward>();
+    add_matcher<GatherSinkingFuse>();
 }
 
 GatherSinkingGeneralBackward::GatherSinkingGeneralBackward() {
     MATCHER_SCOPE(GatherSinkingGeneralBackward);
     add_matcher<GatherSinkingUnaryBackward>();
+    add_matcher<GatherSinkingBinaryBackward>();
+    add_matcher<GatherSinkingFuse>();
 }
 
 bool GatherSinkingGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
