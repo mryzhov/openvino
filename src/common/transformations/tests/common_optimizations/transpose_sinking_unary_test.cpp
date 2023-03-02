@@ -71,6 +71,15 @@ NodePtr UnaryFactory<Convert>::create(NodePtr parent_node) const {
     return std::make_shared<Convert>(parent_node, element::f64);
 }
 
+template <>
+NodePtr UnaryFactory<FakeQuantize>::create(NodePtr parent_node) const {
+    auto input_low = std::make_shared<Constant>(element::f32, Shape{1}, Shape{1});
+    auto input_high = std::make_shared<Constant>(element::f32, Shape{1}, Shape{20});
+    auto output_low = std::make_shared<Constant>(element::f32, Shape{1}, Shape{0});
+    auto output_high = std::make_shared<Constant>(element::f32, Shape{1}, Shape{10});
+    return std::make_shared<FakeQuantize>(parent_node, input_low, input_high, output_low, output_high, 11);
+}
+
 template <typename UnaryT>
 UnaryFactoryPtr CreateUnaryFactory(const std::string& type_name) {
     return std::make_shared<UnaryFactory<UnaryT>>(type_name);
@@ -422,7 +431,7 @@ std::vector<UnaryFactoryPtr> unary_factories = {
     CREATE_UNARY_FACTORY(Log),        CREATE_UNARY_FACTORY(Negative), CREATE_UNARY_FACTORY(Relu),
     CREATE_UNARY_FACTORY(Sigmoid),    CREATE_UNARY_FACTORY(Sign),     CREATE_UNARY_FACTORY(Sin),
     CREATE_UNARY_FACTORY(Sinh),       CREATE_UNARY_FACTORY(SoftSign), CREATE_UNARY_FACTORY(Sqrt),
-    CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh)};
+    CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh),     CREATE_UNARY_FACTORY(FakeQuantize)};
 
 std::vector<size_t> unary_operations_numbers = {1, 10};
 
