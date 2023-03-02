@@ -322,6 +322,8 @@ bool CanPropagateGatherForwardThrough(Node* node) {
     CHECK_GATHER_SINKING_SUPPORTED(SoftPlus, node);
     CHECK_GATHER_SINKING_SUPPORTED(LogicalNot, node);
     CHECK_GATHER_SINKING_SUPPORTED(Convert, node);
+    CHECK_GATHER_SINKING_SUPPORTED(ov::op::util::BinaryElementwiseArithmetic, node);
+    CHECK_GATHER_SINKING_SUPPORTED(Gather, node);
     return false;
 }
 
