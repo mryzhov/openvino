@@ -54,6 +54,16 @@
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include "debug_new_pass.hpp"
+#ifdef DEBUG_USE_NEW_PASS
+#include "transformations/transpose_nchw.hpp"
+#include "transformations/gather_sinking.hpp"
+#include "transformations/common_optimizations/transpose_sinking_general.hpp"
+#include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+#include "transformations/common_optimizations/transpose_to_reshape.hpp"
+#endif
+
+
 namespace ov {
 namespace intel_gna {
 
@@ -110,6 +120,13 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
+#ifdef DEBUG_USE_NEW_PASS
+    manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
+    manager.register_pass<ov::pass::ReshapeSequenceFusion>();
+    manager.register_pass<ov::pass::TransposeToReshape>();
+#endif
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
