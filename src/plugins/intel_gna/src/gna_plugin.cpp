@@ -1186,7 +1186,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
         TensorDesc buff_tensor_desc(input.second->getTensorDesc());
         buff_tensor_desc.setPrecision(inputs_ptr_->at(input_name).tensor_precision);
 
-        if(model) {
+        if (model) {
             // WA: evaluate gather with int16 precision as fp16
             if (buff_tensor_desc.getPrecision() == Precision::I16) {
                 buff_tensor_desc.setPrecision(Precision::FP16);
@@ -1309,8 +1309,9 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         std::shared_ptr<ov::Model> model = gna_output_desc.pre_post_process_model;
         if (model) {
             // WA: evaluate gather with int16 precision as fp16
-            Precision preproc_prc = (gna_output_desc.tensor_precision == Precision::I16) ? Precision(Precision::FP16)
-                                                                                     : gna_output_desc.tensor_precision;
+            Precision preproc_prc = (gna_output_desc.tensor_precision == Precision::I16)
+                                        ? Precision(Precision::FP16)
+                                        : gna_output_desc.tensor_precision;
             const SizeVector& input_dims = model->get_parameters().front()->get_shape();
             TensorDesc input_desc(preproc_prc, input_dims, InferenceEngine::Layout::ANY);
             Blob::Ptr input_blob = make_blob_with_precision(input_desc, gna_output_desc.ptrs[request_idx]);
@@ -1323,7 +1324,9 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
             pre_post_process(input_blob, gna_output_blob, model);
         } else {
             log::debug() << "Postprocessing for output " << output_name << " is not required" << std::endl;
-            TensorDesc output_desc(gna_output_desc.tensor_precision, gna_output_desc.dims, gna_output_desc.model_layout);
+            TensorDesc output_desc(gna_output_desc.tensor_precision,
+                                   gna_output_desc.dims,
+                                   gna_output_desc.model_layout);
             gna_output_blob = make_blob_with_precision(output_desc, gna_output_desc.ptrs[request_idx]);
         }
 
