@@ -677,6 +677,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     transformer.convert_precision_legacy(network);
 
     //  Check the network
+
     std::string error;
     if (!limitations::AreLayersSupported(network, error)) {
         THROW_GNA_EXCEPTION << error.c_str();
