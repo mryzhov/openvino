@@ -9,7 +9,7 @@
 #include <ngraph/rt_info.hpp>
 #include <openvino/cc/ngraph/itt.hpp>
 #include <transformations/utils/utils.hpp>
-
+#include "openvino/op/mvn.hpp"
 #include "backend/gna_limitations.hpp"
 
 using namespace ngraph;
