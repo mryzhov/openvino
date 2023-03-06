@@ -19,11 +19,11 @@ namespace {
 
 ov::Shape SqueezeShape(const ov::Shape& shape) {
     ov::Shape squeezed_shape;
-    std::copy_if(shape.begin(), shape.end(), std::back_inserter(squeezed_shape),
-                [](size_t x) { return x != 1; });
+    std::copy_if(shape.begin(), shape.end(), std::back_inserter(squeezed_shape), [](size_t x) {
+        return x != 1;
+    });
     return squeezed_shape;
 }
-
 
 bool IsPreprocessingLayerSuppported(std::shared_ptr<ngraph::Node>& layer) {
     // Gather layers are not supported by GNA and have to be executed on CPU
@@ -34,10 +34,11 @@ bool IsPreprocessingLayerSuppported(std::shared_ptr<ngraph::Node>& layer) {
     // 2-d Transposes layers can be executed on GNA
     if (std::dynamic_pointer_cast<ov::opset1::Transpose>(layer)) {
         const ov::Shape squeezed_shape = SqueezeShape(layer->get_shape());
-        if(squeezed_shape.size() > 2) {
+        if (squeezed_shape.size() > 2) {
             return true;
         } else {
-            log::trace() << "Input shape with rank: " << squeezed_shape.size() << " is not required to be transposed" << std::endl;
+            log::trace() << "Input shape with rank: " << squeezed_shape.size() << " is not required to be transposed"
+                         << std::endl;
         }
     }
 
@@ -75,6 +76,10 @@ std::shared_ptr<ov::Model> CopySingleInputNodeFromFunction(std::shared_ptr<ov::N
     auto result = std::make_shared<Result>(node_copy);
     std::shared_ptr<ov::Model> model =
         std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+
+    // ov::pass::Manager manager;
+    // manager.register_pass<ov::pass::Serialize>("pre_model.xml", "pre_model.bin");
+    // manager.run_passes(model);
 
     return model;
 }
