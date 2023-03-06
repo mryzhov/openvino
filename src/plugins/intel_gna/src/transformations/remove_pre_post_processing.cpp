@@ -73,7 +73,8 @@ std::shared_ptr<ov::Model> CopySingleInputNodeFromFunction(std::shared_ptr<ov::N
     input_nodes[0] = param;
     auto node_copy = node->clone_with_new_inputs(input_nodes);
     auto result = std::make_shared<Result>(node_copy);
-    std::shared_ptr<ov::Model> model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    std::shared_ptr<ov::Model> model =
+        std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
     return model;
 }
