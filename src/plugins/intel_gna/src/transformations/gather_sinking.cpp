@@ -10,7 +10,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
-#include "itt.hpp"
+#include <openvino/cc/ngraph/itt.hpp>
 #include "transformations/gather_sinking_unary.hpp"
 #include "transformations/gather_sinking_binary.hpp"
 #include "transformations/gather_sinking_fuse.hpp"
