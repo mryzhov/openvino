@@ -17,6 +17,25 @@ using namespace ov::intel_gna::pass;
 
 namespace {
 
+bool IsPreprocessingLayerSuppported(std::shared_ptr<ngraph::Node>& layer) {
+    // Gather layers are not supported by GNA and have to be executed on CPU
+    if (std::dynamic_pointer_cast<ov::opset1::Gather>(layer)) {
+        return true;
+    }
+
+    // 2-d Transposes layers can be executed on GNA
+    if (std::dynamic_pointer_cast<ov::opset1::Transpose>(layer)) {
+        const ov::Shape& layer_shape = layer->get_shape();
+        if(layer_shape.size() > 2) {
+            return true;
+        } else {
+            log::trace() << "Input shape with rank: " << layer_shape.size() << " is not required to be transposed" << std::endl;
+        }
+    }
+
+    return false;
+}
+
 /*
   works only if we have one date input and one output
  */
@@ -38,16 +57,17 @@ void RemoveSingleInputNodeFromFunction(std::shared_ptr<ov::Node> node) {
   Support only one data node as 0 input
  */
 std::shared_ptr<ov::Model> CopySingleInputNodeFromFunction(std::shared_ptr<ov::Node> node) {
-    const ov::Shape& input_shape = node->get_input_shape(0);
     const ov::element::Type& input_type = node->get_input_element_type(0);
+    const ov::Shape& input_shape = node->get_input_shape(0);
 
     auto param = std::make_shared<Parameter>(input_type, input_shape);
     ov::OutputVector input_nodes = node->input_values();
     input_nodes[0] = param;
     auto node_copy = node->clone_with_new_inputs(input_nodes);
     auto result = std::make_shared<Result>(node_copy);
+    std::shared_ptr<ov::Model> model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    return model;
 }
 
 }  // namespace
@@ -58,10 +78,8 @@ bool RemoveInputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mode
     for (const auto& param_node : model->inputs()) {
         for (auto& param_target : param_node.get_target_inputs()) {
             auto target_node = param_target.get_node()->shared_from_this();
-
             // Parameter -> Transpose, Parameter -> Gather
-            if (std::dynamic_pointer_cast<ov::opset1::Gather>(target_node) ||
-                std::dynamic_pointer_cast<ov::opset1::Transpose>(target_node)) {
+            if (IsPreprocessingLayerSuppported(target_node)) {
                 if (m_subgraph_cpu_map) {
                     m_subgraph_cpu_map->emplace(param_node.get_node_shared_ptr()->get_friendly_name(),
                                                 CopySingleInputNodeFromFunction(target_node));
@@ -71,7 +89,6 @@ bool RemoveInputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mode
             }
         }
     }
-
     return result;
 }
 
@@ -81,12 +98,10 @@ bool RemoveOutputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mod
     for (std::shared_ptr<ov::Node> r_node : model->get_results()) {
         for (auto& r_input : r_node->input_values()) {
             auto r_input_node = r_input.get_node_shared_ptr();
-
             // Transpose -> Result, Gather -> Result
-            if (std::dynamic_pointer_cast<ov::opset1::Gather>(r_input_node) ||
-                std::dynamic_pointer_cast<ov::opset1::Transpose>(r_input_node)) {
+            if (IsPreprocessingLayerSuppported(r_input_node)) {
                 if (m_subgraph_cpu_map) {
-                    m_subgraph_cpu_map->emplace(r_node->get_friendly_name(),
+                    m_subgraph_cpu_map->emplace(r_input_node->get_friendly_name(),
                                                 CopySingleInputNodeFromFunction(r_input_node));
                 }
                 RemoveSingleInputNodeFromFunction(r_input_node);
@@ -94,6 +109,5 @@ bool RemoveOutputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mod
             }
         }
     }
-
     return result;
 }
