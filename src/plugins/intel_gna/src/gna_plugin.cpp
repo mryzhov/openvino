@@ -590,52 +590,6 @@ bool GNAPlugin::TryToInitOutput(const std::string& portName, InferenceEngine::CN
     return false;
 }
 
-void GNAPlugin::FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net) {
-    OV_ITT_SCOPED_TASK(itt::domains::GNA_LT, "FillInputsAndOutputsTranspositionInfo");
-    auto printTranspositionInfo = [](const std::vector<TranspositionInfo>& transpositionInfo) {
-        for (const auto& transpositionInfoPart : transpositionInfo) {
-            log::debug() << "transpose=" << transpositionInfoPart.transpose
-                         << " rows_num=" << transpositionInfoPart.num_transpose_rows
-                         << " columns_num=" << transpositionInfoPart.num_transpose_columns << "\n";
-        }
-    };
-
-    auto inputLayers = CNNNetGetAllInputLayers(net);
-    for (const auto& inputLayer : inputLayers) {
-        // Collect information for inputs transposition
-        if (!LayerInfo(inputLayer).isInput())
-            continue;
-        auto transpositionInfo = FindTranspositionInfoFromNextLayers(inputLayer);
-        if (transpositionInfo.empty())
-            continue;
-
-        transpose_inputs_info.insert({inputLayer->name, transpositionInfo});
-        log::debug() << "Input " << inputLayer->name << " transposition info: \n";
-        printTranspositionInfo(transpositionInfo);
-    }
-
-    auto outputsMap = net.getOutputsInfo();
-    for (const auto& outPort : outputsMap) {
-        auto outLayer = getCreatorLayer(outPort.second).lock();
-        // Collect information for outputs transposition
-        if (!LayerInfo(outLayer).isOutput())
-            continue;
-        auto transpositionInfo = FindTranspositionInfoFromPrevLayers(outLayer);
-        if (transpositionInfo.empty())
-            continue;
-
-        // Swap transposition info rows and columns since we need to transpose output back from NHWC to NCHW
-        for (auto&& transpositionInfoPart : transpositionInfo) {
-            if (transpositionInfoPart.transpose) {
-                std::swap(transpositionInfoPart.num_transpose_rows, transpositionInfoPart.num_transpose_columns);
-            }
-        }
-        transpose_outputs_info.insert({outLayer->name, transpositionInfo});
-        log::debug() << "Output " << outLayer->name << " transposition info: \n";
-        printTranspositionInfo(transpositionInfo);
-    }
-}
-
 #ifdef PLOT
 void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
                                    InferenceEngine::ordered_properties& printed_properties,
@@ -731,10 +685,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
 
     if (transformer.is_fake_quantized()) {
         UpdateInputScaleFromNetwork(network);
-    }
-
-    if (MustBeConvertedFromNCHWToNHWC(CNNNetSortTopologically(network))) {
-        FillInputsAndOutputsTranspositionInfo(network);
     }
 
     InferenceEngine::CNNNetwork newNet;

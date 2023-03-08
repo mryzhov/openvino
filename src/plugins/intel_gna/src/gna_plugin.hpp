@@ -241,14 +241,6 @@ protected:
      * @return true if the output is initiated, false otherwise
      */
     bool TryToInitOutput(const std::string& portName, InferenceEngine::CNNLayerPtr layer);
-
-    /**
-     * @brief Fills inputs and outputs transposition info for model convertion from NCHW to NHWC.
-     *        Information for transposition is found from convolution/pooling input or output dimensions.
-     * @param layers model sorted layers
-     */
-    void FillInputsAndOutputsTranspositionInfo(const InferenceEngine::CNNNetwork& net);
-
     bool isFP32ModeActive() const;
     std::shared_ptr<request::ModelWrapper> createModelWrapperForLoadNetwork(bool trivial);
     std::shared_ptr<request::ModelWrapper> createModelWrapperForImportNetwork(uint32_t numberOfOperations);
