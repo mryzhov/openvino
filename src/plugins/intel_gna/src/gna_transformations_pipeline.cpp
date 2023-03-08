@@ -9,6 +9,7 @@
 #include "legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
@@ -73,7 +74,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
-
+    manager.register_pass<ov::pass::Serialize>("model.xml", "model.bin");
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
@@ -124,8 +125,10 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     manager.register_pass<ov::pass::TransposeToReshape>();
+    // manager.register_pass<ov::pass::Serialize>("model_gna_before.xml", "model_gna_before.bin");
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
+    // manager.register_pass<ov::pass::Serialize>("model_gna_after.xml", "model_gna_after.bin");
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -167,6 +170,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_array{{ov::element::i64, ov::element::i32},
                                                                        {ov::element::u64, ov::element::i32},
                                                                        {ov::element::u32, ov::element::i32}});
+
+    manager.register_pass<ov::pass::Serialize>("model_gna.xml", "model_gna.bin");
+
     const auto& pass_config = manager.get_pass_config();
 
     // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
