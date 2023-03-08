@@ -136,19 +136,8 @@ bool DoTransformation(Node convolution) {
 
     ov::copy_runtime_info(convolution_node, {transpose_before, transpose_const, conv_new, transpose_after});
 
-    const bool has_parent_param = HasParentNode<ngraph::opset8::Parameter>(convolution);
-    const bool has_child_result = HasChildNode<ngraph::opset8::Result>(convolution);
-    if (has_parent_param != has_child_result) {
-        if (has_parent_param) {
-            transpose_before->set_friendly_name(convolution_node->get_friendly_name());
-        } else {
-            transpose_after->set_friendly_name(convolution_node->get_friendly_name());
-        }
-    } else {
-        conv_new->set_friendly_name(convolution_node->get_friendly_name());
-    }
+    ov::replace_output_update_name(convolution->output(0), transpose_after->output(0));
 
-    convolution->output(0).replace(transpose_after->output(0));
     return true;
 }
 
@@ -189,19 +178,8 @@ bool DoTransformation(Node max_pool) {
 
     ov::copy_runtime_info(max_pool_node, {transpose_before, transpose_const, max_pool_new, transpose_after});
 
-    const bool has_parent_param = HasParentNode<ngraph::opset8::Parameter>(max_pool);
-    const bool has_child_result = HasChildNode<ngraph::opset8::Result>(max_pool);
-    if (has_parent_param != has_child_result) {
-        if (has_parent_param) {
-            transpose_before->set_friendly_name(max_pool->get_friendly_name());
-        } else {
-            transpose_after->set_friendly_name(max_pool->get_friendly_name());
-        }
-    } else {
-        max_pool_new->set_friendly_name(max_pool->get_friendly_name());
-    }
+    ov::replace_output_update_name(max_pool->output(0), transpose_after->output(0));
 
-    max_pool->output(0).replace(transpose_after->output(0));
     return true;
 }
 
