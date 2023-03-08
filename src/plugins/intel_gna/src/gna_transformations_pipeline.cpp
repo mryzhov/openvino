@@ -213,8 +213,6 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     passes->registerPass<FuseFQIntoWeightsPass>();
     passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
 
-    passes->registerPass<TransposeWeightsFromNCHWToNHWCPass>();
-
     passes->registerPass<SubstitutePReluPass>();
 
     if (!is_ngraph_passes_used) {
