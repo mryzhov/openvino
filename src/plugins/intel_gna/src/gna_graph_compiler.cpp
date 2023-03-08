@@ -395,20 +395,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto in_kernel_w = convolution._kernel_x;
     auto in_kernel_h = convolution._kernel_y;
     bool transpose_h_w = false;
-/*
-    EMUTEX_DEBUG_VALUE(layer->name);
-    EMUTEX_DEBUG_VALUE(in_batch);
-    EMUTEX_DEBUG_VALUE(in_channels);
-    EMUTEX_DEBUG_VALUE(in_height);
-    EMUTEX_DEBUG_VALUE(in_width);
-    EMUTEX_DEBUG_VALUE(out_batch);
-    EMUTEX_DEBUG_VALUE(out_channels);
-    EMUTEX_DEBUG_VALUE(out_height);
-    EMUTEX_DEBUG_VALUE(out_width);
-    EMUTEX_DEBUG_VALUE(in_kernel_w);
-    EMUTEX_DEBUG_VALUE(in_kernel_h);
-    EMUTEX_DEBUG_VALUE(transpose_h_w);
-*/
+
     // Map 2d convolution to 1d if it's possible.
     if (!ShouldUseOnlyConv2DGnaIface() && gna_convolution_layer::isMappableFrom2DTo1D(in_height,
                                                                                       in_width,
@@ -740,15 +727,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     if (!cnn2dValidator) {
         THROW_GNA_EXCEPTION << "No Cnn2D validator found for layer " << convolution.name;
     }
-/*
-    EMUTEX_DEBUG_VALUE(convolution.name);
-    EMUTEX_DEBUG_VALUE(convolution._padding_y);
-    EMUTEX_DEBUG_VALUE(convolution._pads_end_y);
-    EMUTEX_DEBUG_VALUE(convolution._padding_x);
-    EMUTEX_DEBUG_VALUE(convolution._pads_end_x);
-    EMUTEX_DEBUG_VALUE(convolution._kernel_y);
-    EMUTEX_DEBUG_VALUE(convolution._kernel_x);
-*/
+
     cnn2dValidator->ValidateInputPadding(convolution.name,
                                          convolution._padding_y,
                                          convolution._pads_end_y,
