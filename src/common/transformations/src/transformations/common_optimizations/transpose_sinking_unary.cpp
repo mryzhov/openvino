@@ -45,6 +45,7 @@ NodePair SwapNodes(NodePtr first_node, NodePtr second_node) {
     return std::make_pair(new_first_node, new_second_node);
 }
 
+#if 0
 /**
  * @brief SwapOutputs has much better performance than SwapNodes and covers the most of the real situations
  *        but cannot work when the consumers count greater than one
@@ -85,9 +86,9 @@ NodePair Swap(NodePtr first_node, NodePtr second_node) {
         new_nodes = SwapNodes(first_node, second_node);
     else
         new_nodes = SwapOutputs(first_node, second_node);
-
     return new_nodes;
 }
+#endif
 
 NodePtr GetPatternNode(const PatternValueMap& pattern_map, const NodeVector& node_labels) {
     for (const auto& node_label : node_labels) {
@@ -112,8 +113,11 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = GetPatternNode(pattern_to_output, NodeVector{unary_op_label, fq_label});
-
+#if 0
         const NodePair new_nodes = Swap(transpose, unary);
+#else
+        const NodePair new_nodes = SwapNodes(transpose, unary);
+#endif
 
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
@@ -148,9 +152,11 @@ ov::pass::TransposeSinkingUnaryBackwardSingleConsumer::TransposeSinkingUnaryBack
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto unary = GetPatternNode(pattern_to_output, NodeVector{unary_op_label, fq_label});
-
+#if 0
         const NodePair new_nodes = Swap(unary, transpose);
-
+#else
+        const NodePair new_nodes = SwapNodes(unary, transpose);
+#endif
         register_new_node(new_nodes.first);
         register_new_node(new_nodes.second);
 

@@ -52,6 +52,8 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "transformations/utils/utils.hpp"
+#include "../../src/ops/gna_convolution.hpp"
+#include "../../src/ops/gna_max_pool.hpp"
 
 namespace Builder {
 
@@ -2069,19 +2071,11 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     const auto isInternalConstLayer = [](const std::shared_ptr<::ngraph::op::Constant>& constLayer,
                                          const std::shared_ptr<::ngraph::Node>& consumerLayer,
                                          bool keep_constants) -> bool {
-
-        const auto isGNAConvolution = [](const std::shared_ptr<::ngraph::Node> &node) -> bool {
-            return (node->get_friendly_name().find("gna_convolution") != std::string::npos);
-        };
-        const auto isGNAMaxPool = [](const std::shared_ptr<::ngraph::Node> &node) -> bool {
-            return (node->get_friendly_name().find("gna_max_pool") != std::string::npos);
-        };
-
         if (((::ngraph::as_type_ptr<::ngraph::op::ConvolutionIE>(consumerLayer) ||
-              ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer)) &&
+              ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer) ||
+              ::ngraph::as_type_ptr<ov::intel_gna::op::GNAConvolution>(consumerLayer) ||
+              ::ngraph::as_type_ptr<ov::intel_gna::op::GNAMaxPool>(consumerLayer)) &&
              !keep_constants) ||
-            isGNAConvolution(consumerLayer) ||
-            isGNAMaxPool(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::DeconvolutionIE>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
