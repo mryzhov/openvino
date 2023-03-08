@@ -35,12 +35,13 @@ bool IsPreprocessingLayerSuppported(std::shared_ptr<ngraph::Node>& layer) {
     if (std::dynamic_pointer_cast<ov::opset1::Transpose>(layer)) {
         const ov::Shape squeezed_shape = SqueezeShape(layer->get_shape());
         const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
+        const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
 
         if (squeezed_shape.size() > 2) {
             return true;
         } else if (min_input_dim > 8) {
             return true;
-        } else if (ALIGN(min_input_dim, limitations::noOfInputsDivisor) != min_input_dim) {
+        } else if (ALIGN(max_input_dim, limitations::noOfInputsDivisor) != max_input_dim) {
             // TODO: need to test gna_config.gnaFlags.input_low_precision
             return true;
         } else {
