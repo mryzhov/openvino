@@ -18,6 +18,7 @@
 #include "transformations/common_optimizations/transpose_sinking_split.hpp"
 #include "transformations/common_optimizations/transpose_sinking_unary.hpp"
 #include "transformations/common_optimizations/transpose_sinking_stridedslice.hpp"
+#include "transformations/common_optimizations/transpose_sinking_slice.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
@@ -28,6 +29,7 @@ ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
     add_matcher<ov::pass::TransposeSinkingSplitForward>();
     add_matcher<ov::pass::TransposeSinkingPadForward>();
     add_matcher<ov::pass::TransposeSinkingStridedSliceForward>();
+    add_matcher<ov::pass::TransposeSinkingSliceForward>();
     add_matcher<ov::pass::TransposeFuse>();
 }
 
@@ -39,6 +41,7 @@ ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
     add_matcher<ov::pass::TransposeSinkingSplitBackward>();
     add_matcher<ov::pass::TransposeSinkingPadBackward>();
     add_matcher<ov::pass::TransposeSinkingStridedSliceBackward>();
+    add_matcher<ov::pass::TransposeSinkingSliceBackward>();
     add_matcher<ov::pass::TransposeFuse>();
 }
 
