@@ -168,8 +168,6 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
                                                                        {ov::element::u64, ov::element::i32},
                                                                        {ov::element::u32, ov::element::i32}});
 
-    manager.register_pass<ov::pass::Serialize>("model_gna.xml", "model_gna.bin");
-
     const auto& pass_config = manager.get_pass_config();
 
     // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
