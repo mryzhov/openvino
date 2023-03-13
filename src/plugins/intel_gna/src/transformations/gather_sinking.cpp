@@ -14,6 +14,7 @@
 #include "transformations/gather_sinking_unary.hpp"
 #include "transformations/gather_sinking_binary.hpp"
 #include "transformations/gather_sinking_fuse.hpp"
+#include "transformations/gather_sinking_transpose_reshape.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
@@ -24,6 +25,7 @@ GatherSinkingGeneralForward::GatherSinkingGeneralForward() {
     MATCHER_SCOPE(GatherSinkingGeneralForward);
     add_matcher<GatherSinkingUnaryForward>();
     add_matcher<GatherSinkingBinaryForward>();
+    add_matcher<GatherSinkingTransposeReshapeForward>();
     add_matcher<GatherSinkingFuse>();
 }
 
@@ -31,6 +33,7 @@ GatherSinkingGeneralBackward::GatherSinkingGeneralBackward() {
     MATCHER_SCOPE(GatherSinkingGeneralBackward);
     add_matcher<GatherSinkingUnaryBackward>();
     add_matcher<GatherSinkingBinaryBackward>();
+    add_matcher<GatherSinkingTransposeReshapeBackward>();
     add_matcher<GatherSinkingFuse>();
 }
 
