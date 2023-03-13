@@ -6,6 +6,8 @@
 
 #include <openvino/cc/ngraph/itt.hpp>
 #include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset7.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
@@ -27,7 +29,9 @@ ov::Shape SqueezeShape(const ov::Shape& shape) {
 
 bool IsPreprocessingLayerSuppported(std::shared_ptr<ngraph::Node>& layer) {
     // Gather layers are not supported by GNA and have to be executed on CPU
-    if (std::dynamic_pointer_cast<ov::opset1::Gather>(layer)) {
+    if (std::dynamic_pointer_cast<ov::opset1::Gather>(layer) ||
+        std::dynamic_pointer_cast<ov::opset7::Gather>(layer) ||
+        std::dynamic_pointer_cast<ov::opset8::Gather>(layer)) {
         return true;
     }
 
