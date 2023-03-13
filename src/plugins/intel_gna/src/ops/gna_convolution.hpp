@@ -43,6 +43,20 @@ void shape_infer(const ov::intel_gna::op::GNAConvolution* op,
 
 } // namespace internal
 
+/**
+ * @brief Activation modes for fused convolutions.
+ *
+ */
+enum class ActivationType { SIGMOID,
+                            RELU,
+                            TANH,
+                            ABS,
+                            LOG,
+                            EXP,
+                            SIGN,
+                            CLAMP,
+                            NO_ACTIVATION };
+
 /// \brief Convolution with NHWC layout
 ///
 class GNAConvolution : public ov::op::Op {
@@ -127,6 +141,9 @@ public:
     void set_auto_pad(const ov::op::PadType& auto_pad) {
         m_auto_pad = auto_pad;
     }
+    bool has_add_node() const { return m_has_add_node; }
+    ActivationType get_activation() const { return m_activation_type; }
+    void set_activation(ActivationType activation_type) { m_activation_type = activation_type; }
 
     /*
      * TODO: for unit tests
@@ -166,6 +183,8 @@ private:
                             const ngraph::CoordinateDiff& pads_end,
                             const std::vector<T>& input_shapes,
                             std::vector<T>& output_shapes);
+    bool m_has_add_node;
+    ActivationType m_activation_type;
 };
 } // namespace op
 } // namespace intel_gna

@@ -55,6 +55,7 @@
 #include "transformations/swap_input_matmul_gna.hpp"
 #include "transformations/unfuse_reshape_and_transpose.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/fuse_conv_biasadd_activation.hpp"
 
 #include "debug_new_pass.hpp"
 #include "transformations/transpose_nchw.hpp"
@@ -127,6 +128,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     manager.register_pass<ov::pass::TransposeToReshape>();
+    manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
