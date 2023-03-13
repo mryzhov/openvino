@@ -7,7 +7,9 @@
 #include <ngraph/node.hpp>
 #include "openvino/pass/graph_rewrite.hpp"
 
-namespace ov::intel_gna::pass {
+namespace ov {
+namespace intel_gna {
+namespace pass {
 
 class GnaFuseMarkUpNodesOrder : public ov::pass::ModelPass {
 public:
@@ -51,4 +53,6 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
-}  // namespace ov::nvidia_gpu::pass
+}  // namespace pass
+}  // namespace intel_gna
+}  // namespace ov
