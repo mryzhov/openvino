@@ -126,6 +126,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     if (ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model) || ov::op::util::has_op_with_type<ngraph::opset7::MaxPool>(model)) {
     manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
     manager.register_pass<ov::intel_gna::pass::ReshapeTransposeSubstitute>();
+    intel_gna_debug::DebugVisualize(manager, "before_TransposeSinkingGeneral");
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();
@@ -134,6 +135,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     }
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
+    intel_gna_debug::DebugVisualize(manager, "after_our_transformations");
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -193,6 +195,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     pass_config->disable<ov::pass::TransposeReduction>();
     // Operations Max and Min aren't supported
     pass_config->disable<ov::pass::ConcatReduceFusion>();
+
+    intel_gna_debug::DebugVisualize(manager, "final");
 
     manager.run_passes(model);
 
