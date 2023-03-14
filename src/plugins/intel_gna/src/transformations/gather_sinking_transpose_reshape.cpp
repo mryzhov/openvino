@@ -142,6 +142,9 @@ bool AreFlattenShapes(const Shape& shape1, const Shape& shape2) {
     while (shape1[i] == shape2[i]) {
         ++i;
     }
+    // consider only last dimension to be flatten/unflatten
+    if (shape1.size() - 1 != i && shape2.size() - 1 != i)
+        return false;
     // min_shape.back() == MULTIPLY(max_shape.begin() + i, max_shape.end())
     const size_t mult1 = std::accumulate(shape1.begin() + i, shape1.end(), 1, std::multiplies<size_t>());
     const size_t mult2 = std::accumulate(shape2.begin() + i, shape2.end(), 1, std::multiplies<size_t>());

@@ -80,6 +80,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
+    intel_gna_debug::DebugVisualize(manager, "start");
     manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
     manager.register_pass<ov::pass::CommonOptimizations>();
@@ -122,8 +123,10 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
+    intel_gna_debug::DebugVisualize(manager, "before_TransposeNCHW");
     manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
     manager.register_pass<ov::intel_gna::pass::ReshapeTransposeSubstitute>();
+    intel_gna_debug::DebugVisualize(manager, "before_TransposeSinkingGeneral");
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();
@@ -131,6 +134,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
+    intel_gna_debug::DebugVisualize(manager, "after_our_transformations");
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -191,6 +195,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     pass_config->disable<ov::pass::TransposeReduction>();
     // Operations Max and Min aren't supported
     pass_config->disable<ov::pass::ConcatReduceFusion>();
+
+    intel_gna_debug::DebugVisualize(manager, "final");
 
     manager.run_passes(model);
 
