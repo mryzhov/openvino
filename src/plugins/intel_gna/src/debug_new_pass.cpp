@@ -17,10 +17,13 @@ void DebugVisualize(ov::pass::Manager& manager, const std::string& name) {
 #ifdef DEBUG_VISUALIZE
     static unsigned counter = 0;
     std::stringstream ss;
+#ifdef DEBUG_VISUALIZETREE
     ss << counter << name << ".png";
     manager.register_pass<ov::pass::VisualizeTree>(ss.str());
-    //ss << counter << name;
-    //manager.register_pass<ov::pass::Serialize>(ss.str() + ".xml", ss.str() + ".bin");
+#else
+    ss << counter << name;
+    manager.register_pass<ov::pass::Serialize>(ss.str() + ".xml", ss.str() + ".bin");
+#endif
     ++counter;
 #endif
 }
