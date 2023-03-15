@@ -122,6 +122,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
+    // TODO enable this transformation for networks without convolutions
+    if (ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model) || ov::op::util::has_op_with_type<ngraph::opset7::MaxPool>(model)) {
     manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
     manager.register_pass<ov::intel_gna::pass::ReshapeTransposeSubstitute>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
@@ -129,6 +131,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     manager.register_pass<ov::pass::TransposeToReshape>();
     manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
+    }
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
