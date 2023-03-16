@@ -64,7 +64,8 @@
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/reshape_transpose_substitute.hpp"
-
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -74,6 +75,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply");
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
+    const bool has_convolution = ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model);
+    const bool has_maxpool = ov::op::util::has_op_with_type<ngraph::opset7::MaxPool>(model);
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
@@ -126,7 +129,6 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     if (ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model) || ov::op::util::has_op_with_type<ngraph::opset7::MaxPool>(model)) {
     manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
     manager.register_pass<ov::intel_gna::pass::ReshapeTransposeSubstitute>();
-    intel_gna_debug::DebugVisualize(manager, "before_TransposeSinkingGeneral");
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();
@@ -135,7 +137,6 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     }
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
-    intel_gna_debug::DebugVisualize(manager, "after_our_transformations");
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -179,6 +180,10 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
                                                                      {ov::element::u32, ov::element::i32}});
     const auto& pass_config = manager.get_pass_config();
 
+    if (has_convolution || has_maxpool) {
+        pass_config->disable<ov::pass::SliceToStridedSlice>();
+    }
+
     // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
     pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
     pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
@@ -196,9 +201,15 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     // Operations Max and Min aren't supported
     pass_config->disable<ov::pass::ConcatReduceFusion>();
 
-    intel_gna_debug::DebugVisualize(manager, "final");
-
     manager.run_passes(model);
+
+    if (has_convolution || has_maxpool) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
+        manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+        manager.run_passes(model);
+    }
 
     is_ngraph_passes_used = true;
 }
