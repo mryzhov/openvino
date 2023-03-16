@@ -7,6 +7,7 @@
 #include "gna_itt.hpp"
 #include "legacy/net_pass.h"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
+#include "ngraph/opsets/opset2.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -75,8 +76,11 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply");
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
-    const bool has_convolution = ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model);
-    const bool has_maxpool = ov::op::util::has_op_with_type<ngraph::opset7::MaxPool>(model);
+    const bool has_convolution = ov::op::util::has_op_with_type<ov::opset8::Convolution>(model);
+    const bool has_maxpool = ov::op::util::has_op_with_type<ov::opset8::MaxPool>(model);
+    const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
+    const bool has_mvn = ov::op::util::has_op_with_type<ov::opset8::MVN>(model) ||
+                         ov::op::util::has_op_with_type<ov::op::v0::MVN>(model);
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
@@ -126,14 +130,14 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
     // TODO enable this transformation for networks without convolutions
-    if (ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model) || ov::op::util::has_op_with_type<ngraph::opset7::MaxPool>(model)) {
-    manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
-    manager.register_pass<ov::intel_gna::pass::ReshapeTransposeSubstitute>();
-    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-    manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
-    manager.register_pass<ov::pass::ReshapeSequenceFusion>();
-    manager.register_pass<ov::pass::TransposeToReshape>();
-    manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
+    if (has_convolution || has_maxpool || has_mvn) {
+        manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
+        manager.register_pass<ov::intel_gna::pass::ReshapeTransposeSubstitute>();
+        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+        manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
+        manager.register_pass<ov::pass::ReshapeSequenceFusion>();
+        manager.register_pass<ov::pass::TransposeToReshape>();
+        manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
     }
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
@@ -180,7 +184,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
                                                                      {ov::element::u32, ov::element::i32}});
     const auto& pass_config = manager.get_pass_config();
 
-    if (has_convolution || has_maxpool) {
+    if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
         pass_config->disable<ov::pass::SliceToStridedSlice>();
     }
 
@@ -203,7 +207,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
 
     manager.run_passes(model);
 
-    if (has_convolution || has_maxpool) {
+    if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
