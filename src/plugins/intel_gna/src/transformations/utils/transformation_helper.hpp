@@ -110,6 +110,20 @@ std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> c
 std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer,
                                             std::shared_ptr<ngraph::Node> last_node);
 
+/**
+ * @brief removes single node from the function and insert Reshape if input and outpur shapes are different
+ * @param node the node to be deleted
+ * @return void
+ */
+void RemoveSingleInputNodeFromFunction(std::shared_ptr<ov::Node> node);
+
+/**
+ * @brief remove all 1 dimentions from the shape vector
+ * @param shape original tensor shape
+ * @return shape without 1 dimentions
+ */
+ov::Shape SqueezeShape(const ov::Shape& shape);
+
 }  // namespace helper
 }  // namespace pass
 }  // namespace intel_gna

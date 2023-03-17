@@ -194,6 +194,13 @@ GatherSinkingTransposeReshapeForward::GatherSinkingTransposeReshapeForward() {
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto reshape = pattern_to_output.at(reshape_label).get_node_shared_ptr();
 
+        const ov::Shape reshape_shape = pass::helper::SqueezeShape(reshape->get_shape());
+        const ov::Shape transpose_shape = pass::helper::SqueezeShape(transpose->get_shape());
+        if (reshape_shape == transpose_shape) {
+            pass::helper::RemoveSingleInputNodeFromFunction(transpose);
+            return true;
+        }
+
         const NodePair new_nodes = SinkForward(transpose, transpose_const, reshape);
 
         register_new_node(new_nodes.first);
@@ -219,6 +226,13 @@ GatherSinkingTransposeReshapeBackward::GatherSinkingTransposeReshapeBackward() {
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto reshape = pattern_to_output.at(reshape_label).get_node_shared_ptr();
+
+        const ov::Shape reshape_shape = pass::helper::SqueezeShape(reshape->get_shape());
+        const ov::Shape transpose_shape = pass::helper::SqueezeShape(transpose->get_shape());
+        if (reshape_shape == transpose_shape) {
+            pass::helper::RemoveSingleInputNodeFromFunction(transpose);
+            return true;
+        }
 
         const NodePair new_nodes = SinkBackward(transpose, transpose_const, reshape);
         register_new_node(new_nodes.first);
