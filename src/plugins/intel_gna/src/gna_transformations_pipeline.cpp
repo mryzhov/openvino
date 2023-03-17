@@ -7,6 +7,7 @@
 #include "gna_itt.hpp"
 #include "legacy/net_pass.h"
 #include "legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
+#include "ngraph/opsets/opset2.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -64,7 +65,8 @@
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/reshape_transpose_substitute.hpp"
-
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -74,13 +76,17 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "TransformationsPipeline::apply");
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
+    const bool has_convolution = ov::op::util::has_op_with_type<ov::opset8::Convolution>(model);
+    const bool has_maxpool = ov::op::util::has_op_with_type<ov::opset8::MaxPool>(model);
+    const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
+    const bool has_mvn = ov::op::util::has_op_with_type<ov::opset8::MVN>(model) ||
+                         ov::op::util::has_op_with_type<ov::op::v0::MVN>(model);
 
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
     // In OV API 2.0(IRv10) default convertion to fp32 (inputs, outputs and weights) is disabled
     // and we need to run the ConvertPrecision transformation to support old networks.
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_array{{ngraph::element::f16, ngraph::element::f32}});
-    intel_gna_debug::DebugVisualize(manager, "start");
     manager.register_pass<ov::pass::ConvertMVN1ToMVN6>();
     manager.register_pass<ov::intel_gna::pass::DecomposeMVN>();
     manager.register_pass<ov::pass::CommonOptimizations>();
@@ -124,7 +130,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
     // TODO enable this transformation for networks without convolutions
-    if (ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model) || ov::op::util::has_op_with_type<ngraph::opset7::MaxPool>(model)) {
+    if (has_convolution || has_maxpool || has_mvn) {
         manager.register_pass<ov::intel_gna::pass::TransposeNCHW>();
         manager.register_pass<ov::intel_gna::pass::ReshapeTransposeSubstitute>();
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
@@ -135,7 +141,6 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     }
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(subgraph_cpu_map);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(subgraph_cpu_map);
-    intel_gna_debug::DebugVisualize(manager, "after_our_transformations");
     manager.register_pass<ov::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ov::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
@@ -180,6 +185,10 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
 
     const auto& pass_config = manager.get_pass_config();
 
+    if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
+        pass_config->disable<ov::pass::SliceToStridedSlice>();
+    }
+
     // Allowing FP16 Converts to be folded and FP16 constants to upgrade to FP32 data type
     pass_config->disable<ov::pass::ConvertCompressedOnlyToLegacy>();
     pass_config->disable<ov::pass::DisableDecompressionConvertConstantFolding>();
@@ -197,9 +206,15 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     // Operations Max and Min aren't supported
     pass_config->disable<ov::pass::ConcatReduceFusion>();
 
-    intel_gna_debug::DebugVisualize(manager, "final");
-
     manager.run_passes(model);
+
+    if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
+        manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+        manager.run_passes(model);
+    }
 
     is_ngraph_passes_used = true;
 }
@@ -241,7 +256,9 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     passes->registerPass<FlattenTrivialConcatPass>();
     passes->registerPass<InsertConcatAligningFilterPass>();
     passes->registerPass<ReorderConcatInputsPass>();
-    passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
+    if (!is_ngraph_passes_used) {
+        passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
+    }
     // Keep legacy inserting of Identity layer here
     // because concat and split aliging passes are not moved to ngraph yet
     passes->registerPass<InsertIdentityLayerPass>();
