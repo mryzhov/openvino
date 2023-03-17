@@ -128,7 +128,12 @@ bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>&
                                                     is_exception_allowed);
         }
     }
+    // 1D Convolution
+    if (conv_gna->get_dilations().size() == 1) {
+        return check_dilation(conv_gna->get_dilations()[0], conv_gna->get_dilations()[0]);
+    } else {
     return check_dilation(conv_gna->get_dilations()[0], conv_gna->get_dilations()[1]);
+}
 }
 
 bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
