@@ -4,11 +4,13 @@
 
 #include "transformation_helper.hpp"
 
-#include <ngraph/opsets/opset7.hpp>
+#include "openvino/opsets/opset7.hpp"
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include "ops/gna_convolution.hpp"
 #include "ops/gna_max_pool.hpp"
+
+using namespace ov::opset7;
 
 namespace ov {
 namespace intel_gna {
@@ -105,6 +107,29 @@ std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7
     }
     return last_node;
 }
+
+void RemoveSingleInputNodeFromFunction(std::shared_ptr<ov::Node> node) {
+    const ov::Shape input_node_shape = node->get_input_shape(0);
+    const ov::Shape output_node_shape = node->get_output_shape(0);
+
+    std::shared_ptr<ov::Node> node_parent = node->get_input_node_shared_ptr(0);
+    if (!std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
+        auto reshape_const_node =
+            std::make_shared<Constant>(ov::element::i64, ov::Shape{output_node_shape.size()}, output_node_shape);
+        node_parent = std::make_shared<Reshape>(node_parent, reshape_const_node, false);
+    }
+
+    ov::replace_output_update_name(node->output(0), node_parent->output(0));
+}
+
+ov::Shape SqueezeShape(const ov::Shape& shape) {
+    ov::Shape squeezed_shape;
+    std::copy_if(shape.begin(), shape.end(), std::back_inserter(squeezed_shape), [](size_t x) {
+        return x != 1;
+    });
+    return squeezed_shape;
+}
+
 }  // namespace helper
 }  // namespace pass
 }  // namespace intel_gna

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/remove_pre_post_processing.hpp"
+#include "transformations/utils/transformation_helper.hpp"
 
 #include <openvino/cc/ngraph/itt.hpp>
 #include <openvino/opsets/opset1.hpp>
@@ -19,14 +20,6 @@ using namespace ov::intel_gna::pass;
 
 namespace {
 
-ov::Shape SqueezeShape(const ov::Shape& shape) {
-    ov::Shape squeezed_shape;
-    std::copy_if(shape.begin(), shape.end(), std::back_inserter(squeezed_shape), [](size_t x) {
-        return x != 1;
-    });
-    return squeezed_shape;
-}
-
 bool IsPreprocessingLayerSuppported(std::shared_ptr<ngraph::Node>& layer) {
     // Gather layers are not supported by GNA and have to be executed on CPU
     if (std::dynamic_pointer_cast<ov::opset1::Gather>(layer) ||
@@ -37,7 +30,7 @@ bool IsPreprocessingLayerSuppported(std::shared_ptr<ngraph::Node>& layer) {
 
     // 2-d Transposes layers can be executed on GNA
     if (std::dynamic_pointer_cast<ov::opset1::Transpose>(layer)) {
-        const ov::Shape squeezed_shape = SqueezeShape(layer->get_shape());
+        const ov::Shape squeezed_shape = pass::helper::SqueezeShape(layer->get_shape());
         const size_t min_input_dim = std::min(squeezed_shape[0], squeezed_shape[1]);
         const size_t max_input_dim = std::max(squeezed_shape[0], squeezed_shape[1]);
 
@@ -56,24 +49,6 @@ bool IsPreprocessingLayerSuppported(std::shared_ptr<ngraph::Node>& layer) {
 
     return false;
 }
-
-/*
-  works only if we have one date input and one output
- */
-void RemoveSingleInputNodeFromFunction(std::shared_ptr<ov::Node> node) {
-    const ov::Shape input_node_shape = node->get_input_shape(0);
-    const ov::Shape output_node_shape = node->get_output_shape(0);
-
-    std::shared_ptr<ov::Node> node_parent = node->get_input_node_shared_ptr(0);
-    if (!std::equal(input_node_shape.begin(), input_node_shape.end(), output_node_shape.begin())) {
-        auto reshape_const_node =
-            std::make_shared<Constant>(ov::element::i64, ov::Shape{output_node_shape.size()}, output_node_shape);
-        node_parent = std::make_shared<Reshape>(node_parent, reshape_const_node, false);
-    }
-
-    ov::replace_output_update_name(node->output(0), node_parent->output(0));
-}
-
 /*
   Support only one data node as 0 input
  */
@@ -110,7 +85,7 @@ bool RemoveInputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mode
                     m_subgraph_cpu_map->emplace(param_node.get_node_shared_ptr()->get_friendly_name(),
                                                 CopySingleInputNodeFromFunction(target_node));
                 }
-                RemoveSingleInputNodeFromFunction(target_node);
+                pass::helper::RemoveSingleInputNodeFromFunction(target_node);
                 result = true;
             }
         }
@@ -130,7 +105,7 @@ bool RemoveOutputsProcessing::run_on_model(const std::shared_ptr<ov::Model>& mod
                     m_subgraph_cpu_map->emplace(r_input_node->get_friendly_name(),
                                                 CopySingleInputNodeFromFunction(r_input_node));
                 }
-                RemoveSingleInputNodeFromFunction(r_input_node);
+                pass::helper::RemoveSingleInputNodeFromFunction(r_input_node);
                 result = true;
             }
         }
