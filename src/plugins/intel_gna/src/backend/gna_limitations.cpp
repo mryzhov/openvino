@@ -75,7 +75,7 @@ bool SupportedElementTypes::is_constant_type_supported(ov::element::Type elem_ty
 }
 
 bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
-                       const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                       const ov::intel_gna::target::DeviceVersion& effective_compile_target,
                        const InferenceEngine::Precision gna_precision,
                        bool is_exception_allowed) {
     OPENVINO_ASSERT(conv_gna, "GNAConvolution node is empty!");
@@ -138,7 +138,7 @@ bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>&
 }
 
 bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
-                          const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                          const ov::intel_gna::target::DeviceVersion& effective_compile_target,
                           bool is_exception_allowed) {
     OPENVINO_ASSERT(max_pool, "MaxPool node is empty!");
     auto kernels = max_pool->get_kernel();

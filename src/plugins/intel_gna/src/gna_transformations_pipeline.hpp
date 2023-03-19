@@ -17,8 +17,8 @@ namespace intel_gna {
 class TransformationsPipeline {
 public:
     explicit TransformationsPipeline(const Config& config,
-                                     const ov::intel_gna::common::DeviceVersion& effective_compile_target =
-                                         ov::intel_gna::common::DeviceVersion::NotSet)
+                                     const ov::intel_gna::target::DeviceVersion& effective_compile_target =
+                                         ov::intel_gna::target::DeviceVersion::NotSet)
         : config(config),
           effective_compile_target(effective_compile_target) {}
 

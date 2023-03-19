@@ -61,7 +61,7 @@
 #include "debug_new_pass.hpp"
 #include "transformations/transpose_nchw.hpp"
 #include "transformations/gather_sinking.hpp"
-#include "transformations/common_optimizations/transpose_sinking_general.hpp"
+#include "transformations/transpose_sinking/ts_general.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/reshape_transpose_substitute.hpp"

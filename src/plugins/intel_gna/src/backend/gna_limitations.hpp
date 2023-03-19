@@ -99,7 +99,7 @@ private:
  * @return true if supported
  */
 bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
-                       const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                       const ov::intel_gna::target::DeviceVersion& effective_compile_target,
                        const InferenceEngine::Precision gna_precision,
                        bool is_exception_allowed = false);
 /**
@@ -111,7 +111,7 @@ bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>&
  * @return true if precision is found in supported
  */
 bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
-                          const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                          const ov::intel_gna::target::DeviceVersion& effective_compile_target,
                           bool is_exception_allowed = false);
 
 /**
