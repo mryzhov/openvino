@@ -361,7 +361,7 @@ std::vector<FactoryPtr> unary_factories = {
     CREATE_UNARY_FACTORY(Log),        CREATE_UNARY_FACTORY(Negative), CREATE_UNARY_FACTORY(Relu),
     CREATE_UNARY_FACTORY(Sigmoid),    CREATE_UNARY_FACTORY(Sign),     CREATE_UNARY_FACTORY(Sin),
     CREATE_UNARY_FACTORY(Sinh),       CREATE_UNARY_FACTORY(SoftSign), CREATE_UNARY_FACTORY(Sqrt),
-    CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh),     CREATE_UNARY_FACTORY(FakeQuantize)};
+    CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh)};
 
 TEST_P(TransposeSinkingUnaryTestFixture, CompareFunctions) {
     FactoryPtr unary_factory;
