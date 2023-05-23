@@ -4,7 +4,7 @@
 
 #include "transformations/transpose_nchw.hpp"
 
-#include <ngraph/opsets/opset8.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <openvino/cc/ngraph/itt.hpp>
@@ -14,6 +14,8 @@
 #include <vector>
 
 #include "transformations/utils/transformation_helper.hpp"
+
+using namespace ov::opset10;
 
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::TransposeNCHW, "TransposeNCHW");
 NGRAPH_RTTI_DEFINITION(ov::intel_gna::pass::SubstituteGNAConvolution, "SubstituteGNAConvolution");
@@ -94,7 +96,7 @@ namespace SubstituteGNAConvolutionNS {
 bool DoTransformation(Node convolution);
 
 bool DoTransformation(Node convolution) {
-    auto convolution_node = std::dynamic_pointer_cast<ngraph::opset8::Convolution>(convolution);
+    auto convolution_node = std::dynamic_pointer_cast<Convolution>(convolution);
     auto convolution_input_data_node = convolution_node->input_value(0);
     auto convolution_input_const_node = convolution_node->input_value(1);
     const ngraph::Shape convolution_input_shape = convolution_node->get_input_shape(0);
@@ -108,14 +110,14 @@ bool DoTransformation(Node convolution) {
 
     const ngraph::Shape transpose_before_order = MakeTransposeOrderNCHW2NHWC(convolution_input_shape.size());
 
-    auto transpose_const = ngraph::opset8::Constant::create(ngraph::element::i64,
+    auto transpose_const = Constant::create(ngraph::element::i64,
                                                             ngraph::Shape{transpose_before_order.size()},
                                                             transpose_before_order);
 
-    auto transpose_before = std::make_shared<ngraph::opset8::Transpose>(convolution_input_data_node, transpose_const);
+    auto transpose_before = std::make_shared<Transpose>(convolution_input_data_node, transpose_const);
 
     auto transpose_conv_constant =
-        std::make_shared<ngraph::opset8::Transpose>(convolution_input_const_node, transpose_const);
+        std::make_shared<Transpose>(convolution_input_const_node, transpose_const);
     auto conv_new = std::make_shared<ov::intel_gna::op::GNAConvolution>(transpose_before,
                                                                         transpose_conv_constant,
                                                                         convolution_node->get_strides(),
@@ -126,9 +128,9 @@ bool DoTransformation(Node convolution) {
 
     const ngraph::Shape transpose_after_order = MakeTransposeOrderNHWC2NCHW(conv_new->get_output_shape(0).size());
 
-    auto transpose_after = std::make_shared<ngraph::opset8::Transpose>(
+    auto transpose_after = std::make_shared<Transpose>(
         conv_new,
-        ngraph::opset8::Constant::create(ngraph::element::i64,
+        Constant::create(ngraph::element::i64,
                                          ngraph::Shape{transpose_after_order.size()},
                                          transpose_after_order));
 
@@ -152,11 +154,11 @@ bool DoTransformation(Node max_pool) {
 
     const ngraph::Shape transpose_before_order = MakeTransposeOrderNCHW2NHWC(max_pool_input_shape.size());
 
-    auto transpose_const = ngraph::opset8::Constant::create(ngraph::element::i64,
+    auto transpose_const = Constant::create(ngraph::element::i64,
                                                             ngraph::Shape{transpose_before_order.size()},
                                                             transpose_before_order);
 
-    auto transpose_before = std::make_shared<ngraph::opset8::Transpose>(max_pool_input_data_node, transpose_const);
+    auto transpose_before = std::make_shared<Transpose>(max_pool_input_data_node, transpose_const);
 
     auto max_pool_new = std::make_shared<ov::intel_gna::op::GNAMaxPool>(transpose_before,
                                                                         max_pool_node->get_strides(),
@@ -168,9 +170,9 @@ bool DoTransformation(Node max_pool) {
 
     const ngraph::Shape transpose_after_order = MakeTransposeOrderNHWC2NCHW(max_pool_new->get_output_shape(0).size());
 
-    auto transpose_after = std::make_shared<ngraph::opset8::Transpose>(
+    auto transpose_after = std::make_shared<Transpose>(
         max_pool_new,
-        ngraph::opset8::Constant::create(ngraph::element::i64,
+        Constant::create(ngraph::element::i64,
                                          ngraph::Shape{transpose_after_order.size()},
                                          transpose_after_order));
 
@@ -188,10 +190,10 @@ bool DoTransformation(Node max_pool) {
 ov::intel_gna::pass::SubstituteGNAConvolution::SubstituteGNAConvolution() {
     MATCHER_SCOPE(SubstituteGNAConvolution);
 
-    auto convolution = ngraph::pattern::wrap_type<ngraph::opset8::Convolution>();
+    auto convolution = ngraph::pattern::wrap_type<Convolution>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto convolution_node = std::dynamic_pointer_cast<ngraph::opset8::Convolution>(m.get_match_root());
+        auto convolution_node = std::dynamic_pointer_cast<Convolution>(m.get_match_root());
         if (!convolution_node) {
             return false;
         }
