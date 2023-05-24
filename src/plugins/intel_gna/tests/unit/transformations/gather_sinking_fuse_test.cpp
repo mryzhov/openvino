@@ -2,62 +2,79 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/gather_sinking_fuse.hpp"
-
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/init_node_info.hpp>
-
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 
+#include <ngraph/function.hpp>
+#include <openvino/opsets/opset10.hpp>
+#include <ops/gna_convolution.hpp>
+#include <ops/gna_max_pool.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <transformations/init_node_info.hpp>
+
+#include "transformations/transpose_nchw.hpp"
+
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 
-using NodePtr = std::shared_ptr<ov::Node>;
-
-namespace {
-
-std::shared_ptr<Gather> MakeGather(NodePtr input_node, const std::vector<size_t>& indices, size_t axis) {
-    const ov::Shape& input_shape = input_node->get_output_shape(0);
-    auto gather_indexes_node = Constant::create(ngraph::element::i64, ov::Shape{indices.size()}, indices);
-
-    auto gather_axis_node = Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
-
-    return std::make_shared<Gather>(input_node, gather_indexes_node, gather_axis_node);
-}
-
-}  // namespace
-
-TEST(GatherSinkingFuse, Remove) {
+TEST(TransposeNCHW, Convolution) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
-        auto tanh0 = std::make_shared<Tanh>(input_params);
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
+        auto kernel = Constant::create(ov::element::f32, {4,1,3,1}, {1});
 
-        auto input_gather = MakeGather(tanh0, std::vector<size_t>{2, 0, 1}, /* axis */ 1);
-        auto output_gather = MakeGather(input_gather, std::vector<size_t>{1, 2, 0}, /* axis */ 1);
+        auto convolution = std::make_shared<Convolution>(input_params,
+                                                         kernel,
+                                                         ngraph::Strides{2, 1},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::Strides{1, 1});
 
-        auto tanh1 = std::make_shared<Tanh>(output_gather);
-        const auto result = std::make_shared<Result>(tanh1);
+        const auto result = std::make_shared<Result>(convolution);
         function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
     std::shared_ptr<Model> orig_function = function->clone();
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<ov::intel_gna::pass::GatherSinkingFuse>();
+    manager.register_pass<ov::intel_gna::pass::SubstituteGNAConvolution>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
-        auto tanh0 = std::make_shared<Tanh>(input_params);
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
-        auto tanh1 = std::make_shared<Tanh>(tanh0);
-        const auto result = std::make_shared<Result>(tanh1);
+        auto transpose_before_const = Constant::create(ngraph::element::i64,
+                                                            ngraph::Shape{4},
+                                                            {0,2,3,1});
+
+        auto transpose_before = std::make_shared<Transpose>(input_params, transpose_before_const);
+
+        auto kernel = Constant::create(ov::element::f32, {4,1,3,1}, {1});
+
+        auto transpose_conv_const = Constant::create(ngraph::element::i64,
+                                                            ngraph::Shape{4},
+                                                            {0,2,3,1});
+
+        auto transpose_conv_before = std::make_shared<Transpose>(input_params, transpose_conv_const);
+
+        auto transpose_conv_constant = std::make_shared<Transpose>(kernel, transpose_conv_const);
+
+        auto convolution = std::make_shared<ov::intel_gna::op::GNAConvolution>(transpose_before,
+                                                         transpose_conv_constant,
+                                                         ngraph::Strides{2, 1},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::Strides{1, 1});
+
+        auto transpose_after_const = Constant::create(ngraph::element::i64,
+                                                            ngraph::Shape{4},
+                                                            {0,3,1,2});
+
+        auto transpose_after = std::make_shared<Transpose>(convolution, transpose_after_const);
+
+        const auto result = std::make_shared<Result>(transpose_after);
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
@@ -67,65 +84,51 @@ TEST(GatherSinkingFuse, Remove) {
     ASSERT_TRUE(result.valid) << result.message;
 }
 
-TEST(GatherSinkingFuse, DifferentAxis) {
+TEST(TransposeNCHW, MaxPool) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
-        auto tanh0 = std::make_shared<Tanh>(input_params);
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
-        auto input_gather = MakeGather(tanh0, std::vector<size_t>{2, 0, 1}, /* axis */ 1);
-        auto output_gather = MakeGather(input_gather, std::vector<size_t>{1, 2, 0}, /* axis */ 2);
+        auto max_pool = std::make_shared<ov::op::v1::MaxPool>(input_params,
+                                                         ngraph::Strides{2, 1},
+                                                         Shape{0, 0},
+                                                         Shape{0, 0},
+                                                         Shape{4, 1});
 
-        auto tanh1 = std::make_shared<Tanh>(output_gather);
-        const auto result = std::make_shared<Result>(tanh1);
+        const auto result = std::make_shared<Result>(max_pool);
         function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
     std::shared_ptr<Model> orig_function = function->clone();
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<ov::intel_gna::pass::GatherSinkingFuse>();
-    manager.run_passes(function);
-    ASSERT_NO_THROW(check_rt_info(function));
-
-    std::shared_ptr<Model> reference_function = function->clone();
-
-    const FunctionsComparator func_comparator =
-        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
-    const FunctionsComparator::Result result = func_comparator(function, reference_function);
-    ASSERT_TRUE(result.valid) << result.message;
-}
-
-TEST(GatherSinkingFuse, Combine) {
-    std::shared_ptr<Model> function;
-    {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
-        auto tanh0 = std::make_shared<Tanh>(input_params);
-
-        auto input_gather = MakeGather(tanh0, std::vector<size_t>{2, 0, 1}, /* axis */ 1);
-        auto output_gather = MakeGather(input_gather, std::vector<size_t>{1, 0, 2}, /* axis */ 1);
-
-        auto tanh1 = std::make_shared<Tanh>(output_gather);
-        const auto result = std::make_shared<Result>(tanh1);
-        function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
-    }
-
-    std::shared_ptr<Model> orig_function = function->clone();
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<ov::intel_gna::pass::GatherSinkingFuse>();
+    manager.register_pass<ov::intel_gna::pass::SubstituteGNAMaxPool>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
-        auto tanh0 = std::make_shared<Tanh>(input_params);
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
-        auto gather = MakeGather(tanh0, std::vector<size_t>{0, 2, 1}, /* axis */ 1);
+        auto transpose_before_const = Constant::create(ngraph::element::i64,
+                                                            ngraph::Shape{4},
+                                                            {0,2,3,1});
 
-        auto tanh1 = std::make_shared<Tanh>(gather);
-        const auto result = std::make_shared<Result>(tanh1);
+        auto transpose_before = std::make_shared<Transpose>(input_params, transpose_before_const);
+
+        auto max_pool = std::make_shared<ov::intel_gna::op::GNAMaxPool>(transpose_before,
+                                                         ngraph::Strides{2, 1},
+                                                         Shape{0, 0},
+                                                         Shape{0, 0},
+                                                         Shape{4, 1});
+
+        auto transpose_after_const = Constant::create(ngraph::element::i64,
+                                                            ngraph::Shape{4},
+                                                            {0,3,1,2});
+
+        auto transpose_after = std::make_shared<Transpose>(max_pool, transpose_after_const);
+
+        const auto result = std::make_shared<Result>(transpose_after);
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
