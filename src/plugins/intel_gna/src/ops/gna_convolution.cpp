@@ -11,8 +11,6 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
-NGRAPH_RTTI_DEFINITION(ov::intel_gna::op::GNAConvolution, "GNAConvolution");
-
 namespace ov {
 namespace intel_gna {
 namespace op {
@@ -357,7 +355,7 @@ std::shared_ptr<ngraph::Node> GNAConvolution::clone_with_new_inputs(const ngraph
                                                 m_auto_pad);
     }
 
-    throw ngraph::ngraph_error("Unsupported number of arguments for GNAConvolution operation");
+    OPENVINO_THROW("Unsupported number of arguments for GNAConvolution operation");
 }
 }  // namespace op
 }  // namespace intel_gna

@@ -1,0 +1,117 @@
+// Copyright (C) 2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#error hello
+
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
+
+#include <ngraph/function.hpp>
+#include <openvino/opsets/opset10.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <transformations/init_node_info.hpp>
+
+#include "transformations/transpose_nchw.hpp"
+
+using namespace ov;
+using namespace ov::opset10;
+
+TEST(TransposeNCHWTest, Convolution) {
+    std::shared_ptr<Model> function;
+    {
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{2, 3, 4, 5});
+
+        auto kernel = Constant::create(ov::element::f32, kernel_shape_, {1});
+
+        auto convolution = std::make_shared<Convolution>(input_params,
+                                                         kernel,
+                                                         ngraph::Strides{1, 1},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::Strides{1, 1});
+
+        const auto result = std::make_shared<Result>(convolution);
+        function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
+    }
+
+    std::shared_ptr<Model> orig_function = function->clone();
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::intel_gna::pass::SubstituteGNAConvolution>();
+    manager.run_passes(function);
+    ASSERT_NO_THROW(check_rt_info(function));
+
+    std::shared_ptr<Model> reference_function;
+    {
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{2, 3, 4, 5});
+
+        auto transpose_before__order = std::make_shared<Constant>(element::u64, Shape{3}, Shape{0, 2, 1});
+        auto transpose_before = std::make_shared<Transpose>(tanh0, transpose_before__order);
+
+        auto kernel = Constant::create(ov::element::f32, kernel_shape_, {1});
+
+        auto convolution = std::make_shared<Convolution>(input_params,
+                                                         kernel,
+                                                         ngraph::Strides{1, 1},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::Strides{1, 1});
+
+        const auto result = std::make_shared<Result>(convolution);
+        reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(function, reference_function);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransposeNCHWTest, Convolution) {
+    std::shared_ptr<Model> function;
+    {
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{2, 3, 4, 5});
+
+        auto kernel = Constant::create(ov::element::f32, kernel_shape_, {1});
+
+        auto convolution = std::make_shared<Convolution>(input_params,
+                                                         kernel,
+                                                         ngraph::Strides{1, 1},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::Strides{1, 1});
+
+        const auto result = std::make_shared<Result>(convolution);
+        function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
+    }
+
+    std::shared_ptr<Model> orig_function = function->clone();
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::intel_gna::pass::SubstituteGNAConvolution>();
+    manager.run_passes(function);
+    ASSERT_NO_THROW(check_rt_info(function));
+
+    std::shared_ptr<Model> reference_function;
+    {
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{2, 3, 4, 5});
+
+        auto kernel = Constant::create(ov::element::f32, kernel_shape_, {1});
+
+        auto convolution = std::make_shared<Convolution>(input_params,
+                                                         kernel,
+                                                         ngraph::Strides{1, 1},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::CoordinateDiff{0, 0},
+                                                         ngraph::Strides{1, 1});
+
+        const auto result = std::make_shared<Result>(convolution);
+        reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(function, reference_function);
+    ASSERT_TRUE(result.valid) << result.message;
+}

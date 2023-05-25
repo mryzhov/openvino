@@ -12,12 +12,11 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "transformations/ts_concat.hpp"
+#include "transformations/gather_sinking_split.hpp"
 
 using namespace ov;
 using namespace ov::opset10;
 
-namespace {
 void ShiftLeft(std::vector<size_t>& vec, size_t k) {
     if (k > vec.size())
         return;
@@ -57,7 +56,6 @@ std::vector<size_t> GatherBackward(size_t size, size_t initial_value) {
     ShiftRight(vec, 2);
     return vec;
 }
-} // namespace
 
 using NodePtr = std::shared_ptr<ov::Node>;
 using ModelPtr = std::shared_ptr<Model>;
@@ -75,55 +73,44 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
     return std::make_shared<Gather>(input_node->output(0), gather_indexes_node, gather_axis_node);
 }
 
-std::vector<size_t> TSConcat_Forward_indexes(size_t size, size_t initial_value) {
-    return std::vector<size_t>{0, 4, 1, 5, 2, 6, 3, 7, 8, 12, 9, 13, 10, 14, 11, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
-}
-
-TEST(TSConcat, Forward) {
+TEST(GatherSinkingSplit, Backward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
-        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
 
-        auto transpose_const = Constant::create(ngraph::element::i64,
-                                                            ngraph::Shape{4},
-                                                            {0,2,3,1});
+        auto split_axis1 = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{0});
+        auto split1 = std::make_shared<Split>(input_params, split_axis1, 2);
 
-        auto transpose = std::make_shared<Transpose>(input_params1, transpose_const);
+        auto split_axis2 = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{0});
+        auto split2 = std::make_shared<Split>(split1, split_axis2, 2);
 
-        auto concat = std::make_shared<Concat>(NodeVector{transpose, input_params2}, 0);
+        auto gather = MakeGather(split2, GatherForward, /* axis */ 1);
 
-        const auto result = std::make_shared<Result>(concat);
-        function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params1, input_params2});
+        const auto result = std::make_shared<Result>(gather);
+        function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
     std::shared_ptr<Model> orig_function = function->clone();
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<ov::intel_gna::pass::TSConcatForward>();
+    manager.register_pass<ov::intel_gna::pass::GatherSinkingSplitBackward>();
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
-        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
 
-        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{2}, ov::Shape{1,16});
-        auto reshape1 = std::make_shared<Reshape>(input_params1, reshape_const1, false);
+        auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
 
-        auto reshape_const2 = Constant::create(ngraph::element::i64, ov::Shape{2}, ov::Shape{1,16});
-        auto reshape2 = std::make_shared<Reshape>(input_params2, reshape_const2, false);
+        auto split_axis1 = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{0});
+        auto split1 = std::make_shared<Split>(gather, split_axis1, 2);
 
-        auto concat = std::make_shared<Concat>(NodeVector{reshape1, reshape2}, 1);
+        auto split_axis2 = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{0});
+        auto split2 = std::make_shared<Split>(split1, split_axis2, 2);
 
-        auto gather = MakeGather(concat, TSConcat_Forward_indexes, /* axis */ 1);
-
-        auto reshape_const3 = Constant::create(ngraph::element::i64, ov::Shape{4}, ov::Shape{4,2,2,2});
-        auto reshape3 = std::make_shared<Reshape>(gather, reshape_const3, false);
-
-        const auto result = std::make_shared<Result>(reshape3);
-        reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params1, input_params2});
+        const auto result = std::make_shared<Result>(split2);
+        reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
     const FunctionsComparator func_comparator =
