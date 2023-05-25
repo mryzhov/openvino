@@ -122,6 +122,8 @@ TSConcatForward::TSConcatForward() {
             auto reshape_input = std::make_shared<Reshape>(input_node_output, reshape_input_const, false);
             concat_inputs.push_back(reshape_input->output(0));
 
+            ov::copy_runtime_info(concat_node, {reshape_input, reshape_input_const});
+
             if (is_transposed_input) {
                 auto transpose_const = ov::as_type_ptr<Constant>(transpose->get_input_node_shared_ptr(1));
                 if (!transpose_const)
@@ -162,6 +164,7 @@ TSConcatForward::TSConcatForward() {
                                                                    concat_node->get_output_shape(0));
         auto reshape_output_new = std::make_shared<Reshape>(gather, reshape_output_const_new, false);
 
+        ov::copy_runtime_info(concat_node, {concat_new, gather_indices, gather, gather_axis, reshape_output_const_new, reshape_output_new});
         ov::replace_node_update_name(concat_node, reshape_output_new);
         return true;
     };
