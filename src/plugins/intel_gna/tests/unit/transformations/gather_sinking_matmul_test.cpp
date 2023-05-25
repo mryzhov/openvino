@@ -12,11 +12,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "transformations/transpose_nchw.hpp"
 #include "transformations/gather_sinking_matmul.hpp"
-#include "transformations/gather_sinking_split.hpp"
-
-#include "ngraph/pass/visualize_tree.hpp"  // DEBUG
 
 using namespace ov;
 using namespace ov::opset10;
