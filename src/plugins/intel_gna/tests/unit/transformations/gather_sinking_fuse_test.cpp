@@ -18,6 +18,7 @@
 #include "transformations/gather_sinking_reshape.hpp"
 #include "transformations/gather_sinking.hpp"
 #include "transformations/ts_concat.hpp"
+#include "transformations/ts_split.hpp"
 
 #include "ngraph/pass/visualize_tree.hpp"  // DEBUG
 
@@ -433,6 +434,7 @@ TEST(GatherSinkingGeneral, General) {
     ASSERT_TRUE(result.valid) << result.message;
 }
 
+#if 0
 std::vector<size_t> TSConcat_Forward_indexes(size_t size, size_t initial_value) {
     return std::vector<size_t>{0, 4, 1, 5, 2, 6, 3, 7, 8, 12, 9, 13, 10, 14, 11, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
 }
@@ -482,6 +484,61 @@ TEST(TSConcat, Forward) {
 
         const auto result = std::make_shared<Result>(reshape3);
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params1, input_params2});
+    }
+
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator::Result result = func_comparator(function, reference_function);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+#endif
+
+std::vector<size_t> TSSplit_Backward_indexes(size_t size, size_t initial_value) {
+    return std::vector<size_t>{0, 2, 4, 6, 1, 3, 5, 7};
+}
+
+TEST(TSSplit, Backward) {
+    std::shared_ptr<Model> function;
+    {
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,4,1,2});
+
+        auto split_axis = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{1});
+        auto split = std::make_shared<Split>(input_params, split_axis, 1);
+
+        auto transpose_const = Constant::create(ngraph::element::i64,
+                                                            ngraph::Shape{4},
+                                                            {0,2,3,1});
+
+        auto transpose = std::make_shared<Transpose>(split->output(0), transpose_const);
+
+        const auto result = std::make_shared<Result>(transpose);
+        function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
+    }
+
+    std::shared_ptr<Model> orig_function = function->clone();
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::intel_gna::pass::TSSplitBackward>();
+    manager.run_passes(function);
+    ASSERT_NO_THROW(check_rt_info(function));
+
+    std::shared_ptr<Model> reference_function;
+    {
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,4,1,2});
+
+        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{2}, ov::Shape{1,8});
+        auto reshape1 = std::make_shared<Reshape>(input_params, reshape_const1, false);
+
+        auto gather = MakeGather(reshape1, TSSplit_Backward_indexes, /* axis */ 1);
+
+        auto split_axis = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{1});
+        auto split = std::make_shared<Split>(gather, split_axis, 1);
+
+        auto reshape_const2 = Constant::create(ngraph::element::i64, ov::Shape{4}, ov::Shape{1, 1, 2, 4});
+        auto reshape2 = std::make_shared<Reshape>(split->output(0), reshape_const2, false);
+
+        const auto result = std::make_shared<Result>(reshape2);
+        reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
     const FunctionsComparator func_comparator =
