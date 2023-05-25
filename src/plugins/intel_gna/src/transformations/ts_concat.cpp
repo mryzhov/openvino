@@ -97,7 +97,6 @@ TSConcatForward::TSConcatForward() {
     auto concat_node_label = wrap_type<Concat>(is_sinked);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
-        EMUTEX_DEBUG_CHECKPOINT;
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto& concat_node_output = pattern_to_output.at(concat_node_label);
