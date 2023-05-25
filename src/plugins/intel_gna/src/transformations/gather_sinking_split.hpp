@@ -17,13 +17,6 @@ public:
     OPENVINO_RTTI("GatherSinkingBinaryBackward", "0");
     GatherSinkingSplitBackward();
 };
-#if 0
-class GatherSinkingSplitTransposeBackward : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("GatherSinkingSplitTransposeBackward", "0");
-    GatherSinkingSplitTransposeBackward();
-};
-#endif
 
 }  // namespace pass
 }  // namespace intel_gna

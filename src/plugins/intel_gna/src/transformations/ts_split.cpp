@@ -249,6 +249,7 @@ TSSplitBackward::TSSplitBackward() {
     auto split_node_label = wrap_type<Split>(is_sinked);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+        EMUTEX_DEBUG_CHECKPOINT;
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto& split_node_label_output = pattern_to_output.at(split_node_label);
