@@ -45,7 +45,8 @@ TEST(TransposeNCHW, Convolution) {
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::SubstituteGNAConvolution>();
     manager.run_passes(function);
-    ASSERT_NO_THROW(check_rt_info(function));
+    //ASSERT_NO_THROW(check_rt_info(function));
+    check_rt_info(function);
 
     std::shared_ptr<Model> reference_function;
     {

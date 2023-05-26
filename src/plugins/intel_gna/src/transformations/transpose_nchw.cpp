@@ -134,7 +134,7 @@ bool DoTransformation(Node convolution) {
                                          ngraph::Shape{transpose_after_order.size()},
                                          transpose_after_order));
 
-    ov::copy_runtime_info(convolution_node, {transpose_before, transpose_const, conv_new, transpose_after});
+    ov::copy_runtime_info(convolution_node, {transpose_before, transpose_const, conv_new, transpose_after, transpose_conv_constant});
 
     ov::replace_output_update_name(convolution->output(0), transpose_after->output(0));
 
