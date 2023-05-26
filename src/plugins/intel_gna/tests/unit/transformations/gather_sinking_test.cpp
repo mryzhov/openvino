@@ -31,10 +31,10 @@ TEST(TransposeNCHW, Convolution) {
 
         auto convolution = std::make_shared<Convolution>(input_params,
                                                          kernel,
-                                                         ngraph::Strides{2, 1},
-                                                         ngraph::CoordinateDiff{0, 0},
-                                                         ngraph::CoordinateDiff{0, 0},
-                                                         ngraph::Strides{1, 1});
+                                                         Strides{2, 1},
+                                                         CoordinateDiff{0, 0},
+                                                         CoordinateDiff{0, 0},
+                                                         Strides{1, 1});
 
         const auto result = std::make_shared<Result>(convolution);
         function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
@@ -51,16 +51,16 @@ TEST(TransposeNCHW, Convolution) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
-        auto transpose_before_const = Constant::create(ngraph::element::i64,
-                                                            ngraph::Shape{4},
+        auto transpose_before_const = Constant::create(element::i64,
+                                                            Shape{4},
                                                             {0,2,3,1});
 
         auto transpose_before = std::make_shared<Transpose>(input_params, transpose_before_const);
 
         auto kernel = Constant::create(ov::element::f32, {4,1,3,1}, {1});
 
-        auto transpose_conv_const = Constant::create(ngraph::element::i64,
-                                                            ngraph::Shape{4},
+        auto transpose_conv_const = Constant::create(element::i64,
+                                                            Shape{4},
                                                             {0,2,3,1});
 
         auto transpose_conv_before = std::make_shared<Transpose>(input_params, transpose_conv_const);
@@ -69,13 +69,13 @@ TEST(TransposeNCHW, Convolution) {
 
         auto convolution = std::make_shared<ov::intel_gna::op::GNAConvolution>(transpose_before,
                                                          transpose_conv_constant,
-                                                         ngraph::Strides{2, 1},
-                                                         ngraph::CoordinateDiff{0, 0},
-                                                         ngraph::CoordinateDiff{0, 0},
-                                                         ngraph::Strides{1, 1});
+                                                         Strides{2, 1},
+                                                         CoordinateDiff{0, 0},
+                                                         CoordinateDiff{0, 0},
+                                                         Strides{1, 1});
 
-        auto transpose_after_const = Constant::create(ngraph::element::i64,
-                                                            ngraph::Shape{4},
+        auto transpose_after_const = Constant::create(element::i64,
+                                                            Shape{4},
                                                             {0,3,1,2});
 
         auto transpose_after = std::make_shared<Transpose>(convolution, transpose_after_const);
@@ -96,7 +96,7 @@ TEST(TransposeNCHW, MaxPool) {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
         auto max_pool = std::make_shared<ov::op::v1::MaxPool>(input_params,
-                                                         ngraph::Strides{2, 1},
+                                                         Strides{2, 1},
                                                          Shape{0, 0},
                                                          Shape{0, 0},
                                                          Shape{4, 1});
@@ -116,20 +116,20 @@ TEST(TransposeNCHW, MaxPool) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
-        auto transpose_before_const = Constant::create(ngraph::element::i64,
-                                                            ngraph::Shape{4},
+        auto transpose_before_const = Constant::create(element::i64,
+                                                            Shape{4},
                                                             {0,2,3,1});
 
         auto transpose_before = std::make_shared<Transpose>(input_params, transpose_before_const);
 
         auto max_pool = std::make_shared<ov::intel_gna::op::GNAMaxPool>(transpose_before,
-                                                         ngraph::Strides{2, 1},
+                                                         Strides{2, 1},
                                                          Shape{0, 0},
                                                          Shape{0, 0},
                                                          Shape{4, 1});
 
-        auto transpose_after_const = Constant::create(ngraph::element::i64,
-                                                            ngraph::Shape{4},
+        auto transpose_after_const = Constant::create(element::i64,
+                                                            Shape{4},
                                                             {0,3,1,2});
 
         auto transpose_after = std::make_shared<Transpose>(max_pool, transpose_after_const);
@@ -193,9 +193,9 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
     const ov::Shape& input_shape = input_node->get_output_shape(0);
     const std::vector<size_t> indexes = create_indices_func(input_shape[axis], 0);
 
-    auto gather_indexes_node = Constant::create(ngraph::element::i64, ov::Shape{indexes.size()}, indexes);
+    auto gather_indexes_node = Constant::create(element::i64, ov::Shape{indexes.size()}, indexes);
 
-    auto gather_axis_node = Constant::create(ngraph::element::i64, ngraph::Shape{}, {axis});
+    auto gather_axis_node = Constant::create(element::i64, Shape{}, {axis});
 
     return std::make_shared<Gather>(input_node->output(0), gather_indexes_node, gather_axis_node);
 }
@@ -299,10 +299,10 @@ TEST(GatherSinkingSplit, Backward) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
 
-        auto split_axis1 = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{0});
+        auto split_axis1 = Constant::create(element::i64, ov::Shape{}, ov::Shape{0});
         auto split1 = std::make_shared<Split>(input_params, split_axis1, 2);
 
-        auto split_axis2 = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{0});
+        auto split_axis2 = Constant::create(element::i64, ov::Shape{}, ov::Shape{0});
         auto split2 = std::make_shared<Split>(split1, split_axis2, 2);
 
         auto gather = MakeGather(split2, GatherForward, /* axis */ 1);
@@ -324,10 +324,10 @@ TEST(GatherSinkingSplit, Backward) {
 
         auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
 
-        auto split_axis1 = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{0});
+        auto split_axis1 = Constant::create(element::i64, ov::Shape{}, ov::Shape{0});
         auto split1 = std::make_shared<Split>(gather, split_axis1, 2);
 
-        auto split_axis2 = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{0});
+        auto split_axis2 = Constant::create(element::i64, ov::Shape{}, ov::Shape{0});
         auto split2 = std::make_shared<Split>(split1, split_axis2, 2);
 
         const auto result = std::make_shared<Result>(split2);
@@ -345,10 +345,10 @@ TEST(GatherSinkingReshape, Backward) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,168});
 
-        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{4}, ov::Shape{1,168,1,1});
+        auto reshape_const1 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{1,168,1,1});
         auto reshape1 = std::make_shared<Reshape>(input_params, reshape_const1, false);
 
-        auto reshape_const2 = Constant::create(ngraph::element::i64, ov::Shape{5}, ov::Shape{1,168,1,1,1});
+        auto reshape_const2 = Constant::create(element::i64, ov::Shape{5}, ov::Shape{1,168,1,1,1});
         auto reshape2 = std::make_shared<Reshape>(reshape1, reshape_const2, false);
 
         auto gather = MakeGather(reshape2, GatherForward, /* axis */ 1);
@@ -370,10 +370,10 @@ TEST(GatherSinkingReshape, Backward) {
 
         auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
 
-        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{4}, ov::Shape{1,168,1,1});
+        auto reshape_const1 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{1,168,1,1});
         auto reshape1 = std::make_shared<Reshape>(gather, reshape_const1, false);
 
-        auto reshape_const2 = Constant::create(ngraph::element::i64, ov::Shape{5}, ov::Shape{1,168,1,1,1});
+        auto reshape_const2 = Constant::create(element::i64, ov::Shape{5}, ov::Shape{1,168,1,1,1});
         auto reshape2 = std::make_shared<Reshape>(reshape1, reshape_const2, false);
 
         const auto result = std::make_shared<Result>(reshape2);
@@ -442,8 +442,8 @@ TEST(TSConcat, Forward) {
         auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
         auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
 
-        auto transpose_const = Constant::create(ngraph::element::i64,
-                                                            ngraph::Shape{4},
+        auto transpose_const = Constant::create(element::i64,
+                                                            Shape{4},
                                                             {0,2,3,1});
 
         auto transpose = std::make_shared<Transpose>(input_params1, transpose_const);
@@ -466,17 +466,17 @@ TEST(TSConcat, Forward) {
         auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
         auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
 
-        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{2}, ov::Shape{1,16});
+        auto reshape_const1 = Constant::create(element::i64, ov::Shape{2}, ov::Shape{1,16});
         auto reshape1 = std::make_shared<Reshape>(input_params1, reshape_const1, false);
 
-        auto reshape_const2 = Constant::create(ngraph::element::i64, ov::Shape{2}, ov::Shape{1,16});
+        auto reshape_const2 = Constant::create(element::i64, ov::Shape{2}, ov::Shape{1,16});
         auto reshape2 = std::make_shared<Reshape>(input_params2, reshape_const2, false);
 
         auto concat = std::make_shared<Concat>(NodeVector{reshape1, reshape2}, 1);
 
         auto gather = MakeGather(concat, TSConcat_Forward_indexes, /* axis */ 1);
 
-        auto reshape_const3 = Constant::create(ngraph::element::i64, ov::Shape{4}, ov::Shape{4,2,2,2});
+        auto reshape_const3 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{4,2,2,2});
         auto reshape3 = std::make_shared<Reshape>(gather, reshape_const3, false);
 
         const auto result = std::make_shared<Result>(reshape3);
@@ -498,11 +498,11 @@ TEST(TSSplit, Backward) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,4,1,2});
 
-        auto split_axis = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{1});
+        auto split_axis = Constant::create(element::i64, ov::Shape{}, ov::Shape{1});
         auto split = std::make_shared<Split>(input_params, split_axis, 1);
 
-        auto transpose_const = Constant::create(ngraph::element::i64,
-                                                            ngraph::Shape{4},
+        auto transpose_const = Constant::create(element::i64,
+                                                            Shape{4},
                                                             {0,2,3,1});
 
         auto transpose = std::make_shared<Transpose>(split->output(0), transpose_const);
@@ -522,15 +522,15 @@ TEST(TSSplit, Backward) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,4,1,2});
 
-        auto reshape_const1 = Constant::create(ngraph::element::i64, ov::Shape{2}, ov::Shape{1,8});
+        auto reshape_const1 = Constant::create(element::i64, ov::Shape{2}, ov::Shape{1,8});
         auto reshape1 = std::make_shared<Reshape>(input_params, reshape_const1, false);
 
         auto gather = MakeGather(reshape1, TSSplit_Backward_indexes, /* axis */ 1);
 
-        auto split_axis = Constant::create(ngraph::element::i64, ov::Shape{}, ov::Shape{1});
+        auto split_axis = Constant::create(element::i64, ov::Shape{}, ov::Shape{1});
         auto split = std::make_shared<Split>(gather, split_axis, 1);
 
-        auto reshape_const2 = Constant::create(ngraph::element::i64, ov::Shape{4}, ov::Shape{1, 1, 2, 4});
+        auto reshape_const2 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{1, 1, 2, 4});
         auto reshape2 = std::make_shared<Reshape>(split->output(0), reshape_const2, false);
 
         const auto result = std::make_shared<Result>(reshape2);

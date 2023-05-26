@@ -6,22 +6,24 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/opsets/opset9.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 
+#include "ngraph/pass/visualize_tree.hpp" // DEBUG
+
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 
 namespace testing {
 
 TEST(GatherSinkingTransposeReshape, ForwardSinking) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 4});
         auto tanh0 = std::make_shared<Tanh>(input_params);
 
         auto transpose_order = std::make_shared<Constant>(element::u64, Shape{3}, Shape{0, 2, 1});
@@ -44,22 +46,13 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 80});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 3, 4});
         auto tanh0 = std::make_shared<Tanh>(input_params);
 
         auto reshape_const = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int>{1, -1});
         auto reshape = std::make_shared<Reshape>(tanh0, reshape_const, false);
 
-        auto generate_indices = []() -> std::vector<int64_t> {
-            std::vector<int64_t> indices;
-            for (int i = 0; i < 80; ++i) {
-                indices.push_back(i);
-                indices.push_back(i + 80);
-                indices.push_back(i + 160);
-            }
-            return indices;
-        };
-        auto gather_indices = generate_indices();
+        std::vector<size_t> gather_indices = {0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11};
         auto gather_indices_const =
             std::make_shared<Constant>(element::i64, Shape{gather_indices.size()}, gather_indices);
         auto gather_axis_const = std::make_shared<Constant>(element::i64, Shape{}, 1);
@@ -154,7 +147,9 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking) {
     std::shared_ptr<Model> orig_function = function->clone();
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::VisualizeTree>("before.png");
     manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
+    manager.register_pass<ngraph::pass::VisualizeTree>("after.png");
     manager.run_passes(function);
     ASSERT_NO_THROW(check_rt_info(function));
 
