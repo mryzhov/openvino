@@ -10,7 +10,7 @@
 #include "backend/gna_limitations.hpp"
 #include "common/graph_utils.hpp"
 #include "log/debug.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/gather_sinking_utils.hpp"
@@ -18,7 +18,7 @@
 
 using namespace ov::intel_gna;
 using namespace ov::intel_gna::pass;
-using namespace ov::opset9;
+using namespace ov::opset10;
 using namespace ov::pass::pattern;
 using namespace gather_sinking;
 
@@ -66,6 +66,11 @@ std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::
 NodePair SinkForward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
     const auto gather_indices_value =
         CreateGatherIndices(transpose->get_input_shape(0), transpose_constant->get_axis_vector_val());
+
+    for (auto i : gather_indices_value) {
+        std::cout << i << ", ";
+    }
+    std::cout << std::endl;
 
     const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_output_shape(0));
 
@@ -196,6 +201,7 @@ GatherSinkingTransposeReshapeBackward::GatherSinkingTransposeReshapeBackward() {
     auto transpose_label = wrap_type<Transpose>({reshape_label, transpose_const_label}, IfBackwardSinkingEnabled);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+        std::cout << "[EMUTEX DEBUG] GatherSinkingTransposeReshapeBackward" << std::endl;
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
