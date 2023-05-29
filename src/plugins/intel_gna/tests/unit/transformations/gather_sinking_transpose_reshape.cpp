@@ -12,8 +12,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
-
-#include "ngraph/pass/visualize_tree.hpp" // DEBUG
+#include "ngraph/pass/visualize_tree.hpp"  // DEBUG
 
 using namespace ov;
 using namespace ov::opset10;
@@ -130,10 +129,10 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
 TEST(GatherSinkingTransposeReshape, BackwardSinking) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,1,2,2});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 2, 2});
         auto tanh0 = std::make_shared<Tanh>(input_params);
 
-        auto reshape_const = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int>{1,2,1,2});
+        auto reshape_const = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int>{1, 2, 1, 2});
         auto reshape = std::make_shared<Reshape>(tanh0, reshape_const, false);
 
         auto transpose_order = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
@@ -153,13 +152,13 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,1,2,2});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 2, 2});
         auto tanh0 = std::make_shared<Tanh>(input_params);
 
-        auto reshape_const1 = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int>{1,2,1,2});
+        auto reshape_const1 = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int>{1, 2, 1, 2});
         auto reshape1 = std::make_shared<Reshape>(tanh0, reshape_const1, false);
 
-        auto reshape_const2 = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int>{1,1,2,2});
+        auto reshape_const2 = std::make_shared<Constant>(element::i64, Shape{4}, std::vector<int>{1, 1, 2, 2});
         auto reshape2 = std::make_shared<Reshape>(reshape1, reshape_const2, false);
 
         auto tanh1 = std::make_shared<Tanh>(reshape2);
