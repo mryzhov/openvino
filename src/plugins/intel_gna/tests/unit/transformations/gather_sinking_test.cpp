@@ -2,21 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
+#include "transformations/gather_sinking.hpp"
 
 #include <ngraph/function.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <ops/gna_convolution.hpp>
 #include <ops/gna_max_pool.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <transformations/init_node_info.hpp>
 
-#include "transformations/transpose_nchw.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 #include "transformations/gather_sinking_matmul.hpp"
-#include "transformations/gather_sinking_split.hpp"
 #include "transformations/gather_sinking_reshape.hpp"
-#include "transformations/gather_sinking.hpp"
+#include "transformations/gather_sinking_split.hpp"
+#include "transformations/transpose_nchw.hpp"
 #include "transformations/ts_concat.hpp"
 #include "transformations/ts_split.hpp"
 
@@ -27,7 +27,7 @@ TEST(TransposeNCHW, Convolution) {
     std::shared_ptr<Model> function;
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
-        auto kernel = Constant::create(ov::element::f32, {4,1,3,1}, {1});
+        auto kernel = Constant::create(ov::element::f32, {4, 1, 3, 1}, {1});
 
         auto convolution = std::make_shared<Convolution>(input_params,
                                                          kernel,
@@ -45,39 +45,33 @@ TEST(TransposeNCHW, Convolution) {
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::intel_gna::pass::SubstituteGNAConvolution>();
     manager.run_passes(function);
-    //ASSERT_NO_THROW(check_rt_info(function));
+    // ASSERT_NO_THROW(check_rt_info(function));
     check_rt_info(function);
 
     std::shared_ptr<Model> reference_function;
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
-        auto transpose_before_const = Constant::create(element::i64,
-                                                            Shape{4},
-                                                            {0,2,3,1});
+        auto transpose_before_const = Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
 
         auto transpose_before = std::make_shared<Transpose>(input_params, transpose_before_const);
 
-        auto kernel = Constant::create(ov::element::f32, {4,1,3,1}, {1});
+        auto kernel = Constant::create(ov::element::f32, {4, 1, 3, 1}, {1});
 
-        auto transpose_conv_const = Constant::create(element::i64,
-                                                            Shape{4},
-                                                            {0,2,3,1});
+        auto transpose_conv_const = Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
 
         auto transpose_conv_before = std::make_shared<Transpose>(input_params, transpose_conv_const);
 
         auto transpose_conv_constant = std::make_shared<Transpose>(kernel, transpose_conv_const);
 
         auto convolution = std::make_shared<ov::intel_gna::op::GNAConvolution>(transpose_before,
-                                                         transpose_conv_constant,
-                                                         Strides{2, 1},
-                                                         CoordinateDiff{0, 0},
-                                                         CoordinateDiff{0, 0},
-                                                         Strides{1, 1});
+                                                                               transpose_conv_constant,
+                                                                               Strides{2, 1},
+                                                                               CoordinateDiff{0, 0},
+                                                                               CoordinateDiff{0, 0},
+                                                                               Strides{1, 1});
 
-        auto transpose_after_const = Constant::create(element::i64,
-                                                            Shape{4},
-                                                            {0,3,1,2});
+        auto transpose_after_const = Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
 
         auto transpose_after = std::make_shared<Transpose>(convolution, transpose_after_const);
 
@@ -96,11 +90,8 @@ TEST(TransposeNCHW, MaxPool) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
-        auto max_pool = std::make_shared<ov::op::v1::MaxPool>(input_params,
-                                                         Strides{2, 1},
-                                                         Shape{0, 0},
-                                                         Shape{0, 0},
-                                                         Shape{4, 1});
+        auto max_pool =
+            std::make_shared<ov::op::v1::MaxPool>(input_params, Strides{2, 1}, Shape{0, 0}, Shape{0, 0}, Shape{4, 1});
 
         const auto result = std::make_shared<Result>(max_pool);
         function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
@@ -117,21 +108,17 @@ TEST(TransposeNCHW, MaxPool) {
     {
         auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 1, 41, 1});
 
-        auto transpose_before_const = Constant::create(element::i64,
-                                                            Shape{4},
-                                                            {0,2,3,1});
+        auto transpose_before_const = Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
 
         auto transpose_before = std::make_shared<Transpose>(input_params, transpose_before_const);
 
         auto max_pool = std::make_shared<ov::intel_gna::op::GNAMaxPool>(transpose_before,
-                                                         Strides{2, 1},
-                                                         Shape{0, 0},
-                                                         Shape{0, 0},
-                                                         Shape{4, 1});
+                                                                        Strides{2, 1},
+                                                                        Shape{0, 0},
+                                                                        Shape{0, 0},
+                                                                        Shape{4, 1});
 
-        auto transpose_after_const = Constant::create(element::i64,
-                                                            Shape{4},
-                                                            {0,3,1,2});
+        auto transpose_after_const = Constant::create(element::i64, Shape{4}, {0, 3, 1, 2});
 
         auto transpose_after = std::make_shared<Transpose>(max_pool, transpose_after_const);
 
@@ -180,7 +167,7 @@ std::vector<size_t> GatherForward(size_t size, size_t initial_value) {
 
 std::vector<size_t> GatherBackward(size_t size, size_t initial_value) {
     std::vector<size_t> vec(size);
-    std::iota(vec.begin(), vec.end(), initial_value); // Not the same as in binary tests
+    std::iota(vec.begin(), vec.end(), initial_value);  // Not the same as in binary tests
     ShiftRight(vec, 2);
     return vec;
 }
@@ -204,14 +191,14 @@ std::shared_ptr<Gather> MakeGather(NodePtr input_node, CreateIndicesF create_ind
 TEST(GatherSinkingMatMul, Forward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+
         auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
 
-        auto input_const1 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(gather, input_const1);
 
-        auto input_const2 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const2 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul2 = std::make_shared<MatMul>(input_const2, matmul1);
 
         const auto result = std::make_shared<Result>(matmul2);
@@ -227,15 +214,15 @@ TEST(GatherSinkingMatMul, Forward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        auto input_const = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+        auto input_const = Constant::create(ov::element::f32, {20, 20}, {1});
 
         auto gather = MakeGather(input_const, GatherBackward, /* axis */ 0);
 
-        auto input_const1 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(input_params, gather);
 
-        auto input_const2 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const2 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul2 = std::make_shared<MatMul>(input_const2, matmul1);
 
         const auto result = std::make_shared<Result>(matmul2);
@@ -251,12 +238,12 @@ TEST(GatherSinkingMatMul, Forward) {
 TEST(GatherSinkingMatMul, Backward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
 
-        auto input_const1 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(input_params, input_const1);
 
-        auto input_const2 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const2 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul2 = std::make_shared<MatMul>(input_const2, matmul1);
 
         auto gather = MakeGather(matmul2, GatherForward, /* axis */ 1);
@@ -274,15 +261,15 @@ TEST(GatherSinkingMatMul, Backward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        auto input_const = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+        auto input_const = Constant::create(ov::element::f32, {20, 20}, {1});
 
         auto gather = MakeGather(input_const, GatherForward, /* axis */ 1);
 
-        auto input_const1 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const1 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul1 = std::make_shared<MatMul>(input_params, gather);
 
-        auto input_const2 = Constant::create(ov::element::f32, {20,20}, {1});
+        auto input_const2 = Constant::create(ov::element::f32, {20, 20}, {1});
         auto matmul2 = std::make_shared<MatMul>(input_const2, matmul1);
 
         const auto result = std::make_shared<Result>(matmul2);
@@ -298,7 +285,7 @@ TEST(GatherSinkingMatMul, Backward) {
 TEST(GatherSinkingSplit, Backward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
 
         auto split_axis1 = Constant::create(element::i64, ov::Shape{}, ov::Shape{0});
         auto split1 = std::make_shared<Split>(input_params, split_axis1, 2);
@@ -321,7 +308,7 @@ TEST(GatherSinkingSplit, Backward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
 
         auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
 
@@ -344,12 +331,12 @@ TEST(GatherSinkingSplit, Backward) {
 TEST(GatherSinkingReshape, Backward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,168});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 168});
 
-        auto reshape_const1 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{1,168,1,1});
+        auto reshape_const1 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{1, 168, 1, 1});
         auto reshape1 = std::make_shared<Reshape>(input_params, reshape_const1, false);
 
-        auto reshape_const2 = Constant::create(element::i64, ov::Shape{5}, ov::Shape{1,168,1,1,1});
+        auto reshape_const2 = Constant::create(element::i64, ov::Shape{5}, ov::Shape{1, 168, 1, 1, 1});
         auto reshape2 = std::make_shared<Reshape>(reshape1, reshape_const2, false);
 
         auto gather = MakeGather(reshape2, GatherForward, /* axis */ 1);
@@ -367,14 +354,14 @@ TEST(GatherSinkingReshape, Backward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,168});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 168});
 
         auto gather = MakeGather(input_params, GatherForward, /* axis */ 1);
 
-        auto reshape_const1 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{1,168,1,1});
+        auto reshape_const1 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{1, 168, 1, 1});
         auto reshape1 = std::make_shared<Reshape>(gather, reshape_const1, false);
 
-        auto reshape_const2 = Constant::create(element::i64, ov::Shape{5}, ov::Shape{1,168,1,1,1});
+        auto reshape_const2 = Constant::create(element::i64, ov::Shape{5}, ov::Shape{1, 168, 1, 1, 1});
         auto reshape2 = std::make_shared<Reshape>(reshape1, reshape_const2, false);
 
         const auto result = std::make_shared<Result>(reshape2);
@@ -390,9 +377,9 @@ TEST(GatherSinkingReshape, Backward) {
 TEST(GatherSinkingGeneral, General) {
     std::shared_ptr<Model> function;
     {
-        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        
+        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+
         auto gather = MakeGather(input_params1, GatherForward, /* axis */ 1);
 
         auto tanh = std::make_shared<Tanh>(input_params2);
@@ -412,9 +399,9 @@ TEST(GatherSinkingGeneral, General) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20,20});
-        
+        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{20, 20});
+
         auto gather1 = MakeGather(input_params2, GatherBackward, /* axis */ 1);
 
         auto tanh = std::make_shared<Tanh>(gather1);
@@ -424,7 +411,8 @@ TEST(GatherSinkingGeneral, General) {
         auto gather2 = MakeGather(sinh, GatherForward, /* axis */ 1);
 
         const auto result = std::make_shared<Result>(gather2);
-        reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params1, input_params2});
+        reference_function =
+            std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params1, input_params2});
     }
 
     const FunctionsComparator func_comparator =
@@ -434,18 +422,17 @@ TEST(GatherSinkingGeneral, General) {
 }
 
 std::vector<size_t> TSConcat_Forward_indexes(size_t size, size_t initial_value) {
-    return std::vector<size_t>{0, 4, 1, 5, 2, 6, 3, 7, 8, 12, 9, 13, 10, 14, 11, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
+    return std::vector<size_t>{0,  4,  1,  5,  2,  6,  3,  7,  8,  12, 9,  13, 10, 14, 11, 15,
+                               17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32};
 }
 
 TEST(TSConcat, Forward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
-        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
+        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2, 2, 2, 2});
+        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2, 2, 2, 2});
 
-        auto transpose_const = Constant::create(element::i64,
-                                                            Shape{4},
-                                                            {0,2,3,1});
+        auto transpose_const = Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
 
         auto transpose = std::make_shared<Transpose>(input_params1, transpose_const);
 
@@ -464,24 +451,25 @@ TEST(TSConcat, Forward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
-        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2,2,2,2});
+        auto input_params1 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2, 2, 2, 2});
+        auto input_params2 = std::make_shared<Parameter>(element::Type_t::f32, Shape{2, 2, 2, 2});
 
-        auto reshape_const1 = Constant::create(element::i64, ov::Shape{2}, ov::Shape{1,16});
+        auto reshape_const1 = Constant::create(element::i64, ov::Shape{2}, ov::Shape{1, 16});
         auto reshape1 = std::make_shared<Reshape>(input_params1, reshape_const1, false);
 
-        auto reshape_const2 = Constant::create(element::i64, ov::Shape{2}, ov::Shape{1,16});
+        auto reshape_const2 = Constant::create(element::i64, ov::Shape{2}, ov::Shape{1, 16});
         auto reshape2 = std::make_shared<Reshape>(input_params2, reshape_const2, false);
 
         auto concat = std::make_shared<Concat>(NodeVector{reshape1, reshape2}, 1);
 
         auto gather = MakeGather(concat, TSConcat_Forward_indexes, /* axis */ 1);
 
-        auto reshape_const3 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{4,2,2,2});
+        auto reshape_const3 = Constant::create(element::i64, ov::Shape{4}, ov::Shape{4, 2, 2, 2});
         auto reshape3 = std::make_shared<Reshape>(gather, reshape_const3, false);
 
         const auto result = std::make_shared<Result>(reshape3);
-        reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params1, input_params2});
+        reference_function =
+            std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params1, input_params2});
     }
 
     const FunctionsComparator func_comparator =
@@ -497,14 +485,12 @@ std::vector<size_t> TSSplit_Backward_indexes(size_t size, size_t initial_value) 
 TEST(TSSplit, Backward) {
     std::shared_ptr<Model> function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,4,1,2});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 4, 1, 2});
 
         auto split_axis = Constant::create(element::i64, ov::Shape{}, ov::Shape{1});
         auto split = std::make_shared<Split>(input_params, split_axis, 1);
 
-        auto transpose_const = Constant::create(element::i64,
-                                                            Shape{4},
-                                                            {0,2,3,1});
+        auto transpose_const = Constant::create(element::i64, Shape{4}, {0, 2, 3, 1});
 
         auto transpose = std::make_shared<Transpose>(split->output(0), transpose_const);
 
@@ -521,9 +507,9 @@ TEST(TSSplit, Backward) {
 
     std::shared_ptr<Model> reference_function;
     {
-        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1,4,1,2});
+        auto input_params = std::make_shared<Parameter>(element::Type_t::f32, Shape{1, 4, 1, 2});
 
-        auto reshape_const1 = Constant::create(element::i64, ov::Shape{2}, ov::Shape{1,8});
+        auto reshape_const1 = Constant::create(element::i64, ov::Shape{2}, ov::Shape{1, 8});
         auto reshape1 = std::make_shared<Reshape>(input_params, reshape_const1, false);
 
         auto gather = MakeGather(reshape1, TSSplit_Backward_indexes, /* axis */ 1);
