@@ -33,7 +33,7 @@ namespace pass {
  *   Any #2 ...    Any #K ... Any #N
  *
  *
-*/
+ */
 
 class GatherSinkingSplitBackward : public ov::pass::MatcherPass {
 public:

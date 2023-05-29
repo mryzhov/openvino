@@ -163,7 +163,9 @@ TSConcatForward::TSConcatForward() {
                                                                    concat_node->get_output_shape(0));
         auto reshape_output_new = std::make_shared<Reshape>(gather, reshape_output_const_new, false);
 
-        ov::copy_runtime_info(concat_node, {concat_new, gather_indices, gather, gather_axis, reshape_output_const_new, reshape_output_new});
+        ov::copy_runtime_info(
+            concat_node,
+            {concat_new, gather_indices, gather, gather_axis, reshape_output_const_new, reshape_output_new});
         ov::replace_node_update_name(concat_node, reshape_output_new);
         return true;
     };

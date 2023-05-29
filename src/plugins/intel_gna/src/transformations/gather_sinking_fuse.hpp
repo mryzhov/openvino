@@ -32,9 +32,9 @@ namespace pass {
  *   Gather #2
  *     |
  *    Any #2
- * 
+ *
  * This transformation is called called from GatherSinkingGeneral.
-*/
+ */
 class GatherSinkingFuse : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("GatherSinkingFuse", "0");

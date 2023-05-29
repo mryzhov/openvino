@@ -26,7 +26,7 @@ namespace pass {
  * - Gather is availiable for sinking (no NoGatherSinkingAttr is set)
  *
  * This transformation is called called from GatherSinkingGeneral.
-*/
+ */
 
 class GatherSinkingReshapeBackward : public ov::pass::MatcherPass {
 public:

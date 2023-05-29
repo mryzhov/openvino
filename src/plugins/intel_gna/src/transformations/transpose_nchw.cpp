@@ -4,10 +4,10 @@
 
 #include "transformations/transpose_nchw.hpp"
 
-#include <openvino/opsets/opset10.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <openvino/cc/ngraph/itt.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <ops/gna_convolution.hpp>
 #include <ops/gna_max_pool.hpp>
 #include <transformations/utils/utils.hpp>
@@ -112,14 +112,12 @@ bool DoTransformation(std::shared_ptr<ov::Node> convolution) {
 
     const ov::Shape transpose_before_order = MakeTransposeOrderNCHW2NHWC(convolution_input_shape.size());
 
-    auto transpose_const = Constant::create(element::i64,
-                                                            ov::Shape{transpose_before_order.size()},
-                                                            transpose_before_order);
+    auto transpose_const =
+        Constant::create(element::i64, ov::Shape{transpose_before_order.size()}, transpose_before_order);
 
     auto transpose_before = std::make_shared<Transpose>(convolution_input_data_node, transpose_const);
 
-    auto transpose_conv_constant =
-        std::make_shared<Transpose>(convolution_input_const_node, transpose_const);
+    auto transpose_conv_constant = std::make_shared<Transpose>(convolution_input_const_node, transpose_const);
     auto conv_new = std::make_shared<ov::intel_gna::op::GNAConvolution>(transpose_before,
                                                                         transpose_conv_constant,
                                                                         convolution_node->get_strides(),
@@ -132,11 +130,10 @@ bool DoTransformation(std::shared_ptr<ov::Node> convolution) {
 
     auto transpose_after = std::make_shared<Transpose>(
         conv_new,
-        Constant::create(element::i64,
-                                         ov::Shape{transpose_after_order.size()},
-                                         transpose_after_order));
+        Constant::create(element::i64, ov::Shape{transpose_after_order.size()}, transpose_after_order));
 
-    ov::copy_runtime_info(convolution_node, {transpose_before, transpose_const, conv_new, transpose_after, transpose_conv_constant});
+    ov::copy_runtime_info(convolution_node,
+                          {transpose_before, transpose_const, conv_new, transpose_after, transpose_conv_constant});
 
     ov::replace_output_update_name(convolution->output(0), transpose_after->output(0));
 
@@ -156,9 +153,8 @@ bool DoTransformation(std::shared_ptr<ov::Node> max_pool) {
 
     const ov::Shape transpose_before_order = MakeTransposeOrderNCHW2NHWC(max_pool_input_shape.size());
 
-    auto transpose_const = Constant::create(element::i64,
-                                                            ov::Shape{transpose_before_order.size()},
-                                                            transpose_before_order);
+    auto transpose_const =
+        Constant::create(element::i64, ov::Shape{transpose_before_order.size()}, transpose_before_order);
 
     auto transpose_before = std::make_shared<Transpose>(max_pool_input_data_node, transpose_const);
 
@@ -174,9 +170,7 @@ bool DoTransformation(std::shared_ptr<ov::Node> max_pool) {
 
     auto transpose_after = std::make_shared<Transpose>(
         max_pool_new,
-        Constant::create(element::i64,
-                                         ov::Shape{transpose_after_order.size()},
-                                         transpose_after_order));
+        Constant::create(element::i64, ov::Shape{transpose_after_order.size()}, transpose_after_order));
 
     ov::copy_runtime_info(max_pool_node, {transpose_before, transpose_const, max_pool_new, transpose_after});
 
@@ -233,5 +227,5 @@ bool ov::intel_gna::pass::TransposeNCHW::run_on_model(const std::shared_ptr<Mode
     manager.register_pass<ov::intel_gna::pass::SubstituteGNAMaxPool>();
     manager.run_passes(function);
 
-    return false;  // FIXME: should we return true here?
+    return false;
 }

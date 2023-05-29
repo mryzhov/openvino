@@ -31,9 +31,9 @@ namespace pass {
  *        MatMul                         MatMul
  *          |                             |
  *        Any #3                       Any #3
- * 
+ *
  * This transformation is called called from GatherSinkingGeneral.
-*/
+ */
 
 class GatherSinkingMatmulForward : public ov::pass::MatcherPass {
 public:
@@ -68,7 +68,7 @@ public:
  *
  * Input index depends on the shapes and Gather axis.
  * This transformation is called called from GatherSinkingGeneral.
-*/
+ */
 
 class GatherSinkingMatmulBackward : public ov::pass::MatcherPass {
 public:
