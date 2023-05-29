@@ -84,7 +84,7 @@ public:
  * - all that Gather layers equal each other
  * - Gather has only 1D indices
  * - all nodes have static ranks
- * 
+ *
  * This transformation is called called from GatherSinkingGeneral.
  */
 class GatherSinkingBinaryBackward : public ov::pass::MatcherPass {

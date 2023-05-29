@@ -20,7 +20,7 @@ namespace pass {
  *  return on the initial position while backward propagation we setup NoGatherSinkingAttr.
  *  Setup NoGatherSinkingAttr if the next layer after Gather is not supported by GatherSinking
  *  transformations.
-*/
+ */
 class GatherSinkingGeneralForward : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("GatherSinkingGeneralForward", "0");
@@ -32,7 +32,7 @@ public:
  *  All called transformations use register_new_node() method to add new created Gather node
  *  into the MatcherPass queue. That way allows to avoid calling same transformations in
  *  infinite loop to propogate one Gather layer through the graph.
-*/
+ */
 class GatherSinkingGeneralBackward : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("GatherSinkingGeneralBackward", "0");
@@ -40,7 +40,7 @@ public:
 };
 
 /** @brief Does forward and backward Gather layers propagation.
-*/
+ */
 class GatherSinkingGeneral : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("GatherSinkingGeneral", "0");

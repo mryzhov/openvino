@@ -61,8 +61,8 @@ public:
 };
 
 /** @brief Calls SubstituteGNAConvolution and SubstituteGNAMaxPool transformations
- * 
-*/
+ *
+ */
 class TransposeNCHW : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
