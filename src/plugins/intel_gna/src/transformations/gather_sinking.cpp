@@ -54,7 +54,7 @@ bool GatherSinkingGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {
     }
 
     {
-        ngraph::pass::Manager manager(get_pass_config());
+        ov::pass::Manager manager(get_pass_config());
         manager.register_pass<GatherSinkingGeneralBackward>();
         manager.register_pass<ngraph::pass::ConstantFolding>();
         manager.run_passes(f);
