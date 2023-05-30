@@ -65,12 +65,12 @@ protected:
 
 private:
     void initMemQueses() {
-        _mem_queues[REGION_RO] = tools::make_unique<GNAMemRequestsReadOnlyQueue>(_page_alignment);
-        _mem_queues[REGION_INPUTS] = tools::make_unique<GNAMemRequestsInputsQueue>(_page_alignment);
-        _mem_queues[REGION_OUTPUTS] = tools::make_unique<GNAMemRequestsOutputsQueue>(_page_alignment);
-        _mem_queues[REGION_SCRATCH] = tools::make_unique<GNAMemRequestsScratchQueue>(_page_alignment);
-        _mem_queues[REGION_STATES] = tools::make_unique<GNAMemRequestsStatesQueue>(_page_alignment);
-        _mem_queues[REGION_AUTO] = tools::make_unique<GNAMemRequestsBindingsQueue>(_page_alignment);
+        _mem_queues[REGION_RO] = tools::make_unique<GNAMemRequestsReadOnlyQueue>(_data_alignment);
+        _mem_queues[REGION_INPUTS] = tools::make_unique<GNAMemRequestsInputsQueue>(_data_alignment);
+        _mem_queues[REGION_OUTPUTS] = tools::make_unique<GNAMemRequestsOutputsQueue>(_data_alignment);
+        _mem_queues[REGION_SCRATCH] = tools::make_unique<GNAMemRequestsScratchQueue>(_data_alignment);
+        _mem_queues[REGION_STATES] = tools::make_unique<GNAMemRequestsStatesQueue>(_data_alignment);
+        _mem_queues[REGION_AUTO] = tools::make_unique<GNAMemRequestsBindingsQueue>(_data_alignment);
     }
 
 public:
