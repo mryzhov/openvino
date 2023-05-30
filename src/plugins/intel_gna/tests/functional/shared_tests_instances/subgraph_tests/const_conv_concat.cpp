@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
 
 const std::vector<std::map<std::string, std::string>> configs = {
     {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_COMPACT_MODE", "NO"}}};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_COMPACT_MODE", "YES"}}};
 
 std::vector<convParams> params = {std::make_tuple(std::vector<size_t>{1, 64},  // InputShape
                                                   std::vector<size_t>{1, 3},   // KernelShape
