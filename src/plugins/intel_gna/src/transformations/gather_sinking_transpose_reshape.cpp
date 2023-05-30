@@ -66,12 +66,6 @@ std::vector<size_t> CreateGatherIndices(const ov::Shape& input_shape, const ov::
 NodePair SinkForward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
     const auto gather_indices_value =
         CreateGatherIndices(transpose->get_input_shape(0), transpose_constant->get_axis_vector_val());
-
-    for (auto i : gather_indices_value) {
-        std::cout << i << ", ";
-    }
-    std::cout << std::endl;
-
     const int64_t gather_axis_value = graph_utils::get_first_valuable_dim_id(reshape->get_output_shape(0));
 
     auto reshape_new = reshape->clone_with_new_inputs({transpose->input_value(0), reshape->input_value(1)});
@@ -201,7 +195,6 @@ GatherSinkingTransposeReshapeBackward::GatherSinkingTransposeReshapeBackward() {
     auto transpose_label = wrap_type<Transpose>({reshape_label, transpose_const_label}, IfBackwardSinkingEnabled);
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
-        std::cout << "[EMUTEX DEBUG] GatherSinkingTransposeReshapeBackward" << std::endl;
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
