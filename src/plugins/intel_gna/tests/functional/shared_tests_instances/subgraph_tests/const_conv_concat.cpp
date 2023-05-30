@@ -14,8 +14,9 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                                InferenceEngine::Precision::FP16};
 
-const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
-                                                                 {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}}};
+const std::vector<std::map<std::string, std::string>> configs = {
+    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}},
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_COMPACT_MODE", "NO"}}};
 
 std::vector<convParams> params = {std::make_tuple(std::vector<size_t>{1, 64},  // InputShape
                                                   std::vector<size_t>{1, 3},   // KernelShape
