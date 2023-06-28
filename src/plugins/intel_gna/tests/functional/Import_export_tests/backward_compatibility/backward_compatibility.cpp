@@ -223,7 +223,8 @@ const std::vector<std::map<std::string, std::string>> import_configs = {
 const std::vector<std::string> export_models_legacy = {"export2dot1.blob", "export2dot2.blob", "export2dot3.blob", "export2dot4.blob", "export2dot5.blob"};
 const std::vector<std::string> export_models = {"export2dot6.blob", "export2dot7.blob", "export2dot8.blob", "export2dot9.blob"};
 
-INSTANTIATE_TEST_SUITE_P(smoke_OldVersion, BackwardCompatibilityLegacy,
+// Those tests can be run locally only, CI skips them
+INSTANTIATE_TEST_SUITE_P(OldVersion, BackwardCompatibilityLegacy,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_precisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -232,7 +233,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OldVersion, BackwardCompatibilityLegacy,
                                 ::testing::ValuesIn(import_configs_legacy)),
                         BackwardCompatibilityLegacy::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_OldVersion, BackwardCompatibility,
+INSTANTIATE_TEST_SUITE_P(OldVersion, BackwardCompatibility,
                         ::testing::Combine(
                                 ::testing::ValuesIn(input_precisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
