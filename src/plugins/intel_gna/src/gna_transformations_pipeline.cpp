@@ -13,6 +13,7 @@
 #include "openvino/pass/manager.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "transformations/big_transpose.hpp"
+#include "transformations/aszp_decomposition_nhwc.hpp"
 #include "transformations/broadcast_const.hpp"
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -166,6 +167,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::pass::TransposeToReshape>();
         // TODO: crashes with fm network
         manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
+        manager.register_pass<ov::intel_gna::pass::ConvertAsymmetricPadToSymmetricPad>();
     }
     // manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
