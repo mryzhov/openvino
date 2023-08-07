@@ -231,7 +231,8 @@ public:
      * @param is_exception_allowed flag specifies whether exception is allowed
      * @return true if precision is found in supported
      */
-    bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
+    //bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
+    bool is_pooling_supported(const std::shared_ptr<ov::Node> node,
                               bool is_exception_allowed = false);
 
     static bool is_concat_supported(const std::shared_ptr<const ov::Node>& node, bool is_exception_allowed);

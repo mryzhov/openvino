@@ -206,6 +206,7 @@ inline bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
 
 inline bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
     return ((std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<ngraph::opset7::AvgPool>(node) != nullptr) ||
             std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node) != nullptr);
 }
 

@@ -63,7 +63,7 @@ static bool CheckIFLastComponentIsPrecededByConv2D(const backend::DnnComponents:
             auto prev_operation = last_element->dnnComponent.operation;
             last_element++;
             if (last_element->dnnComponent.operation == kDnnConvolutional2dOp) {
-                proceded_by_conv2D = (prev_operation == kDnnMaxPoolOp);
+                proceded_by_conv2D = ((prev_operation == kDnnMaxPoolOp) || (prev_operation == kDnnSumPoolOp));
             }
         }
     }
@@ -1020,6 +1020,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
         break;
         // we are loosing precision here
     case PoolingLayer::AVG:
+        break;
     default:
         // TODO: convert to SUMM pooling
         THROW_GNA_EXCEPTION << "Layer :" << layer->name << " not supported";
@@ -1034,7 +1035,8 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
                               {pooling._stride[X_AXIS], pooling._stride[Y_AXIS]},
                               GetScaleFactor(layer, QuantizedDataType::output),
                               ptr_inputs,
-                              ptr_outputs);
+                              ptr_outputs,
+                              (pooling._type == PoolingLayer::MAX) ? true : false);
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()));
 
     // Need to reserve more memory otherwise the compiled model would not be
@@ -2047,6 +2049,15 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto outputs = *layer->outData.begin();
     float output_pwl_scale_factor = GetScaleFactor(layer, QuantizedDataType::output);
     float input_pwl_scale_factor = GetScaleFactor(layer, QuantizedDataType::input);
+
+    auto nextLayer = CNNNetCheckNextLayerSkipCertain(layer, 0, 0, true, [](CNNLayerPtr layer) {
+                         return false;
+                     }).first;
+
+    if (nextLayer->name == "AvgPool") {
+        auto poolKernelSize = nextLayer->GetParamAsInt("kernel", 0) * nextLayer->GetParamAsInt("kernel", 1);
+        output_pwl_scale_factor = output_pwl_scale_factor / (float)poolKernelSize;
+    }
 
     auto orientation = kDnnInterleavedOrientation;
 

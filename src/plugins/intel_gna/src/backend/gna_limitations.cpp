@@ -832,14 +832,19 @@ bool Limitations::is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNA
                           conv_gna->get_dilations()[conv_gna->get_dilations().size() - 1]);
 }
 
-bool Limitations::is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
+bool Limitations::is_pooling_supported(const std::shared_ptr<ov::Node> node,
                                        bool is_exception_allowed) {
-    OPENVINO_ASSERT(max_pool, "MaxPool node is empty!");
-    auto kernels = max_pool->get_kernel();
+
+    bool isMaxPool = true;
+    auto max_pool =  std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node);
+    auto avg_pool =  std::dynamic_pointer_cast<ngraph::opset7::AvgPool>(node);
+    isMaxPool = (avg_pool == nullptr);
+    //OPENVINO_ASSERT( max_pool , "Pool node is empty!");
+    auto kernels = isMaxPool ? max_pool->get_kernel() : avg_pool->get_kernel();
     if (2 == kernels.size() && kernels[0] > 1 && kernels[1] > 1) {
         if (m_cnn_validator) {
-            auto strides = max_pool->get_strides();
-            return m_cnn_validator->ValidatePooling2D(max_pool->get_friendly_name(),
+   	        auto strides = isMaxPool ? max_pool->get_strides() : avg_pool->get_strides();
+            return m_cnn_validator->ValidatePooling2D(isMaxPool ? max_pool->get_friendly_name() : avg_pool->get_friendly_name(),
                                                       static_cast<uint32_t>(kernels[0]),
                                                       static_cast<uint32_t>(kernels[1]),
                                                       static_cast<uint32_t>(strides[0]),
@@ -1030,7 +1035,7 @@ bool Limitations::is_op_supported(const std::shared_ptr<ov::Node>& node,
     } else if (auto fully_connected = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node)) {
         return is_fc_supported(fully_connected, is_exception_allowed);
     } else if (ov::intel_gna::graph_utils::is_pooling(node)) {
-        return is_pooling_supported(std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node),
+        return is_pooling_supported(node,
                                     is_exception_allowed);
     } else if (ov::op::util::is_output(node) || ov::op::util::is_sink(node) ||
                ov::intel_gna::graph_utils::is_eltwise_add(node) || ov::intel_gna::graph_utils::is_eltwise_mul(node) ||
