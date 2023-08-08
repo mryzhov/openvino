@@ -110,30 +110,6 @@ static std::shared_ptr<ov::opset11::Transpose> create_transpose(const ov::Output
         ov::opset11::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0}));
 }
 
-/*
-static std::shared_ptr<ngraph::opset11::Transpose> get_transpose_before(std::shared_ptr<ngraph::Node> conv) {
-    const ngraph::Output<ngraph::Node>& parent = conv->input_value(0);
-    auto transpose_before = std::dynamic_pointer_cast<ngraph::opset11::Transpose>(parent.get_node()->shared_from_this());
-    if (nullptr == transpose_before) return nullptr;
-
-    auto convolution_children = conv->output(0).get_target_inputs();
-    auto convolution_bias =
-        std::dynamic_pointer_cast<ngraph::opset11::Add>(convolution_children.begin()->get_node()->shared_from_this());
-
-    std::shared_ptr<ngraph::opset11::Transpose> transpose_after;
-    if (nullptr != convolution_bias) {
-        auto add_children = convolution_bias->output(0).get_target_inputs();
-        if (add_children.size() != 1) return nullptr;
-        transpose_after = std::dynamic_pointer_cast<ngraph::opset11::Transpose>(add_children.begin()->get_node()->shared_from_this());
-    } else {
-        transpose_after = std::dynamic_pointer_cast<ngraph::opset11::Transpose>(
-        convolution_children.begin()->get_node()->shared_from_this());
-    }
-
-    if (transpose_after == nullptr) return nullptr;
-    return transpose_before;
-}*/
-
 static ov::Output<ov::Node> decompose_height(ov::Output<ov::Node> input,
                                               ov::CoordinateDiff pads_begin,
                                               ov::CoordinateDiff pads_end,
@@ -189,13 +165,6 @@ static bool decompose(std::shared_ptr<ov::intel_gna::op::GNAConvolution> conv) {
     if (pads_begin.size() < 2 || pads_end.size() < 2) return false;
     if (pads_begin[0] == pads_end[0] && pads_begin[1] == pads_end[1]) return false;
     
-    /* auto transpose_before = get_transpose_before(conv);
-    if (nullptr == transpose_before) return false;
-
-    Output<Node> input = transpose_before->input_value(0);
-    auto input_shape = input.get_shape();
-    if (input_shape.size() != 4 || input_shape[0] != 1) return false;*/
-
     auto input = conv->input_value(0);
     auto input_shape = input.get_shape();
     if (input_shape.size() != 4 || input_shape[0] != 1)
@@ -203,10 +172,6 @@ static bool decompose(std::shared_ptr<ov::intel_gna::op::GNAConvolution> conv) {
 
     Output<Node> skip_input_H_const = decompose_height(input, pads_begin, pads_end, input_shape);
     Output<Node> skip_input_W_const = decompose_width(skip_input_H_const, pads_begin, pads_end, input_shape);
-
-   // auto final_transpose = std::make_shared<ov::opset11::Transpose>(
-   //     skip_input_W_const,
-   //     ngraph::opset11::Constant::create(ngraph::element::i64, Shape{4}, {0, 3, 1, 2}));
 
     auto new_conv = create_convolution(conv, skip_input_W_const, pads_begin, pads_end);
     if (new_conv == nullptr) return false;
@@ -217,22 +182,11 @@ static bool decompose(std::shared_ptr<ov::intel_gna::op::GNAConvolution> conv) {
     return true;
 }
 
-/* bool ngraph::pass::AszpDecomposition::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
-    bool is_graph_modified = false;
-    for (auto& node : f->get_ordered_ops()) {
-        auto conv = std::dynamic_pointer_cast<ngraph::opset11::Convolution>(node);
-        if (nullptr == conv) continue;
-        if (decompose(conv)) is_graph_modified = true;
-    }
-    return is_graph_modified;
-}*/
-
     ConvertAsymmetricPadToSymmetricPad::ConvertAsymmetricPadToSymmetricPad() {
     MATCHER_SCOPE(ConvertAsymmetricPadToSymmetricPad);
         auto conv = ngraph::pattern::wrap_type<ov::intel_gna::op::GNAConvolution>();
 
         ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-            // auto conv = std::dynamic_pointer_cast<ov::opset11::Convolution>(m.get_match_root());
             auto conv = std::dynamic_pointer_cast<ov::intel_gna::op::GNAConvolution>(m.get_match_root());
             return decompose(conv);
         };
