@@ -38,6 +38,7 @@
 #include "transformations/gather_sinking.hpp"
 #include "transformations/gather_sinking_transpose.hpp"
 #include "transformations/gather_sinking_transpose_reshape.hpp"
+#include "transformations/groupconv_decomposition.hpp"
 #include "transformations/handle_transposes_around_matmul.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/insert_copy_layer.hpp"
@@ -167,7 +168,12 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::pass::TransposeToReshape>();
         // TODO: crashes with fm network
         manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
+        manager.register_pass<ov::pass::Serialize>("GnaConvolutionFusion.xml", "GnaConvolutionFusion.bin");
         manager.register_pass<ov::intel_gna::pass::ConvertAsymmetricPadToSymmetricPad>();
+        manager.register_pass<ov::pass::Serialize>("ConvertAsymmetricPadToSymmetricPad.xml", "ConvertAsymmetricPadToSymmetricPad.bin");
+        //AD todo: Need to modify GroupConvolutionDecomposition transform to look for Tranpose->Groupconv->Transpose pattern in matcher pass
+        manager.register_pass<ov::intel_gna::pass::GroupConvolutionDecomposition>();
+        manager.register_pass<ov::pass::Serialize>("GroupConvolutionDecomposition.xml", "GroupConvolutionDecomposition.bin");
     }
     // manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
@@ -214,6 +220,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32},
                                                                      {ov::element::u64, ov::element::i32},
                                                                      {ov::element::u32, ov::element::i32}});
+    manager.register_pass<ov::pass::Serialize>("ConvertPrecision.xml", "ConvertPrecision.bin");
     const auto& pass_config = manager.get_pass_config();
 
     pass_config->set_callback<ov::pass::transpose_sinking::TSConcatForward>(
