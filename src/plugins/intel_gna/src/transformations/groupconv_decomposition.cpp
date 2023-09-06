@@ -23,6 +23,7 @@
 
 
 //#include "decomp_helper.hpp"
+/*
 #include <memory>
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pattern/op/or.hpp"
@@ -35,7 +36,24 @@
 #include <ngraph/opsets/opset1.hpp>
 
 
-using namespace ngraph;
+using namespace ngraph;*/
+
+#include "transformations/groupconv_decomposition.hpp"
+
+#include <ie_common.h>
+
+#include <ngraph/opsets/opset7.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset11.hpp>
+#include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
+#include <openvino/cc/ngraph/itt.hpp>
+#include <transformations/utils/utils.hpp>
+
+#include "utils/transformation_helper.hpp"
+
+
 using namespace ov::intel_gna::pass;
 using namespace ov::intel_gna::pass::helper;
 
@@ -70,7 +88,8 @@ void InsertActivation(OutputVector& upstream,
     }
 }
 
-static bool decompose(std::shared_ptr<ov::opset11::GroupConvolution> conv) {
+static bool decompose(std::shared_ptr<ngraph::opset7::GroupConvolution> conv) {
+
     const Output<Node>& input = conv->input_value(0);
     const Output<Node>& weights = conv->input_value(1);
     auto input_shape = input.get_shape();
@@ -82,7 +101,7 @@ static bool decompose(std::shared_ptr<ov::opset11::GroupConvolution> conv) {
     auto pads_end = conv->get_pads_end();
     auto strides = conv->get_strides();
     auto weights_const =
-        std::dynamic_pointer_cast<ngraph::opset1::Constant>(conv->input_value(1).get_node_shared_ptr());
+        std::dynamic_pointer_cast<ngraph::opset7::Constant>(conv->input_value(1).get_node_shared_ptr());
     const float* weight_ptr = weights_const->get_data_ptr<float>();
 
     // only support 4D input with N=1, 5D filters, 2D stride, 2D dilation, 2D padding
@@ -170,13 +189,13 @@ static bool decompose(std::shared_ptr<ov::opset11::GroupConvolution> conv) {
     OutputVector upstream;
     std::shared_ptr<ov::op::v0::Constant> out_padding_const = nullptr;
 
-    upstream.push_back(transpose_before->input_value(0));
+    upstream.push_back(transpose_before-> input_value(0));
     if (((H * W) % 32) != 0) {  // pad input to avoid 64B unaligned channel splitting
         uint64_t num_padding_elements = 0;
         if ((H == 1) || (W == 1)) {
-            auto new_reshape = std::make_shared<ngraph::opset1::Reshape>(
+            auto new_reshape = std::make_shared<ngraph::opset7::Reshape>(
                 upstream[0],
-                ov::opset11::Constant::create(ngraph::element::i64, Shape{2}, {H * W, C})->output(0),
+                ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {H * W, C})->output(0),
                 false);
             upstream[0] = new_reshape->output(0);
             if (H == 1) {  // 1D case - pad in W
@@ -190,9 +209,9 @@ static bool decompose(std::shared_ptr<ov::opset11::GroupConvolution> conv) {
             }
             std::vector<float> padding(num_padding_elements, 0.0f);
             auto padding_const =
-                ov::opset11::Constant::create(ngraph::element::f32, Shape{num_padding_elements / C, C}, padding);
+                ngraph::opset11::Constant::create(ngraph::element::f32, Shape{num_padding_elements / C, C}, padding);
             upstream.push_back(padding_const->output(0));
-            auto new_concat = std::make_shared<ngraph::opset1::Concat>(upstream, 0);
+            auto new_concat = std::make_shared<ngraph::opset7::Concat>(upstream, 0);
             upstream.pop_back();
             upstream[0] = new_concat->output(0);
         } else {  // 2D case
@@ -200,31 +219,32 @@ static bool decompose(std::shared_ptr<ov::opset11::GroupConvolution> conv) {
             Wnew_pad = (W_pad + pads_begin[1] + pads_end[1] - Kw) / strides[1] + 1;
             num_padding_elements = C * (W_pad - W);
             std::vector<float> padding(num_padding_elements, 0.0f);
-            auto padding_const =
-                ov::opset11::Constant::create(ngraph::element::f32, Shape{1, 1, num_padding_elements / C, C}, padding);
+            auto padding_const = ngraph::opset11::Constant::create(ngraph::element::f32,
+                                                                   Shape{1, 1, num_padding_elements / C, C},
+                                                                   padding);
             upstream.push_back(padding_const->output(0));
             auto split =
-                std::make_shared<ngraph::opset1::Split>(upstream[0],
-                                                        ngraph::opset1::Constant::create(element::i64, Shape{}, {1}),
+                std::make_shared<ngraph::opset7::Split>(upstream[0],
+                                                        ngraph::opset7::Constant::create(element::i64, Shape{}, {1}),
                                                         H);
             OutputVector parts;
             for (uint32_t h = 0; h < H; h++) {
                 upstream[0] = split->output(h);
-                auto new_concat = std::make_shared<ngraph::opset1::Concat>(upstream, 2);
+                auto new_concat = std::make_shared<ngraph::opset7::Concat>(upstream, 2);
                 parts.push_back(new_concat->output(0));
             }
             upstream.pop_back();
-            auto new_concat = std::make_shared<ngraph::opset1::Concat>(parts, 1);
-            auto new_reshape = std::make_shared<ngraph::opset1::Reshape>(
+            auto new_concat = std::make_shared<ngraph::opset7::Concat>(parts, 1);
+            auto new_reshape = std::make_shared<ngraph::opset7::Reshape>(
                 new_concat->output(0),
-                ov::opset11::Constant::create(ngraph::element::i64, Shape{2}, {H * W_pad, C})->output(0),
+                ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {H * W_pad, C})->output(0),
                 false);
             upstream[0] = new_reshape->output(0);
         }
     } else {
-        auto new_reshape = std::make_shared<ngraph::opset1::Reshape>(
+        auto new_reshape = std::make_shared<ngraph::opset7::Reshape>(
             upstream[0],
-            ov::opset11::Constant::create(ngraph::element::i64, Shape{2}, {H * W, C})->output(0),
+            ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {H * W, C})->output(0),
             false);
         upstream[0] = new_reshape->output(0);
     }
@@ -245,13 +265,13 @@ static bool decompose(std::shared_ptr<ov::opset11::GroupConvolution> conv) {
             return false;  // 2D unaligned case not yet implemented
         }
         std::vector<float> padding(num_padding_elements, 0.0f);
-        out_padding_const = ov::opset11::Constant::create(ngraph::element::f32, pad_shape, padding);
+        out_padding_const = ngraph::opset11::Constant::create(ngraph::element::f32, pad_shape, padding);
     }
-    auto new_transpose =
-        std::make_shared<ov::opset11::Transpose>(upstream[0],
-                                        ov::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
-    auto split = std::make_shared<ngraph::opset1::Split>(new_transpose->output(0),
-                                                         ngraph::opset1::Constant::create(element::i64, Shape{}, {0}),
+    auto new_transpose = std::make_shared<ngraph::opset11::Transpose>(
+        upstream[0],
+        ngraph::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
+    auto split = std::make_shared<ngraph::opset7::Split>(new_transpose->output(0),
+                                                         ngraph::opset7::Constant::create(element::i64, Shape{}, {0}),
                                                          G);
 
     OutputVector parts;
@@ -268,24 +288,33 @@ static bool decompose(std::shared_ptr<ov::opset11::GroupConvolution> conv) {
                 }
             }
         }
+        //auto new_weights_const =
+        //    ngraph::opset11::Constant::create(ngraph::element::f32, Shape{Co, Ci, Kh, Kw}, new_weights);
         auto new_weights_const =
-            ov::opset11::Constant::create(ngraph::element::f32, Shape{Co, Ci, Kh, Kw}, new_weights);
+        ngraph::opset11::Constant::create(ngraph::element::f32, Shape{Co, Kh, Kw, Ci}, new_weights);
         new_weights_const->set_friendly_name("SharedWeights");
         upstream[0] = split->output(g);
         if ((H_pad == 1) || (W_pad == 1)) {
-            auto new_transpose = std::make_shared<ov::opset11::Transpose>(
+            auto new_transpose = std::make_shared<ngraph::opset11::Transpose>(
                 upstream[0],
-                                                ov::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
+                ngraph::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
             upstream[0] = new_transpose->output(0);
         }
-        auto new_reshape = std::make_shared<ngraph::opset1::Reshape>(
+        auto new_reshape = std::make_shared<ngraph::opset7::Reshape>(
             upstream[0],
-            ov::opset11::Constant::create(ngraph::element::i64, Shape{4}, {N, H_pad, W_pad, C / G})->output(0),
+            ngraph::opset11::Constant::create(ngraph::element::i64, Shape{4}, {N, H_pad, W_pad, C / G})->output(0),
             false);
-        auto new_transpose = std::make_shared<ov::opset11::Transpose>(
-            new_reshape->output(0),
-            ov::opset11::Constant::create(element::Type_t::i64, Shape{4}, {0, 3, 1, 2}));
-        auto new_conv = std::make_shared<opset1::Convolution>(new_transpose->output(0),
+       // auto new_transpose = std::make_shared<ngraph::opset11::Transpose>(
+       //     new_reshape->output(0),
+       //     ngraph::opset11::Constant::create(element::Type_t::i64, Shape{4}, {0, 3, 1, 2}));
+       //auto new_conv = std::make_shared<ngraph::opset7::Convolution>(new_transpose->output(0),
+       //                                                       new_weights_const->output(0),
+       //                                                       strides,
+       //                                                       pads_begin,
+       //                                                       pads_end,
+       //                                                       dilations,
+       //                                                       auto_pad);
+        auto new_conv = std::make_shared<ov::intel_gna::op::GNAConvolution>(new_reshape->output(0),
                                                               new_weights_const->output(0),
                                                               strides,
                                                               pads_begin,
@@ -294,9 +323,9 @@ static bool decompose(std::shared_ptr<ov::opset11::GroupConvolution> conv) {
                                                               auto_pad);
         new_conv->set_friendly_name("ReplaceGroupConv");
 
-        if (add_after != nullptr) {
+         if (add_after != nullptr) {
             auto bias_const =
-                std::dynamic_pointer_cast<opset1::Constant>(add_after->input_value(1).get_node_shared_ptr());
+                std::dynamic_pointer_cast<ngraph::opset7::Constant>(add_after->input_value(1).get_node_shared_ptr());
             const float* bias_ptr = bias_const->get_data_ptr<float>();
             std::vector<float> new_bias(Co, 0.0f);
             float* new_bias_ptr = new_bias.data();
@@ -304,66 +333,70 @@ static bool decompose(std::shared_ptr<ov::opset11::GroupConvolution> conv) {
                 *(new_bias_ptr + i) = *(bias_ptr + g * Co + i);
             }
             auto new_bias_const =
-                ov::opset11::Constant::create(ngraph::element::f32, Shape{1ull, Co, 1ull, 1ull}, new_bias);
-            auto new_add = std::make_shared<opset1::Add>(new_conv->output(0), new_bias_const->output(0));
+                ngraph::opset11::Constant::create(ngraph::element::f32, Shape{1ull, Co, 1ull, 1ull}, new_bias);
+            auto new_add = std::make_shared<ngraph::opset1::Add>(new_conv->output(0), new_bias_const->output(0));
             upstream[0] = new_add->output(0);
             InsertActivation(upstream, prelu_after, relu_after, sigmoid_after, tanh_after);
-            new_transpose = std::make_shared<ov::opset11::Transpose>(
+            new_transpose = std::make_shared<ngraph::opset11::Transpose>(
                 upstream[0],
-                ov::opset11::Constant::create(element::Type_t::i64, Shape{4}, {0, 2, 3, 1}));
+                ngraph::opset11::Constant::create(element::Type_t::i64, Shape{4}, {0, 2, 3, 1}));
         } else {
             upstream[0] = new_conv->output(0);
             InsertActivation(upstream, prelu_after, relu_after, sigmoid_after, tanh_after);
-            new_transpose = std::make_shared<ov::opset11::Transpose>(
-                upstream[0],
-                ov::opset11::Constant::create(element::Type_t::i64, Shape{4}, {0, 2, 3, 1}));
+            //new_transpose = std::make_shared<ngraph::opset11::Transpose>(
+            //    upstream[0],
+            //    ngraph::opset11::Constant::create(element::Type_t::i64, Shape{4}, {0, 2, 3, 1}));
         }
-        upstream[0] = new_transpose->output(0);
+        //upstream[0] = new_transpose->output(0);
+        upstream[0] = new_conv->output(0);
         if (out_padding_const) {
             size_t pad_dim = (Hnew_pad == 1) ? 2 : 1;
             upstream.push_back(out_padding_const->output(0));
-            auto new_concat = std::make_shared<ngraph::opset1::Concat>(upstream, pad_dim);
+            auto new_concat = std::make_shared<ngraph::opset7::Concat>(upstream, pad_dim);
             upstream.pop_back();
             upstream[0] = new_concat->output(0);
         }
         parts.push_back(upstream[0]);
     }
-    auto new_concat = std::make_shared<ngraph::opset1::Concat>(parts, 1);
+    auto new_concat = std::make_shared<ngraph::opset7::Concat>(parts, 1);
     auto new_reshape = std::make_shared<ngraph::opset1::Reshape>(
         new_concat->output(0),
-        ov::opset11::Constant::create(ngraph::element::i64, Shape{2}, {G * Co, Hnew_pad * Wnew_pad})->output(0),
+        ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {G * Co, Hnew_pad * Wnew_pad})->output(0),
         false);
-    new_transpose =
-        std::make_shared<ov::opset11::Transpose>(new_reshape->output(0),
-                                        ov::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
+    new_transpose = std::make_shared<ngraph::opset11::Transpose>(
+        new_reshape->output(0),
+        ngraph::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
     upstream[0] = new_transpose->output(0);
     if ((Hnew_pad > Hnew) || (Wnew_pad > Wnew)) {  // remove padding
-        auto slice_start = ov::opset11::Constant::create(ngraph::element::i64, Shape{2}, {0ull, 0ull});
-        auto slice_stop = ov::opset11::Constant::create(ngraph::element::i64, Shape{2}, {Hnew * Wnew, C});
-        auto slice_step = ov::opset11::Constant::create(ngraph::element::i64, Shape{2}, {1ull, 1ull});
-        auto new_slice = std::make_shared<ov::opset11::Slice>(upstream[0], slice_start, slice_stop, slice_step);
+        auto slice_start = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {0ull, 0ull});
+        auto slice_stop = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {Hnew * Wnew, C});
+        auto slice_step = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {1ull, 1ull});
+        auto new_slice = std::make_shared<ngraph::opset11::Slice>(upstream[0], slice_start, slice_stop, slice_step);
         upstream[0] = new_slice->output(0);
     }
-    new_reshape = std::make_shared<ngraph::opset1::Reshape>(
+    new_reshape = std::make_shared<ngraph::opset7::Reshape>(
         upstream[0],
-        ov::opset11::Constant::create(ngraph::element::i64, Shape{4}, {N, Hnew, Wnew, G * Co})->output(0),
+        ngraph::opset11::Constant::create(ngraph::element::i64, Shape{4}, {N, Hnew, Wnew, G * Co})->output(0),
         false);
 
     ngraph::replace_node(transpose_after, new_reshape);
     return true;
+    //return new_reshape;
 
 }
 
-//bool ngraph::pass::GroupConvolutionDecomposition::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
 GroupConvolutionDecomposition::GroupConvolutionDecomposition() {
     MATCHER_SCOPE(GroupConvolutionDecomposition);
-     auto conv = ov::pass::pattern::wrap_type<ov::opset11::GroupConvolution>();
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-         auto conv = std::dynamic_pointer_cast<ov::opset11::GroupConvolution>(m.get_match_root());
-        return decompose(conv);
+
+    auto dwsc = ngraph::pattern::wrap_type<ngraph::opset7::GroupConvolution>();
+
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        auto dwsc = std::dynamic_pointer_cast<ngraph::opset7::GroupConvolution>(m.get_match_root());
+        return decompose(dwsc);
     };
 
-        
+    auto m = std::make_shared<ngraph::pattern::Matcher>(dwsc, matcher_name);
+    this->register_matcher(m, callback);
 }
 
 }  // namespace pass

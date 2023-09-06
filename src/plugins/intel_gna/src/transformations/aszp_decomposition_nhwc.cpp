@@ -52,7 +52,7 @@ static std::shared_ptr<ov::opset11::Reshape> create_reshape(const ov::Output<ov:
 }
 
 static std::shared_ptr<ov::opset11::Constant> create_zero_const(ov::Shape shape) {
-    return ov::opset11::Constant::create(ov::element::i64,
+    return ov::opset11::Constant::create(ov::element::f32,
                                              shape,
                                              std::vector<float>(shape[0] * shape[1], 0.0f));
 }
@@ -69,7 +69,7 @@ static std::shared_ptr<ov::op::v0::Concat> concatenate_zeros(uint64_t pad_begin,
         concat_vector.push_back(input_node->output(0));
         concat_vector.push_back(padding_const->output(0));
     }
-    return std::make_shared<ov::opset11::Concat>(concat_vector, 1);
+    return std::make_shared<ov::opset11::Concat>(concat_vector, 0);
 }
 
 static void trimm_padding(ov::CoordinateDiff& pads_begin, ov::CoordinateDiff& pads_end) {
@@ -92,7 +92,8 @@ static std::shared_ptr<ov::Node> create_convolution(std::shared_ptr<ov::intel_gn
     trimm_padding(pads_begin, pads_end);
 
     if (nullptr != conv) {
-        return std::make_shared<ov::opset11::Convolution>(input,
+        //return std::make_shared<ov::opset11::Convolution>(input,
+        return std::make_shared<ov::intel_gna::op::GNAConvolution>(input,
                                                               conv->input_value(1),
                                                               conv->get_strides(),
                                                               pads_begin,
@@ -123,13 +124,23 @@ static ov::Output<ov::Node> decompose_height(ov::Output<ov::Node> input,
     if (0 == height_padding)  return input;
     
     auto new_reshape = create_reshape(input, 2, ov::Shape{H, W * C});
+    //auto new_transpose = create_transpose(new_reshape->output(0));
+    auto padding_const = create_zero_const(ov::Shape{height_padding, W * C});
+    auto new_concat = concatenate_zeros(height_begin, height_end, padding_const, new_reshape);
+    //auto new_untranspose = create_transpose(new_concat->output(0));
+
+    if (0 == width_padding) return create_reshape(new_concat->output(0), 4, ov::Shape{N, H + height_padding, W, C})->output(0);
+    return (new_concat->output(0));
+
+    /* auto new_reshape = create_reshape(input, 2, ov::Shape{H, W * C});
     auto new_transpose = create_transpose(new_reshape->output(0));
     auto padding_const = create_zero_const(ov::Shape{W * C, height_padding});
     auto new_concat = concatenate_zeros(height_begin, height_end, padding_const, new_transpose);
     auto new_untranspose = create_transpose(new_concat->output(0));
 
     if (0 == width_padding) return create_reshape(new_untranspose->output(0), 4, ov::Shape{N, H + height_padding, W, C})->output(0);
-    return (new_untranspose->output(0));
+    return (new_untranspose->output(0));*/
+
 }
 
 static ov::Output<ov::Node> decompose_width(ov::Output<ov::Node> input,

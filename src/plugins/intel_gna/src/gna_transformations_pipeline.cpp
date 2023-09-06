@@ -116,6 +116,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::pass::GRUCellDecomposition>();
     manager.register_pass<ov::pass::LSTMCellDecomposition>();
     manager.register_pass<ov::intel_gna::pass::ConvertDWSCToScaleShifts>();
+    manager.register_pass<ov::pass::Serialize>("ConvertDWSCToScaleShifts.xml", "ConvertDWSCToScaleShifts.bin");
     manager.register_pass<ov::intel_gna::pass::ConvertPaddedToValidConv>();
     manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBiasAF>(config.gnaPrecision);
     manager.register_pass<ov::intel_gna::pass::Decompose2DConvTransposedWithBias>(config.gnaPrecision);
@@ -147,13 +148,19 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::intel_gna::pass::RemoveSingleInputConcat>();
     manager.register_pass<ov::intel_gna::pass::SubstituteSoftsign>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeLayerToBeEliminated>();
+    manager.register_pass<ov::pass::Serialize>("InsertCopyBeforeLayerToBeEliminated.xml", "InsertCopyBeforeLayerToBeEliminated.bin");
     // TODO enable this transformation for networks without convolutions
     if (has_convolution || has_maxpool || has_mvn || has_matmul) {
         manager.register_pass<ov::intel_gna::pass::ReplaceGnaNHWCLayers>();
+        manager.register_pass<ov::pass::Serialize>("ReplaceGnaNHWCLayers.xml", "ReplaceGnaNHWCLayers.bin");
         manager.register_pass<ov::intel_gna::pass::InsertConvolutionTransposeHW>();
+        manager.register_pass<ov::pass::Serialize>("InsertConvolutionTransposeHW.xml", "InsertConvolutionTransposeHW.bin");
         manager.register_pass<ov::intel_gna::pass::ReshapeReduction>();
+        manager.register_pass<ov::pass::Serialize>("ReshapeReduction.xml", "ReshapeReduction.bin");
         manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+        manager.register_pass<ov::pass::Serialize>("TransposeSinkingGeneral.xml", "TransposeSinkingGeneral.bin");
         manager.register_pass<ov::intel_gna::pass::TransposeCompress>();
+        manager.register_pass<ov::pass::Serialize>("TransposeCompress.xml", "TransposeCompress.bin");
         manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
         manager.register_pass<ov::intel_gna::pass::ReshapeReduction>();
         manager.register_pass<ov::pass::transpose_sinking::TSFuse>();
@@ -163,18 +170,24 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeForward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTransposeReshapeBackward>();
         manager.register_pass<ov::intel_gna::pass::GatherSinkingTranspose>();
+        manager.register_pass<ov::pass::Serialize>("GatherSinkingTranspose.xml", "GatherSinkingTranspose.bin");
         manager.register_pass<ov::intel_gna::pass::ReshapeReduction>();
+        manager.register_pass<ov::pass::Serialize>("ReshapeReduction.xml", "ReshapeReduction.bin");
         manager.register_pass<ov::intel_gna::pass::GatherSinkingGeneral>();
+        manager.register_pass<ov::pass::Serialize>("GatherSinkingGeneral.xml", "GatherSinkingGeneral.bin");
         manager.register_pass<ov::pass::TransposeToReshape>();
+         manager.register_pass<ov::pass::Serialize>("TransposeToReshape.xml", "TransposeToReshape.bin");
         // TODO: crashes with fm network
         manager.register_pass<ov::intel_gna::pass::GnaConvolutionFusion>();
         manager.register_pass<ov::pass::Serialize>("GnaConvolutionFusion.xml", "GnaConvolutionFusion.bin");
         manager.register_pass<ov::intel_gna::pass::ConvertAsymmetricPadToSymmetricPad>();
         manager.register_pass<ov::pass::Serialize>("ConvertAsymmetricPadToSymmetricPad.xml", "ConvertAsymmetricPadToSymmetricPad.bin");
-        //AD todo: Need to modify GroupConvolutionDecomposition transform to look for Tranpose->Groupconv->Transpose pattern in matcher pass
         manager.register_pass<ov::intel_gna::pass::GroupConvolutionDecomposition>();
         manager.register_pass<ov::pass::Serialize>("GroupConvolutionDecomposition.xml", "GroupConvolutionDecomposition.bin");
+        manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
+        manager.register_pass<ov::pass::Serialize>("ReplaceBigTranspose_1.xml", "ReplaceBigTranspose_1.bin");
     }
+
     // manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
