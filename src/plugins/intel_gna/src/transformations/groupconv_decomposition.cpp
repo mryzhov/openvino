@@ -381,8 +381,6 @@ static bool decompose(std::shared_ptr<ngraph::opset7::GroupConvolution> conv) {
 
     ngraph::replace_node(transpose_after, new_reshape);
     return true;
-    //return new_reshape;
-
 }
 
 GroupConvolutionDecomposition::GroupConvolutionDecomposition() {

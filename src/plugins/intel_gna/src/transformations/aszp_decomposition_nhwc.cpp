@@ -123,24 +123,24 @@ static ov::Output<ov::Node> decompose_height(ov::Output<ov::Node> input,
 
     if (0 == height_padding)  return input;
     
-    auto new_reshape = create_reshape(input, 2, ov::Shape{H, W * C});
-    //auto new_transpose = create_transpose(new_reshape->output(0));
-    auto padding_const = create_zero_const(ov::Shape{height_padding, W * C});
-    auto new_concat = concatenate_zeros(height_begin, height_end, padding_const, new_reshape);
-    //auto new_untranspose = create_transpose(new_concat->output(0));
+    if (C == 1) {
+        auto new_reshape = create_reshape(input, 2, ov::Shape{H, W * C});
+        auto padding_const = create_zero_const(ov::Shape{height_padding, W * C});
+        auto new_concat = concatenate_zeros(height_begin, height_end, padding_const, new_reshape);
+        if (0 == width_padding)
+            return create_reshape(new_concat->output(0), 4, ov::Shape{N, H + height_padding, W, C})->output(0);
+        return (new_concat->output(0));
 
-    if (0 == width_padding) return create_reshape(new_concat->output(0), 4, ov::Shape{N, H + height_padding, W, C})->output(0);
-    return (new_concat->output(0));
-
-    /* auto new_reshape = create_reshape(input, 2, ov::Shape{H, W * C});
-    auto new_transpose = create_transpose(new_reshape->output(0));
-    auto padding_const = create_zero_const(ov::Shape{W * C, height_padding});
-    auto new_concat = concatenate_zeros(height_begin, height_end, padding_const, new_transpose);
-    auto new_untranspose = create_transpose(new_concat->output(0));
-
-    if (0 == width_padding) return create_reshape(new_untranspose->output(0), 4, ov::Shape{N, H + height_padding, W, C})->output(0);
-    return (new_untranspose->output(0));*/
-
+    } else {
+        auto new_reshape = create_reshape(input, 2, ov::Shape{H, W * C});
+        auto new_transpose = create_transpose(new_reshape->output(0));
+        auto padding_const = create_zero_const(ov::Shape{W * C, height_padding});
+        auto new_concat = concatenate_zeros(height_begin, height_end, padding_const, new_transpose);
+        auto new_untranspose = create_transpose(new_concat->output(0));
+        if (0 == width_padding)
+            return create_reshape(new_untranspose->output(0), 4, ov::Shape{N, H + height_padding, W, C})->output(0);
+        return (new_untranspose->output(0));
+    }
 }
 
 static ov::Output<ov::Node> decompose_width(ov::Output<ov::Node> input,
