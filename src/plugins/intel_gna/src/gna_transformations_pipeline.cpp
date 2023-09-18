@@ -97,8 +97,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
 
     fake_quantized = ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(model);
     const bool has_convolution = ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model);
+    const bool has_groupconvolution = ov::op::util::has_op_with_type<ngraph::opset7::GroupConvolution>(model);
     const bool has_maxpool = ov::op::util::has_op_with_type<ov::opset8::MaxPool>(model);
-    const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
+    //const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
     const bool has_matmul = ov::op::util::has_op_with_type<ngraph::opset7::MatMul>(model);
     const bool has_mvn = ov::op::util::has_op_with_type<ov::opset8::MVN>(model) ||
                          ov::op::util::has_op_with_type<ov::op::v0::MVN>(model);
@@ -187,7 +188,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
         manager.register_pass<ov::pass::Serialize>("ReplaceBigTranspose_1.xml", "ReplaceBigTranspose_1.bin");
     }
-
+    manager.run_passes(model);
+    const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
+    manager = ov::pass::Manager();
     // manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
@@ -196,6 +199,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.register_pass<ov::intel_gna::pass::MarkupFusableTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveExtraReshapes>();
+    manager.register_pass<ov::pass::Serialize>("RemoveExtraReshapes.xml", "RemoveExtraReshapes.bin");
     /*
         Put BroadcastAddMultiplyConst here after ConvertOpSet..() transformations since there are conficts with them.
         ngraph::pass::ConvertOpSet1ToLegacy -> ngraph::pass::BiasFusions ->
@@ -205,11 +209,14 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
             transormations
     */
     manager.register_pass<ov::intel_gna::pass::BroadcastAddMultiplyConst>();
+    manager.register_pass<ov::pass::Serialize>("BroadcastAddMultiplyConst.xml", "BroadcastAddMultiplyConst.bin");
     /*
         SplitEltwise has dependency on BroadcastAddMultiplyConst for case when spliting of Constant
         input is doing
     */
     manager.register_pass<ov::intel_gna::pass::SplitEltwise>();
+    manager.register_pass<ov::pass::Serialize>("SplitEltwise.xml", "SplitEltwise.bin");
+
     /* The following transformations perform insertion of Identity layer in 3 steps:
         1. Mark inputs with rt_info attribute where precision change from i32 to i16/i8 is happened
         2. Insert Identity after operation which have consumers marked with precision change
@@ -307,7 +314,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
      * networks, that initialy have Slice.
      * That could be removed after StridedSlice implementation in TransposeSinking
      */
-    if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
+    //if (has_slice && (has_convolution || has_maxpool || has_mvn || has_groupconvolution)) {
+    if (has_slice && (has_convolution || has_maxpool || has_mvn || has_groupconvolution)) {
         pass_config->disable<ov::pass::SliceToStridedSlice>();
     }
 
@@ -337,7 +345,8 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
      * Slice -> StridedSlice -> CropIE
      * That could be removed after StridedSlice implementation in TransposeSinking
      */
-    if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
+    //if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
+    if (has_slice && (has_convolution || has_maxpool || has_mvn | has_groupconvolution)) {
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
