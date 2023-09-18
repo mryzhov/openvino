@@ -19,7 +19,7 @@ namespace pass {
  *                                       |
  *                              Transpose (NHWC -> NCHW)
  */
-class SubstituteGNAConvolution : public ngraph::pass::MatcherPass {
+class SubstituteGNAConvolution : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SubstituteGNAConvolution();
@@ -34,16 +34,31 @@ public:
  *                                       |
  *                              Transpose (NHWC -> NCHW)
  */
-class SubstituteGNAMaxPool : public ngraph::pass::MatcherPass {
+class SubstituteGNAMaxPool : public ov::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     SubstituteGNAMaxPool();
 };
 
 /**
- * @brief calls SubstituteGNAConvolution and SubstituteGNAMaxPool together
+ * @brief Substitites ngraph::AvgPool (NCHW) -> GNASumPool (NHWC)
+ *
+ *                              Transpose (NCHW -> NHWC)
+ *                                       |
+ * AvgPool (NCHW) ->               GNASumPool (NHWC)
+ *                                       |
+ *                              Transpose (NHWC -> NCHW)
  */
-class ReplaceGnaNHWCLayers : public ngraph::pass::FunctionPass {
+class SubstituteGNASumPool : public ov::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    SubstituteGNASumPool();
+};
+
+/**
+ * @brief calls SubstituteGNAConvolution and SubstituteGNAMaxPool and SubstituteGNAAvgPool together
+ */
+class ReplaceGnaNHWCLayers : public ov::pass::ModelPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_model(const std::shared_ptr<ngraph::Function>& f) override;

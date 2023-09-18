@@ -21,7 +21,7 @@
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/opsets/opset9.hpp"
 #include "ops/gna_convolution.hpp"
-#include "ops/gna_max_pool.hpp"
+#include "ops/gna_pool.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -232,7 +232,7 @@ public:
      * @return true if precision is found in supported
      */
     //bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
-    bool is_pooling_supported(const std::shared_ptr<ov::Node> node,
+    bool is_pooling_supported(const std::shared_ptr<ov::Node>& pool,
                               bool is_exception_allowed = false);
 
     static bool is_concat_supported(const std::shared_ptr<const ov::Node>& node, bool is_exception_allowed);
