@@ -372,6 +372,25 @@ static bool decompose(std::shared_ptr<ngraph::opset7::GroupConvolution> conv) {
         auto slice_stop = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {Hnew * Wnew, C});
         auto slice_step = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {1ull, 1ull});
         auto new_slice = std::make_shared<ngraph::opset11::Slice>(upstream[0], slice_start, slice_stop, slice_step);
+
+        //Variadic split
+        /*auto input_size = new_transpose->input_value(0).get_shape()[1];
+        size_t H_start = 0;
+        size_t H_stop = Hnew * Wnew;
+        std::vector<size_t> split_lengths;
+        auto num_splits = input_size / H_stop;
+        auto num_splits_remainder = input_size % H_stop;
+        for (int i = 0; i < num_splits; i++) {
+            split_lengths.push_back(Hnew * Wnew);
+        }
+        if (num_splits_remainder != 0){
+            split_lengths.push_back(input_size - (Hnew * Wnew)*num_splits);
+        }
+        auto size_splits_const =
+            ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{split_lengths.size()}, split_lengths);
+        auto axis_const = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
+        auto new_slice = std::make_shared<ov::op::v1::VariadicSplit>(upstream[0], axis_const, size_splits_const);*/
+
         upstream[0] = new_slice->output(0);
     }
     new_reshape = std::make_shared<ngraph::opset7::Reshape>(
