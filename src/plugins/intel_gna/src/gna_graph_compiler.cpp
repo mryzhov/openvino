@@ -2054,9 +2054,12 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
                          return false;
                      }).first;
 
-    if (nextLayer->name == "AvgPool") {
-        auto poolKernelSize = nextLayer->GetParamAsInt("kernel", 0) * nextLayer->GetParamAsInt("kernel", 1);
-        output_pwl_scale_factor = output_pwl_scale_factor / (float)poolKernelSize;
+    if (nextLayer != nullptr && nextLayer->type == "Pooling") {
+        auto& pooling = dynamic_cast<PoolingLayer&>(*nextLayer.get());
+        if (pooling._type == PoolingLayer::AVG) {
+            auto poolKernelSize = nextLayer->GetParamAsInt("kernel", 0) * nextLayer->GetParamAsInt("kernel", 1);
+            output_pwl_scale_factor = output_pwl_scale_factor / (float)poolKernelSize;
+        }
     }
 
     auto orientation = kDnnInterleavedOrientation;
