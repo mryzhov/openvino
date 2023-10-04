@@ -1019,7 +1019,8 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-4-cores-16gb'}}
+    # TODO switched to less powerful runner (4-cores) with enough RAM memory
+    runs-on: ${{ github.event_name == 'schedule' && 'aks-linux-16-cores' || 'aks-linux-16-cores'}}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
