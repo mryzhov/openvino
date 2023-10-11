@@ -99,7 +99,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     const bool has_convolution = ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model);
     const bool has_groupconvolution = ov::op::util::has_op_with_type<ngraph::opset7::GroupConvolution>(model);
     const bool has_maxpool = ov::op::util::has_op_with_type<ov::opset8::MaxPool>(model);
-    //const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
+    const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
     const bool has_matmul = ov::op::util::has_op_with_type<ngraph::opset7::MatMul>(model);
     const bool has_mvn = ov::op::util::has_op_with_type<ov::opset8::MVN>(model) ||
                          ov::op::util::has_op_with_type<ov::op::v0::MVN>(model);
@@ -188,9 +188,9 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
         manager.register_pass<ov::pass::Serialize>("ReplaceBigTranspose_1.xml", "ReplaceBigTranspose_1.bin");
     }
-    manager.run_passes(model);
-    const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
-    manager = ov::pass::Manager();
+    //manager.run_passes(model);
+    //const bool has_slice = ov::op::util::has_op_with_type<ov::opset8::Slice>(model);
+    //manager = ov::pass::Manager();
     // manager.register_pass<ov::intel_gna::pass::ReplaceBigTranspose>();
     manager.register_pass<ov::intel_gna::pass::RemoveInputsProcessing>(input_output_subgraphs);
     manager.register_pass<ov::intel_gna::pass::RemoveOutputsProcessing>(input_output_subgraphs);
@@ -223,9 +223,13 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
         3. Cleanup appropriate attribute from rt_info
     */
     manager.register_pass<ov::intel_gna::pass::MarkIdentityCandidates>(config.gnaFlags.input_low_precision);
+    manager.register_pass<ov::pass::Serialize>("MarkIdentityCandidates.xml", "MarkIdentityCandidates.bin");
     manager.register_pass<ov::intel_gna::pass::InsertIdentity>();
+    manager.register_pass<ov::pass::Serialize>("InsertIdentity.xml", "InsertIdentity.bin");
     manager.register_pass<ov::intel_gna::pass::IdentityCandidatesCleanup>();
+    manager.register_pass<ov::pass::Serialize>("IdentityCandidatesCleanup.xml", "IdentityCandidatesCleanup.bin");
     manager.register_pass<ov::intel_gna::pass::InsertIdentityForPrecAgnosticConcatInput>();
+    manager.register_pass<ov::pass::Serialize>("InsertIdentityForPrecAgnosticConcatInput.xml", "InsertIdentityForPrecAgnosticConcatInput.bin");
     // Breaks fusing of layers before result
     manager.register_pass<ov::intel_gna::pass::BreakFusingOfOutputLayers>();
     if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
@@ -235,6 +239,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     manager.register_pass<ov::pass::UnrollTensorIterator>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeConcatLayer>();
+    manager.register_pass<ov::pass::Serialize>("InsertCopyBeforeConcatLayer.xml", "InsertCopyBeforeConcatLayer.bin");
     manager.register_pass<ov::intel_gna::pass::HandleMultiConnectedLayerToConcatAndMemory>();
     manager.register_pass<ov::intel_gna::pass::HandleNonFunctionalSubgraphs>();
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::i64, ov::element::i32},
@@ -347,8 +352,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
      */
     //if (has_slice && (has_convolution || has_maxpool || has_mvn)) {
     if (has_slice && (has_convolution || has_maxpool || has_mvn | has_groupconvolution)) {
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::InitNodeInfo>();
+      manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
         manager.run_passes(model);

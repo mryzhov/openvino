@@ -100,9 +100,19 @@ static bool decompose(std::shared_ptr<ngraph::opset7::GroupConvolution> conv) {
     auto pads_begin = conv->get_pads_begin();
     auto pads_end = conv->get_pads_end();
     auto strides = conv->get_strides();
-    auto weights_const =
-        std::dynamic_pointer_cast<ngraph::opset7::Constant>(conv->input_value(1).get_node_shared_ptr());
-    const float* weight_ptr = weights_const->get_data_ptr<float>();
+    auto weights_const =   std::dynamic_pointer_cast<ngraph::opset7::Constant>(conv->input_value(1).get_node_shared_ptr());
+    const float* weight_ptr = nullptr;
+    if (weights_const) {
+        weight_ptr = weights_const->get_data_ptr<float>();
+    } else {
+        auto unsqueeze =  std::dynamic_pointer_cast<ngraph::opset7::Unsqueeze>(conv->input_value(1).get_node_shared_ptr());
+        const Output<Node>& parent0 = unsqueeze->input_value(0);
+        auto fake_quantize = std::dynamic_pointer_cast<ngraph::opset7::FakeQuantize>(parent0.get_node()->shared_from_this());
+        const Output<Node>& parent01 = fake_quantize->input_value(0);
+        auto weights_const = std::dynamic_pointer_cast<ngraph::opset7::Constant>(parent01.get_node()->shared_from_this());
+        weight_ptr = weights_const->get_data_ptr<float>();
+    }
+
 
     // only support 4D input with N=1, 5D filters, 2D stride, 2D dilation, 2D padding
     if (input_shape.size() != 4 || weights_shape.size() != 5 || output_shape.size() != 4 || pads_begin.size() != 2 ||
@@ -368,13 +378,13 @@ static bool decompose(std::shared_ptr<ngraph::opset7::GroupConvolution> conv) {
         ngraph::opset11::Constant::create(element::Type_t::i64, Shape{2}, {1, 0}));
     upstream[0] = new_transpose->output(0);
     if ((Hnew_pad > Hnew) || (Wnew_pad > Wnew)) {  // remove padding
-        auto slice_start = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {0ull, 0ull});
-        auto slice_stop = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {Hnew * Wnew, C});
-        auto slice_step = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {1ull, 1ull});
-        auto new_slice = std::make_shared<ngraph::opset11::Slice>(upstream[0], slice_start, slice_stop, slice_step);
+        //auto slice_start = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {0ull, 0ull});
+        //auto slice_stop = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {Hnew * Wnew, C});
+        //auto slice_step = ngraph::opset11::Constant::create(ngraph::element::i64, Shape{2}, {1ull, 1ull});
+        //auto new_slice = std::make_shared<ngraph::opset11::Slice>(upstream[0], slice_start, slice_stop, slice_step);
 
         //Variadic split
-        /*auto input_size = new_transpose->input_value(0).get_shape()[1];
+        auto input_size = new_transpose->input_value(0).get_shape()[1];
         size_t H_start = 0;
         size_t H_stop = Hnew * Wnew;
         std::vector<size_t> split_lengths;
@@ -389,7 +399,7 @@ static bool decompose(std::shared_ptr<ngraph::opset7::GroupConvolution> conv) {
         auto size_splits_const =
             ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{split_lengths.size()}, split_lengths);
         auto axis_const = ov::op::v0::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-        auto new_slice = std::make_shared<ov::op::v1::VariadicSplit>(upstream[0], axis_const, size_splits_const);*/
+        auto new_slice = std::make_shared<ov::op::v1::VariadicSplit>(upstream[0], axis_const, size_splits_const);
 
         upstream[0] = new_slice->output(0);
     }
