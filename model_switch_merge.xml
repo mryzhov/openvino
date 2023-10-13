@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<net name="TensorFlow_Frontend_IR" version="11">
+	<layers>
+		<layer id="1" name="x" type="Parameter" version="opset1">
+			<data shape="2,3" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32" names="x,x:0">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="0" name="y" type="Parameter" version="opset1">
+			<data shape="2,3" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32" names="y,y:0">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Relu" type="ReLU" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32" names="Relu,Relu:0">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="AddV2" type="Add" version="opset1">
+			<data auto_broadcast="numpy" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32" names="AddV2,AddV2:0">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="AddV2:0" type="Result" version="opset1">
+			<input>
+				<port id="0" precision="FP32">
+					<dim>2</dim>
+					<dim>3</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="3" to-port="1" />
+		<edge from-layer="1" from-port="0" to-layer="2" to-port="0" />
+		<edge from-layer="2" from-port="1" to-layer="3" to-port="0" />
+		<edge from-layer="3" from-port="2" to-layer="4" to-port="0" />
+	</edges>
+	<rt_info>
+		<MO_version value="custom_github_actions/pytests_parallel_9c042ec781f390c335fbf3ead72286984c858088" />
+		<Runtime_version value="2023.1.0-12185-9e6b00e51cd-releases/2023/1" />
+		<conversion_parameters>
+			<freeze_placeholder_with_value value="is_training-&gt;False" />
+			<input_model value="DIR/model_switch_merge.pbtxt" />
+			<input_model_is_text value="True" />
+			<is_python_api_used value="False" />
+			<log_level value="INFO" />
+			<output_dir value="DIR" />
+			<static_shape value="False" />
+			<use_legacy_frontend value="False" />
+			<use_new_frontend value="False" />
+		</conversion_parameters>
+		<legacy_frontend value="False" />
+	</rt_info>
+</net>
