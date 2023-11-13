@@ -64,7 +64,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: dev-cloud-ubuntu
+    runs-on: dev-cloud-ubuntu-sh
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
