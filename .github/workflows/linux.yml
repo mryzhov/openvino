@@ -87,10 +87,13 @@ jobs:
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/.ci/azure/ci_utils/onnxruntime
 
     steps:
+      - name: Check sudo
+        run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
+
       - name: Install git
         run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates
+          sudo apt-get update
+          sudo apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
         uses: actions/checkout@v4
@@ -121,7 +124,7 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk
+          sudo apt install --assume-yes --no-install-recommends default-jdk
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.3
