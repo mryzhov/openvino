@@ -207,8 +207,7 @@ macro(ov_add_sample)
 
     install(TARGETS ${SAMPLE_NAME}
             RUNTIME DESTINATION samples_bin/
-            COMPONENT samples_bin
-            EXCLUDE_FROM_ALL)
+            COMPONENT samples_bin)
 
     # create global target with all samples / demo apps
     if(NOT TARGET ov_samples)
