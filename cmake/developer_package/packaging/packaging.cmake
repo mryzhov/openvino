@@ -112,8 +112,14 @@ function(ov_install_with_name file component)
             set(install_rename RENAME "${actual_name}")
         endif()
 
+        if(CPACK_GENERATOR STREQUAL "SNAP")
+            set(install_dir ${OV_CPACK_LIBRARYDIR})
+        else()
+            set(install_dir runtime/3rdparty/${component}/lib)
+        endif()
+
         install(FILES "${file}"
-                DESTINATION runtime/3rdparty/${component}/lib
+                DESTINATION ${install_dir}
                 COMPONENT ${component}
                 EXCLUDE_FROM_ALL
                 ${install_rename})
