@@ -43,6 +43,8 @@ macro(ov_common_libraries_cpack_set_dirs)
 
     # skipped during common libraries packaging
     set(OV_CPACK_WHEELSDIR "tools")
+
+    set(TBB_LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
 endmacro()
 
 ov_common_libraries_cpack_set_dirs()
