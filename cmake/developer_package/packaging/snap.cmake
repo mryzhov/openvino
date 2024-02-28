@@ -17,7 +17,7 @@ macro(ov_snap_cpack_set_dirs)
     set(OV_CPACK_RUNTIMEDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_ARCHIVEDIR ${CMAKE_INSTALL_LIBDIR})
     set(OV_CPACK_OPENVINO_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/)
-    set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR}/openvino-${OpenVINO_VERSION})
+    set(OV_CPACK_PLUGINSDIR ${OV_CPACK_RUNTIMEDIR})
     set(OV_CPACK_LICENSESDIR licenses)
 
     ov_get_pyversion(pyversion)
