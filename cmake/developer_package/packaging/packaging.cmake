@@ -113,7 +113,7 @@ function(ov_install_with_name file component)
         endif()
 
         if(CPACK_GENERATOR STREQUAL "SNAP")
-            set(install_dir ${CMAKE_INSTALL_LIBDIR})
+            set(install_dir ${OV_CPACK_LIBRARYDIR})
         else()
             set(install_dir runtime/3rdparty/${component}/lib)
         endif()
