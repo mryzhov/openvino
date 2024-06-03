@@ -41,7 +41,7 @@ jobs:
       CCACHE_PATH: /mount/caches/ccache/ubuntu22_riscv64
 
     steps:
-      - name: Checkout cach action
+      - name: Checkout cache action
         uses: actions/checkout@v4
         with:
           sparse-checkout: .github/actions/cache
