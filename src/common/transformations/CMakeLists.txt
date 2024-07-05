@@ -32,7 +32,18 @@ ov_build_target_faster(${TARGET_NAME}_obj
 
 target_compile_features(${TARGET_NAME}_obj PUBLIC cxx_std_17)
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::reference openvino::itt openvino::core::dev openvino::shape_inference)
+# If TPP-MLIR is in library path, add it to the dependencies
+if (TPP_MLIR_DIR)
+    message(STATUS "TPP-MLIR at ${TPP_MLIR_DIR}")
+    add_compile_definitions(TPP_MLIR)
+    set(TPP_MLIR_LIBS
+            TPPPipeline
+            tpp_xsmm_runner_utils
+        )
+    target_link_directories(${TARGET_NAME}_obj PRIVATE ${TPP_MLIR_DIR})
+endif()
+
+target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::reference openvino::itt openvino::core::dev openvino::shape_inference ${TPP_MLIR_LIBS})
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${PUBLIC_HEADERS_DIR}"
                                                       "${CMAKE_CURRENT_SOURCE_DIR}/src"

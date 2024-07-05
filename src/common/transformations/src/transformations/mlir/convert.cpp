@@ -63,7 +63,7 @@ static void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& m
     // A set of default passes that lower any input IR to LLVM
     PassManager pm(module->getContext());
 
-#if 0  // TODO: if TPP is available
+#ifdef TPP_MLIR // If TPP is available
 
     tpp::DefaultPipelineOptions defPipelineOpts{defGpuBackend};
     pm.addPass(tpp::createDefaultPipeline(defPipelineOpts));
