@@ -56,8 +56,11 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations_visibility.hpp"
 
-using namespace mlir;
+#ifdef TPP_MLIR // If TPP is available
+#include "TPP/PassBundles.h"
+#endif
 
+using namespace mlir;
 
 static void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module) {
     // A set of default passes that lower any input IR to LLVM
@@ -65,7 +68,7 @@ static void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& m
 
 #ifdef TPP_MLIR // If TPP is available
 
-    tpp::DefaultPipelineOptions defPipelineOpts{defGpuBackend};
+    tpp::DefaultPipelineOptions defPipelineOpts{};
     pm.addPass(tpp::createDefaultPipeline(defPipelineOpts));
 
 #else  // Simplified default lowering to LLVM from LLVM tests
