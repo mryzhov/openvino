@@ -65,6 +65,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
                                              Threads::Threads
                                              ${MLIR_OPENVINO_LIBS})
 
+add_tpp_mlir_libs(${TARGET_NAME})
+
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})
 endif()

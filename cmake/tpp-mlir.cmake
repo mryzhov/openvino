@@ -6,15 +6,36 @@ if (TPP_MLIR_DIR)
     add_compile_definitions(TPP_MLIR)
     set(TPP_MLIR_LIBS
             TPPPipeline
+            TPPCheckDialect
+            TPPCheckToLoops
+            TPPGPU
+            TPPIR
+            TPPLinalgToFunc
+            TPPLinalgToXSMM
+            TPPPerfDialect
+            TPPPerfToFunc
+            TPPPerfToLoop
+            TPPRunner
+            TPPTestLib
+            TPPTransforms
+            TPPTransformsUtils
+            TPPXsmmDialect
+            TPPXsmmToFunc
+            xsmm
             tpp_xsmm_runner_utils
         )
-    function(enable_tpp_mlir target)
+    function(add_tpp_mlir_includes target)
         target_include_directories(${target} PRIVATE ${TPP_MLIR_DIR}/../include ${TPP_MLIR_DIR}/include)
+    endfunction()
+    function(add_tpp_mlir_libs target)
         target_link_directories(${target} PRIVATE ${TPP_MLIR_DIR}/lib)
         target_link_libraries(${target} PRIVATE ${TPP_MLIR_LIBS})
     endfunction()
 else()
-    function(enable_tpp_mlir target)
+    function(add_tpp_mlir_includes target)
+        message(DEBUG "TPP-MLIR not enabled, skipping ${target}")
+    endfunction()
+    function(add_tpp_mlir_libs target)
         message(DEBUG "TPP-MLIR not enabled, skipping ${target}")
     endfunction()
 endif()
