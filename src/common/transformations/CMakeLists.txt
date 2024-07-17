@@ -32,6 +32,8 @@ ov_build_target_faster(${TARGET_NAME}_obj
 
 target_compile_features(${TARGET_NAME}_obj PUBLIC cxx_std_17)
 
+enable_tpp_mlir(${TARGET_NAME}_obj)
+
 target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::reference openvino::itt openvino::core::dev openvino::shape_inference)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${PUBLIC_HEADERS_DIR}"
