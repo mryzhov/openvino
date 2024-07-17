@@ -41,31 +41,17 @@ target_include_directories(${TARGET_NAME} PUBLIC
 
 find_package(MLIR REQUIRED CONFIG)
 
-set(MLIR_OPENVINO_LIBS
-        MLIRAnalysis
-        MLIRExecutionEngine
-        MLIRIR
-        MLIRJitRunner
-        MLIRLLVMDialect
-        MLIRLLVMToLLVMIRTranslation
-        MLIRToLLVMIRTranslationRegistration
-        MLIRParser
-        MLIRTargetLLVMIRExport
-        MLIRSupport
-        MLIROptLib
-        LLVMX86AsmParser
-        MLIRFuncDialect
-        MLIRFuncAllExtensions
-        MLIRUBToLLVM)
+get_property(MLIR_ALL_LIBS GLOBAL PROPERTY MLIR_ALL_LIBS)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
                                              openvino::shape_inference
                                              openvino::pugixml
                                              ${CMAKE_DL_LIBS}
                                              Threads::Threads
-                                             ${MLIR_OPENVINO_LIBS})
+                                             ${MLIR_ALL_LIBS})
 
 add_tpp_mlir_libs(${TARGET_NAME})
+
 
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})

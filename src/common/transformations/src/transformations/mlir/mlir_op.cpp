@@ -72,7 +72,7 @@ void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module) 
     // A set of default passes that lower any input IR to LLVM
     PassManager pm(module->getContext());
 
-#if TPP_MLIR && false  // FIXME: Still cannot enable it: undefined reference to mlir::createConvertOpenMPToLLVMPass(), mlir::createParallelLoopToGpuPass() etc.
+#if TPP_MLIR
 
     tpp::DefaultPipelineOptions defPipelineOpts;
     pm.addPass(tpp::createDefaultPipeline(defPipelineOpts));
