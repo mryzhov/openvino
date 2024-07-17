@@ -53,6 +53,14 @@
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 
+#ifdef TPP_MLIR // If TPP is available
+#include "TPP/Dialect/Check/CheckDialect.h"
+#include "TPP/Dialect/Perf/PerfDialect.h"
+#include "TPP/Dialect/Xsmm/XsmmDialect.h"
+#include "TPP/GPU/Utils.h"
+#include "TPP/Passes.h"
+#endif
+
 namespace {
 
 using namespace mlir;
@@ -64,9 +72,9 @@ void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module) 
     // A set of default passes that lower any input IR to LLVM
     PassManager pm(module->getContext());
 
-#if 0  // TODO: if TPP is available
+#if TPP_MLIR && false  // FIXME: Still cannot enable it: undefined reference to mlir::createConvertOpenMPToLLVMPass(), mlir::createParallelLoopToGpuPass() etc.
 
-    tpp::DefaultPipelineOptions defPipelineOpts{defGpuBackend};
+    tpp::DefaultPipelineOptions defPipelineOpts;
     pm.addPass(tpp::createDefaultPipeline(defPipelineOpts));
 
 #else  // Simplified default lowering to LLVM from LLVM tests
