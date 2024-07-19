@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/except.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -10,6 +11,7 @@
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include <memory>
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
@@ -243,9 +245,19 @@ void ProgramBuilder::CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>&
     }
 
     if (!is_created) {
-        OPENVINO_THROW("Operation: ", op->get_friendly_name(),
+        std::stringstream ss;
+        ov::write_all_to_stream(ss, "Operation: ", op->get_friendly_name(),
                        " of type ", op->get_type_name(),
-                       "(", op->get_type_info().version_id, ") is not supported");
+                       "(", op->get_type_info().version_id, ") is not supported.");
+        if (op->has_evaluate()) {
+            std::cout << ss.str() << " Fallback to Op::evaluate()" << std::endl;
+            // If MLIROp
+            CreateMLIRSubgraphOp(*this, std::dynamic_pointer_cast<ov::op::Op>(op));
+            // else
+            // CreateGenericOp(*this, op);
+        } else {
+            OPENVINO_THROW(ss.str());
+        }
     }
 }
 
