@@ -54,11 +54,7 @@
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 
 #ifdef TPP_MLIR // If TPP is available
-#include "TPP/Dialect/Check/CheckDialect.h"
-#include "TPP/Dialect/Perf/PerfDialect.h"
-#include "TPP/Dialect/Xsmm/XsmmDialect.h"
-#include "TPP/GPU/Utils.h"
-#include "TPP/Passes.h"
+#include "TPP/PassBundles.h"
 #endif
 
 namespace {

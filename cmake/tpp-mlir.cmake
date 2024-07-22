@@ -5,16 +5,17 @@ if (TPP_MLIR_DIR)
     message(STATUS "TPP-MLIR at ${TPP_MLIR_DIR}")
     add_compile_definitions(TPP_MLIR)
     set(TPP_MLIR_LIBS
-            TPPPipeline
             TPPCheckDialect
             TPPCheckToLoops
             TPPGPU
             TPPIR
             TPPLinalgToFunc
             TPPLinalgToXSMM
+            TPPPassBundles
             TPPPerfDialect
             TPPPerfToFunc
             TPPPerfToLoop
+            TPPPipeline
             TPPRunner
             TPPTestLib
             TPPTransforms
