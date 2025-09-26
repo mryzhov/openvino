@@ -134,11 +134,6 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         any_input(),
     });
 
-    auto opt_sdpa_reshape = optional<v1::Reshape, v0::Unsqueeze>({sdpa->output(0), any_input()});
-    auto opt_sdpa_transpose = optional<v1::Transpose>({opt_sdpa_reshape, any_input()});
-    auto post_sdpa = wrap_type<v1::Reshape, v0::Unsqueeze>({opt_sdpa_transpose, any_input()},
-                                                           shape_matches("Batches..., S_q, D") && rank_more_than(2));
-
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
 
@@ -146,7 +141,6 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         auto k_node = pm.at(k);
         auto v_node = pm.at(v);
         auto sdpa_node = pm.at(sdpa).get_node_shared_ptr();
-        auto post_sdpa_node = pm.at(post_sdpa).get_node_shared_ptr();
 
         const auto& sm = m.get_symbols();
 
@@ -184,13 +178,13 @@ SDPAReshapeFusion::SDPAReshapeFusion() {
         }
         auto new_sdpa_node = sdpa_node->clone_with_new_inputs(
             {q_node, k_node, v_node, sdpa_node->input(3).get_source_output(), sdpa_node->input(4).get_source_output()});
-        new_sdpa_node->set_friendly_name(post_sdpa_node->get_friendly_name());
+        new_sdpa_node->set_friendly_name(sdpa_node->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), new_sdpa_node);
-        ov::replace_node(post_sdpa_node, new_sdpa_node);
+        ov::replace_node(sdpa_node, new_sdpa_node);
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(post_sdpa, "SDPAReshapeFusion");
+    auto m = std::make_shared<Matcher>(sdpa, "SDPAReshapeFusion");
     this->register_matcher(m, callback);
 }
 
