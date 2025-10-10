@@ -39,6 +39,27 @@ PerfCounters& perf_counters() {
 #endif  // ENABLE_PROFILING_ITT_FULL
 
 namespace {
+    
+struct MemoryInfo {
+    size_t vm_rss_bytes = 0;  // Resident set size (RAM in use)
+    size_t vm_size_bytes = 0; // Virtual memory size (address space)
+};
+
+MemoryInfo getProcessMemoryInfo() {
+    std::ifstream status("/proc/self/status");
+    std::string line;
+    MemoryInfo info;
+    while (std::getline(status, line)) {
+        if (line.rfind("VmRSS:", 0) == 0) {
+            std::sscanf(line.c_str(), "VmRSS: %zu", &info.vm_rss_bytes);
+            info.vm_rss_bytes /= 1024; // KB → Mbytes
+        } else if (line.rfind("VmSize:", 0) == 0) {
+            std::sscanf(line.c_str(), "VmSize: %zu", &info.vm_size_bytes);
+            info.vm_size_bytes /= 1024;
+        }
+    }
+    return info;
+}
 
 /**
  * @brief EnvVar gets the environment variable value by name.
@@ -197,6 +218,17 @@ public:
         }
     }
 
+    void init() {
+        m_pass_time.start();
+    }
+
+    void finalize() {
+        m_pass_time.stop();
+        std::cout << std::setw(25) << std::left;
+        std::cout << "Pass summary: ";
+        std::cout << std::setw(5) << std::right << m_pass_time.get_milliseconds() << "ms " << std::endl;
+    }
+
     void start_timer(const std::string& name) {
         if (m_profile_pass.is_enabled()) {
             stopwatches[name] = stopwatch();
@@ -303,7 +335,9 @@ private:
         file_name += "_" + index_str + "_" + pass_name;
         return file_name;
     }
-
+    
+    static stopwatch m_pass_time;
+    
     std::unordered_map<std::string, stopwatch> stopwatches;
 
     EnvVar m_visualize;
@@ -313,6 +347,9 @@ private:
     std::string m_manager_name;
     std::fstream m_file;
 };
+
+// Definition of the static member
+stopwatch Profiler::m_pass_time;
 
 }  // namespace
 
@@ -340,6 +377,10 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     bool manager_changed_model = false;
     bool needs_validation = false;
 
+    static size_t max_vm_rss = 0;
+    static size_t max_vm = 0;
+
+    profiler.init();
     profiler.start_timer(m_name);
     for (const auto& pass : m_pass_list) {
         if (needs_validation) {
@@ -366,7 +407,18 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
         const auto& pass_name = pass->get_name();
 
         profiler.start_timer(pass_name);
+
+        MemoryInfo mem_info_before = getProcessMemoryInfo();
+        std::cout << "Pass: " << pass_name << std::endl;
+        std::cout << "Before mmap: RSS = " << mem_info_before.vm_rss_bytes << ", VM = " << mem_info_before.vm_size_bytes << std::endl;
+
         bool pass_changed_model = run_pass(pass, model);
+
+        MemoryInfo mem_info_after = getProcessMemoryInfo();
+        std::cout << "After mmap: RSS = " << mem_info_after.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes << std::endl;
+        std::cout << "Diff mmap: RSS = " << mem_info_after.vm_rss_bytes - mem_info_before.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes - mem_info_before.vm_size_bytes << std::endl;
+        max_vm_rss = std::max(max_vm_rss, mem_info_after.vm_rss_bytes);
+        max_vm = std::max(max_vm, mem_info_after.vm_size_bytes);
         profiler.stop_timer(pass_name, pass_changed_model);
 
         manager_changed_model = manager_changed_model || pass_changed_model;
@@ -376,6 +428,10 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
         profiler.serialize(model, pass_name);
     }
     profiler.stop_timer(m_name, manager_changed_model);
+    profiler.finalize();
+
+    std::cout << "Max memory allocated (VmRSS): " << max_vm_rss << " MB" << std::endl;
+    std::cout << "Max memory allocated (VmSize): " << max_vm << " MB" << std::endl;
 
     return manager_changed_model;
 }
