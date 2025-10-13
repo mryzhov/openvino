@@ -223,7 +223,6 @@ public:
     }
 
     void finalize() {
-        m_pass_time.stop();
         std::cout << std::setw(25) << std::left;
         std::cout << "Pass summary: ";
         std::cout << std::setw(5) << std::right << m_pass_time.get_milliseconds() << "ms " << std::endl;
@@ -377,9 +376,16 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     bool manager_changed_model = false;
     bool needs_validation = false;
 
-    static size_t max_vm_rss = 0;
-    static size_t max_vm = 0;
-
+    struct Summarizer {
+        size_t vm_rss = 0;
+        size_t vm = 0;
+        std::string pass_name;
+    };
+    
+    static Summarizer max_rss_consumer;
+    static Summarizer max_vm_consumer;
+    static Summarizer max_all_consumer;
+    
     profiler.init();
     profiler.start_timer(m_name);
     for (const auto& pass : m_pass_list) {
@@ -417,8 +423,21 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
         MemoryInfo mem_info_after = getProcessMemoryInfo();
         std::cout << "After mmap: RSS = " << mem_info_after.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes << std::endl;
         std::cout << "Diff mmap: RSS = " << mem_info_after.vm_rss_bytes - mem_info_before.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes - mem_info_before.vm_size_bytes << std::endl;
-        max_vm_rss = std::max(max_vm_rss, mem_info_after.vm_rss_bytes);
-        max_vm = std::max(max_vm, mem_info_after.vm_size_bytes);
+        if(mem_info_after.vm_size_bytes > max_vm_consumer.vm) {
+            max_vm_consumer.vm_rss = mem_info_after.vm_rss_bytes;
+            max_vm_consumer.vm = mem_info_after.vm_size_bytes;
+            max_vm_consumer.pass_name = pass_name;
+        }
+        if(mem_info_after.vm_rss_bytes > max_rss_consumer.vm_rss) {
+            max_rss_consumer.vm_rss = mem_info_after.vm_rss_bytes;
+            max_rss_consumer.vm = mem_info_after.vm_size_bytes;
+            max_rss_consumer.pass_name = pass_name;
+        }
+        if (mem_info_after.vm_size_bytes + mem_info_after.vm_rss_bytes > max_all_consumer.vm + max_all_consumer.vm_rss) {
+            max_all_consumer.vm = mem_info_after.vm_size_bytes;
+            max_all_consumer.vm_rss = mem_info_after.vm_rss_bytes;
+            max_all_consumer.pass_name = pass_name;
+        }
         profiler.stop_timer(pass_name, pass_changed_model);
 
         manager_changed_model = manager_changed_model || pass_changed_model;
@@ -430,8 +449,9 @@ bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     profiler.stop_timer(m_name, manager_changed_model);
     profiler.finalize();
 
-    std::cout << "Max memory allocated (VmRSS): " << max_vm_rss << " MB" << std::endl;
-    std::cout << "Max memory allocated (VmSize): " << max_vm << " MB" << std::endl;
+    std::cout << "Max memory (RSS) allocated by pass: " << max_rss_consumer.pass_name << " RSS: " << max_rss_consumer.vm_rss << " VM: " << max_rss_consumer.vm << std::endl;
+    std::cout << "Max memory (VM) allocated by pass: " << max_vm_consumer.pass_name << " RSS: " << max_vm_consumer.vm_rss << " VM: " << max_vm_consumer.vm << std::endl;
+    std::cout << "Max memory allocated (RSS+VM): " << max_all_consumer.pass_name << " RSS: " << max_all_consumer.vm_rss << " VM: " << max_all_consumer.vm << std::endl;
 
     return manager_changed_model;
 }
