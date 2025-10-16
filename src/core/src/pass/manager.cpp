@@ -39,7 +39,7 @@ PerfCounters& perf_counters() {
 #endif  // ENABLE_PROFILING_ITT_FULL
 
 namespace {
-    
+
 struct MemoryInfo {
     size_t vm_rss_bytes = 0;  // Resident set size (RAM in use)
     size_t vm_size_bytes = 0; // Virtual memory size (address space)
