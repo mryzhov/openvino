@@ -53,10 +53,10 @@ MemoryInfo getProcessMemoryInfo() {
     while (std::getline(status, line)) {
         if (line.rfind("VmRSS:", 0) == 0) {
             std::sscanf(line.c_str(), "VmRSS: %zu", &info.vm_rss_bytes);
-            info.vm_rss_bytes /= 1024; // KB → Mbytes
+            info.vm_rss_bytes *= 1024; // KB → bytes
         } else if (line.rfind("VmSize:", 0) == 0) {
             std::sscanf(line.c_str(), "VmSize: %zu", &info.vm_size_bytes);
-            info.vm_size_bytes /= 1024;
+            info.vm_size_bytes *= 1024;
         }
     }
     return info;
