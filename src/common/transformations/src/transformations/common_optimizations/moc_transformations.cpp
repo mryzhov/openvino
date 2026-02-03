@@ -98,7 +98,6 @@
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "openvino/pass/serialize.hpp"
 
 using namespace ov::element;
 
@@ -156,6 +155,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, EliminateScatterUpdate)
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, EliminateLoopInputsOutputs);
+    REGISTER_PASS(manager, Validate)
     // todo: ticket 96960
     // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important
     // it looks like we need to combine these transformations into one.
@@ -165,16 +165,20 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     REGISTER_PASS(manager, PushConstantToSubgraph)
     REGISTER_PASS(manager, ConstantFolding)
+    REGISTER_PASS(manager, Validate)
 
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
     // execute it at the beginning of the pipeline. Also, this pass resolves
     // dynamism, so we have to execute type/shape propagation after.
     REGISTER_PASS(manager, FuseFilteringBoxesBySize)
+    REGISTER_PASS(manager, Validate)
 
     if (!m_use_shapes) {  // Approved Smart Reshape
         REGISTER_PASS(manager, LSTMStatesBroadcast)
+        REGISTER_PASS(manager, Validate)
         REGISTER_PASS(manager, ReshapeSinkingMatMul)
+        REGISTER_PASS(manager, Validate)
     }
     REGISTER_PASS(manager, ConvertQuantizeDequantize)
     REGISTER_PASS(manager, SimplifyShapeOfSubGraph, m_use_shapes)
@@ -250,9 +254,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
     common_fusions->set_name("ov::pass::CommonFusions");
 
-    // manager.register_pass<Serialize>("model_before_mul_fusions.xml", "model_before_mul_fusions.bin");
     REGISTER_PASS(manager, PackMultiHeadAttention)
-    // manager.register_pass<Serialize>("model_after_mul_fusions.xml", "model_after_mul_fusions.bin");
     REGISTER_PASS(manager, SDPAFusion)
     REGISTER_PASS(manager, BinarizeWeights)
     REGISTER_PASS(manager, ConvToBinaryConv)
@@ -295,8 +297,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // tests/model_hub_tests/transformation_tests/test_moe_transformation.py
     REGISTER_PASS(manager, FuseMOE)
     REGISTER_PASS(manager, VectorizedMOE2GEMMTransposeWeights)
-    manager.register_pass<Serialize>("model_moc.xml", "model_moc.bin");
-    REGISTER_PASS(manager, Validate)
 
     manager.run_passes(f);
 

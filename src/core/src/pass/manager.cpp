@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdio>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -40,27 +39,6 @@ PerfCounters& perf_counters() {
 #endif  // ENABLE_PROFILING_ITT_FULL
 
 namespace {
-
-struct MemoryInfo {
-    size_t vm_rss_bytes = 0;  // Resident set size (RAM in use)
-    size_t vm_size_bytes = 0; // Virtual memory size (address space)
-};
-
-MemoryInfo getProcessMemoryInfo() {
-    std::ifstream status("/proc/self/status");
-    std::string line;
-    MemoryInfo info;
-    while (std::getline(status, line)) {
-        if (line.rfind("VmRSS:", 0) == 0) {
-            std::sscanf(line.c_str(), "VmRSS: %zu", &info.vm_rss_bytes);
-            info.vm_rss_bytes *= 1024; // KB → bytes
-        } else if (line.rfind("VmSize:", 0) == 0) {
-            std::sscanf(line.c_str(), "VmSize: %zu", &info.vm_size_bytes);
-            info.vm_size_bytes *= 1024;
-        }
-    }
-    return info;
-}
 
 /**
  * @brief EnvVar gets the environment variable value by name.
@@ -219,16 +197,6 @@ public:
         }
     }
 
-    void init() {
-        m_pass_time.start();
-    }
-
-    void finalize() {
-        std::cout << std::setw(25) << std::left;
-        std::cout << "Pass summary: ";
-        std::cout << std::setw(5) << std::right << m_pass_time.get_milliseconds() << "ms " << std::endl;
-    }
-
     void start_timer(const std::string& name) {
         if (m_profile_pass.is_enabled()) {
             stopwatches[name] = stopwatch();
@@ -335,9 +303,7 @@ private:
         file_name += "_" + index_str + "_" + pass_name;
         return file_name;
     }
-    
-    static stopwatch m_pass_time;
-    
+
     std::unordered_map<std::string, stopwatch> stopwatches;
 
     EnvVar m_visualize;
@@ -347,9 +313,6 @@ private:
     std::string m_manager_name;
     std::fstream m_file;
 };
-
-// Definition of the static member
-stopwatch Profiler::m_pass_time;
 
 }  // namespace
 
@@ -370,98 +333,48 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
-void ov::pass::Manager::enable_pass_validation(bool new_state) {
-    m_needs_validation = new_state;
-}
-
 bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "pass::Manager::run_passes");
     Profiler profiler(m_name);
 
-    bool manager_changed_model = false;
-    bool needs_validation = false;
+    bool model_changed = false;
+    bool pass_changed_model = false;
 
-    struct Summarizer {
-        size_t vm_rss = 0;
-        size_t vm = 0;
-        std::string pass_name;
-    };
-    
-    static Summarizer max_rss_consumer;
-    static Summarizer max_vm_consumer;
-    static Summarizer max_all_consumer;
-    
-    profiler.init();
     profiler.start_timer(m_name);
     for (const auto& pass : m_pass_list) {
-        if (needs_validation) {
-            m_pass_config->enable<ov::pass::Validate>();
-        } else {
-            m_pass_config->disable<ov::pass::Validate>();
-        }
-
-        if (m_pass_config->is_disabled(pass->get_type_info())) {
-            OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
-            continue;
-        }
-
-        // This checks if we need to skip the graph transformation when the graph pass relies on
-        // static shape but the model state is dynamic.
-        if (pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && model->is_dynamic()) {
-            OPENVINO_DEBUG("Pass ",
-                           pass->get_name(),
-                           " requires static shape but the ",
-                           "model is dynamic. Skipping this transformation.");
-            continue;
-        }
-
         const auto& pass_name = pass->get_name();
 
         profiler.start_timer(pass_name);
-
-        MemoryInfo mem_info_before = getProcessMemoryInfo();
-        std::cout << "Pass: " << pass_name << std::endl;
-        std::cout << "Before mmap: RSS = " << mem_info_before.vm_rss_bytes << ", VM = " << mem_info_before.vm_size_bytes << std::endl;
-
-        bool pass_changed_model = run_pass(pass, model);
-
-        MemoryInfo mem_info_after = getProcessMemoryInfo();
-        std::cout << "After mmap: RSS = " << mem_info_after.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes << std::endl;
-        std::cout << "Diff mmap: RSS = " << mem_info_after.vm_rss_bytes - mem_info_before.vm_rss_bytes << ", VM = " << mem_info_after.vm_size_bytes - mem_info_before.vm_size_bytes << std::endl;
-        if(mem_info_after.vm_size_bytes > max_vm_consumer.vm) {
-            max_vm_consumer.vm_rss = mem_info_after.vm_rss_bytes;
-            max_vm_consumer.vm = mem_info_after.vm_size_bytes;
-            max_vm_consumer.pass_name = pass_name;
-        }
-        if(mem_info_after.vm_rss_bytes > max_rss_consumer.vm_rss) {
-            max_rss_consumer.vm_rss = mem_info_after.vm_rss_bytes;
-            max_rss_consumer.vm = mem_info_after.vm_size_bytes;
-            max_rss_consumer.pass_name = pass_name;
-        }
-        if (mem_info_after.vm_size_bytes + mem_info_after.vm_rss_bytes > max_all_consumer.vm + max_all_consumer.vm_rss) {
-            max_all_consumer.vm = mem_info_after.vm_size_bytes;
-            max_all_consumer.vm_rss = mem_info_after.vm_rss_bytes;
-            max_all_consumer.pass_name = pass_name;
-        }
+        pass_changed_model = run_pass(pass, model, pass_changed_model);
         profiler.stop_timer(pass_name, pass_changed_model);
 
-        manager_changed_model = manager_changed_model || pass_changed_model;
-        needs_validation = (ov::as_type_ptr<ov::pass::Validate>(pass)) ? false : needs_validation || pass_changed_model;
+        model_changed = model_changed || pass_changed_model;
 
         profiler.visualize(model, pass_name);
         profiler.serialize(model, pass_name);
     }
-    profiler.stop_timer(m_name, manager_changed_model);
-    profiler.finalize();
+    profiler.stop_timer(m_name, model_changed);
 
-    std::cout << "Max memory (RSS) allocated by pass: " << max_rss_consumer.pass_name << " RSS: " << max_rss_consumer.vm_rss << " VM: " << max_rss_consumer.vm << std::endl;
-    std::cout << "Max memory (VM) allocated by pass: " << max_vm_consumer.pass_name << " RSS: " << max_vm_consumer.vm_rss << " VM: " << max_vm_consumer.vm << std::endl;
-    std::cout << "Max memory allocated (RSS+VM): " << max_all_consumer.pass_name << " RSS: " << max_all_consumer.vm_rss << " VM: " << max_all_consumer.vm << std::endl;
-
-    return manager_changed_model;
+    return model_changed;
 }
 
-bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass, const std::shared_ptr<Model>& model) {
+bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
+                                 const std::shared_ptr<Model>& model,
+                                 bool needs_validate) {
+    if (m_pass_config->is_disabled(pass->get_type_info())) {
+        OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
+        return false;
+    }
+
+    // This checks if we need to skip the graph transformation when the graph pass relies on
+    // static shape but the model state is dynamic.
+    if (pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && model->is_dynamic()) {
+        OPENVINO_DEBUG("Pass ",
+                       pass->get_name(),
+                       " requires static shape but the ",
+                       "model is dynamic. Skipping this transformation.");
+        return false;
+    }
 
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
 
@@ -469,6 +382,9 @@ bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass, const st
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
     } else if (auto model_pass = ov::as_type_ptr<ModelPass>(pass)) {
+        if (ov::as_type_ptr<ov::pass::Validate>(model_pass) && !needs_validate) {
+            return false;
+        }
         return model_pass->run_on_model(model);
     }
     return false;
