@@ -128,16 +128,22 @@ std::shared_ptr<ov::pass::pattern::op::Block> mlp3_no_bias_swiglu_block(
     auto index_add__ShapeOf_14 = pattern::wrap_type<v3::ShapeOf>({index_add__Slice_1}, {{"output_type", "i32"}});
     auto index_add__Broadcast_16 =
         pattern::wrap_type<v3::Broadcast>({index_add__Reshape_1, index_add__ShapeOf_14}, {{"mode", "bidirectional"}});
-    auto unsqueeze_Unsqueeze_reshape = pattern::wrap_type<v1::Reshape>({unsqueeze_Unsqueeze, pattern::any_input()});
+    auto unsqueeze_Unsqueeze_reshape =
+        pattern::wrap_type<v1::Reshape>({unsqueeze_Unsqueeze, pattern::any_input()});
     auto index_Gather_2 =
         pattern::wrap_type<v8::Gather>({unsqueeze_Unsqueeze_reshape,
                                         index_add__Convert_1,
                                         pattern::wrap_type<v0::Constant>(pattern::value_matches("0"))},
                                        {{"batch_dims", 0}});
-    auto reshape_Reshape_1_0 = pattern::wrap_type<v1::Reshape>({index_Gather_2, pattern::any_input()});
-    auto reshape_Reshape_1_1 = pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_0, pattern::any_input()});
-    auto reshape_Reshape_1_2 = pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_1, pattern::any_input()});
-    auto reshape_Reshape_1 = pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_2, shape_const});
+    auto reshape_Reshape_1_0 =
+        pattern::wrap_type<v1::Reshape>({index_Gather_2, pattern::any_input()});
+    auto reshape_Reshape_1_1 =
+        pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_0, pattern::any_input()});
+    auto reshape_Reshape_1_2 =
+        pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_1, pattern::any_input()});
+
+    auto reshape_Reshape_1 =
+        pattern::wrap_type<v1::Reshape>({reshape_Reshape_1_2, shape_const});
     auto gate_proj_weight = pattern::any_input(pattern::rank_equals(2));
     auto linear_MatMul_gate = pattern::wrap_type<v0::MatMul>({reshape_Reshape_1, gate_proj_weight},
                                                              {{"transpose_a", false}, {"transpose_b", true}});
@@ -296,10 +302,10 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
     auto residual_input = pattern::any_input();
     auto last_add = pattern::wrap_type<v1::Add>({residual_input, last_reshape}, {{"auto_broadcast", "numpy"}});
 
-    auto callback = [=](const std::unordered_map<std::shared_ptr<Node>, std::vector<pattern::PatternValueMap>>&
-                            matches) {
+    auto callback = [=](const std::unordered_map<std::shared_ptr<Node>, std::vector<pattern::PatternValueMap>>& matches) {
+                
         auto num_last_add = matches.at(last_add).size();
-
+        
         // Collect expert data from all matched patterns
         std::vector<expert_data> all_experts;
         all_experts.reserve(matches.at(expert_scatter).size());
@@ -393,18 +399,11 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                         target_type = weight->get_output_element_type(0);
                     }
 
-                    inputs.emplace_back(op_util::make_try_fold<v0::Unsqueeze>(original_weight, const_0));
+                    inputs.emplace_back(std::make_shared<v0::Unsqueeze>(original_weight, const_0));
                 }
 
                 auto fused = std::make_shared<v0::Concat>(inputs, 0);
-                if (std::all_of(inputs.begin(), inputs.end(), [](const auto& input) {
-                        return op_util::is_constant(input.get_node());
-                    })) {
-                    // postponed_constant attribute is needed to perform constant folding on serialization step
-                    fused->get_rt_info()["postponed_constant"] = true;
-                    // disable constant folding here to postpone it to serialization step
-                    ov::pass::disable_constant_folding(fused);
-                }
+
                 if (needs_decompress) {
                     auto convert = std::make_shared<v0::Convert>(fused, target_type);
                     ov::mark_as_decompression(convert);
