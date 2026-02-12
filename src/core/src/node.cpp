@@ -25,6 +25,7 @@
 #include "openvino/util/log.hpp"
 #include "shape_validation.hpp"
 #include "shared_node_info.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace std;
 
@@ -704,7 +705,7 @@ bool ov::Node::evaluate_symbol(TensorSymbolVector& output_symbols) const {
 bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "Node::can_constant_fold");
 
-    if (is_const_fold_disabled()) {
+    if (is_const_fold_disabled() || !has_evaluate()) {
         return false;
     }
 

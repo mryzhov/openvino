@@ -25,6 +25,8 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/rt_info/original_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/allocator_mmap.hpp"
 
 using namespace ov;
 
@@ -1118,8 +1120,8 @@ std::shared_ptr<ov::Node> change_constant_precision(std::shared_ptr<v0::Constant
 
     const auto* src_data = constant->get_data_ptr<src_type>();
     const auto size = shape_size(constant->get_shape());
-
-    auto new_constant = std::make_shared<v0::Constant>(PREC_TO, constant->get_shape());
+    
+    auto new_constant = std::make_shared<v0::Constant>(ov::Tensor(PREC_TO, constant->get_shape(), ov::Allocator{ov::MmapAnonymousAllocator{}}));
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
@@ -1140,7 +1142,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::el
     const auto* src_data = constant->get_data_ptr<src_type>();
     const auto size = shape_size(constant->get_shape());
 
-    auto new_constant = std::make_shared<v0::Constant>(ov::element::Type_t::f16, constant->get_shape());
+    auto new_constant = std::make_shared<v0::Constant>(ov::Tensor(ov::element::Type_t::f16, constant->get_shape(), ov::Allocator{ov::MmapAnonymousAllocator{}}));
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
@@ -1160,7 +1162,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::bf16, ov::e
     const auto* src_data = constant->get_data_ptr<src_type>();
     const auto size = shape_size(constant->get_shape());
 
-    auto new_constant = std::make_shared<v0::Constant>(ov::element::Type_t::f16, constant->get_shape());
+    auto new_constant = std::make_shared<v0::Constant>(ov::Tensor(ov::element::Type_t::f16, constant->get_shape(), ov::Allocator{ov::MmapAnonymousAllocator{}}));
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
@@ -1180,7 +1182,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::el
     const auto* src_data = constant->get_data_ptr<src_type>();
     const auto size = shape_size(constant->get_shape());
 
-    auto new_constant = std::make_shared<v0::Constant>(ov::element::Type_t::f32, constant->get_shape());
+    auto new_constant = std::make_shared<v0::Constant>(ov::Tensor(ov::element::Type_t::f32, constant->get_shape(), ov::Allocator{ov::MmapAnonymousAllocator{}}));
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
     if (dst_data == nullptr)
