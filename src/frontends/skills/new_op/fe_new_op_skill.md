@@ -12,12 +12,13 @@ in the OpenVINO Frontend (FE) pipeline, including:
 
 ## 🧩 Scope
 
-The skill automates or assists with:
+The skill now **enables** a new operation in OpenVINO PyTorch FE by:
 
-1. Adding FE translator for a new op
-2. Registering op in conversion pipeline
-3. Building project
-4. Running FE and conversion tests
+1. Creating translator source in `src/frontends/pytorch/src/op/<op>.cpp`
+2. Registering translator in `src/frontends/pytorch/src/op_table.cpp`
+3. Generating smoke tests (`tests/frontend/test_<op>.cpp`)
+4. Generating layer test (`tests/layer_tests/pytorch_tests/test_<op>_op.py`)
+5. Building FE target and validating conversion with a generated TorchScript model
 
 ---
 
@@ -47,23 +48,46 @@ openvino/
 ## ⚙️ Skill Interface (Python)
 
 ```python
-def add_fe_op(
+def add_frontend_operation(
     op_name: str,
-    framework: str,
-    reference_impl: str,
-    test_model_path: str
-) -> str:
+    framework: str = "pytorch",
+    build: bool = True,
+    validate: bool = True,
+) -> dict:
     """
-    Adds and validates a new FE operation.
+    Automates full lifecycle of adding a frontend operation.
 
     Parameters
     ----------
     op_name : Operation name
-    framework : FE name (onnx, tensorflow, tflite, paddle, pytorch, jax)
-    reference_impl : Path or snippet with reference logic
-    test_model_path : Model containing the op
+    framework : FE name (currently implemented for "pytorch")
+    build : Build FE target after modifications
+    validate : Generate model and run FE conversion check
 
     Returns
     -------
-    Status report
+    dict with build, test and validation results
     """
+
+Usage:
+
+```python
+from scripts.ov_agent_skill import add_frontend_operation
+
+result = add_frontend_operation(op_name="torch.erfinv", framework="pytorch")
+print("\n".join(result["actions"]))
+```
+
+CLI usage:
+
+```bash
+python src/frontends/skills/new_op/scripts/ov_agent_skill.py \
+    --op-name torch.erfinv \
+    --framework pytorch
+```
+
+## ⚠️ Notes
+
+- The generated translator is a safe placeholder (`make_framework_node`) and must be replaced with real translation logic for full support.
+- Registration is idempotent: re-running the skill does not duplicate entries.
+- `OPENVINO_ROOT` and `OPENVINO_BUILD_DIR` environment variables can override default paths.
