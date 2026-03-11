@@ -5,6 +5,7 @@
 #include "openvino/pass/manager.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <fstream>
 #include <iomanip>
@@ -245,7 +246,7 @@ public:
     }
 
     void visualize(const std::shared_ptr<ov::Model>& model, const std::string& pass_name) const {
-        static size_t viz_index = 0;
+        static std::atomic<size_t> viz_index{0};
         if (m_visualize.is_enabled()) {
             const auto& _visualize = [&]() {
                 auto file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
@@ -268,7 +269,7 @@ public:
     }
 
     void serialize(const std::shared_ptr<ov::Model>& model, const std::string& pass_name) const {
-        static size_t serialize_index = 0;
+        static std::atomic<size_t> serialize_index{0};
         if (m_serialize.is_enabled()) {
             const auto& _serialize = [&]() {
                 auto file_name = gen_file_name(model->get_name(), pass_name, serialize_index++);
@@ -320,6 +321,46 @@ ov::pass::Manager::Manager() : m_pass_config(std::make_shared<PassConfig>()) {}
 
 ov::pass::Manager::~Manager() = default;
 
+ov::pass::Manager::Manager(const Manager& other) {
+    std::lock_guard<std::mutex> lock(other.m_registration_mutex);
+    m_pass_config = other.m_pass_config;
+    m_pass_list = other.m_pass_list;
+    m_per_pass_validation = other.m_per_pass_validation;
+    m_name = other.m_name;
+}
+
+ov::pass::Manager& ov::pass::Manager::operator=(const Manager& other) {
+    if (this == &other) {
+        return *this;
+    }
+    std::scoped_lock lock(m_registration_mutex, other.m_registration_mutex);
+    m_pass_config = other.m_pass_config;
+    m_pass_list = other.m_pass_list;
+    m_per_pass_validation = other.m_per_pass_validation;
+    m_name = other.m_name;
+    return *this;
+}
+
+ov::pass::Manager::Manager(Manager&& other) noexcept {
+    std::lock_guard<std::mutex> lock(other.m_registration_mutex);
+    m_pass_config = std::move(other.m_pass_config);
+    m_pass_list = std::move(other.m_pass_list);
+    m_per_pass_validation = other.m_per_pass_validation;
+    m_name = std::move(other.m_name);
+}
+
+ov::pass::Manager& ov::pass::Manager::operator=(Manager&& other) noexcept {
+    if (this == &other) {
+        return *this;
+    }
+    std::scoped_lock lock(m_registration_mutex, other.m_registration_mutex);
+    m_pass_config = std::move(other.m_pass_config);
+    m_pass_list = std::move(other.m_pass_list);
+    m_per_pass_validation = other.m_per_pass_validation;
+    m_name = std::move(other.m_name);
+    return *this;
+}
+
 ov::pass::Manager::Manager(std::string name) : m_pass_config(std::make_shared<PassConfig>()), m_name(std::move(name)) {}
 
 ov::pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config, std::string name)
@@ -330,11 +371,16 @@ ov::pass::Manager::Manager(const PassConfig& pass_config, std::string name)
     : Manager(std::make_shared<PassConfig>(pass_config), std::move(name)) {}
 
 void ov::pass::Manager::set_per_pass_validation(bool new_state) {
+    std::lock_guard<std::mutex> lock(m_registration_mutex);
     m_per_pass_validation = new_state;
 }
 
 bool ov::pass::Manager::run_passes(const std::shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::ov_core, "pass::Manager::run_passes");
+
+    // Serialize execution on a single manager instance because pass objects are mutable.
+    std::lock_guard<std::mutex> lock(m_registration_mutex);
+
     Profiler profiler(m_name);
 
     bool manager_changed_model = false;

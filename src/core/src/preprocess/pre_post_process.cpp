@@ -140,7 +140,7 @@ void transformation_pipeline(std::shared_ptr<ov::Model>& model) {
 
         return manager;
     };
-    static thread_local Manager manager = get_manager();
+    static Manager manager = get_manager();
 
     manager.run_passes(model);
 

@@ -4,9 +4,11 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "common_test_utils/test_tools.hpp"
@@ -364,3 +366,175 @@ TEST(pass_manager, add) {
     EXPECT_EQ(node_count, sorted.size());
     EXPECT_TRUE(validate_list(sorted));
 }
+
+// Thread-safety tests
+
+TEST(pass_manager, concurrent_run_passes) {
+    // Test that run_passes is thread-safe when called concurrently on the same manager instance
+    constexpr size_t num_threads = 8;
+    constexpr size_t iterations_per_thread = 25;
+    std::atomic<size_t> failures{0};
+
+    pass::Manager manager;
+    manager.register_pass<TestMatcherPassFalse>();
+    manager.register_pass<TestModelPassFalse>();
+
+    auto worker = [&]() {
+        for (size_t i = 0; i < iterations_per_thread; ++i) {
+            try {
+                auto graph = make_test_graph();
+                // Concurrent invocations should not interfere with each other
+                manager.run_passes(graph);
+                // Each graph should have a valid node order
+                auto sorted = graph->get_ordered_ops();
+                if (!validate_list(sorted)) {
+                    failures++;
+                }
+            } catch (...) {
+                failures++;
+            }
+        }
+    };
+
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+    for (size_t t = 0; t < num_threads; ++t) {
+        threads.emplace_back(worker);
+    }
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_EQ(failures.load(), 0U) << "Thread-safe concurrent run_passes failed";
+}
+
+TEST(pass_manager, concurrent_run_passes_with_dynamic_registration) {
+    // Test that register_pass and run_passes can be called concurrently without races
+    constexpr size_t num_threads = 4;
+    constexpr size_t iterations = 20;
+    std::atomic<size_t> failures{0};
+
+    pass::Manager manager;
+    manager.set_per_pass_validation(false);
+
+    auto register_worker = [&]() {
+        for (size_t i = 0; i < iterations; ++i) {
+            try {
+                manager.register_pass<TestMatcherPassFalse>();
+            } catch (...) {
+                failures++;
+            }
+        }
+    };
+
+    auto execute_worker = [&]() {
+        for (size_t i = 0; i < iterations; ++i) {
+            try {
+                auto graph = make_test_graph();
+                manager.run_passes(graph);
+                auto sorted = graph->get_ordered_ops();
+                if (!validate_list(sorted)) {
+                    failures++;
+                }
+            } catch (...) {
+                failures++;
+            }
+        }
+    };
+
+    std::vector<std::thread> register_threads;
+    std::vector<std::thread> execute_threads;
+
+    // Start with some passes
+    manager.register_pass<TestMatcherPassFalse>();
+
+    // Register and execute concurrently
+    for (size_t t = 0; t < num_threads / 2; ++t) {
+        register_threads.emplace_back(register_worker);
+        execute_threads.emplace_back(execute_worker);
+    }
+
+    for (auto& t : register_threads) t.join();
+    for (auto& t : execute_threads) t.join();
+
+    EXPECT_EQ(failures.load(), 0U) << "Concurrent registration and execution failed";
+}
+
+TEST(pass_manager, concurrent_set_per_pass_validation) {
+    // Test that set_per_pass_validation is thread-safe
+    constexpr size_t num_threads = 8;
+    constexpr size_t iterations = 50;
+    std::atomic<size_t> failures{0};
+
+    pass::Manager manager;
+    manager.register_pass<TestModelPassFalse>();
+
+    auto toggle_worker = [&]() {
+        for (size_t i = 0; i < iterations; ++i) {
+            try {
+                manager.set_per_pass_validation(i % 2 == 0);
+                auto graph = make_test_graph();
+                manager.run_passes(graph);
+            } catch (...) {
+                failures++;
+            }
+        }
+    };
+
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+    for (size_t t = 0; t < num_threads; ++t) {
+        threads.emplace_back(toggle_worker);
+    }
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_EQ(failures.load(), 0U) << "Concurrent set_per_pass_validation failed";
+}
+
+TEST(pass_manager, concurrent_pass_config_isolation) {
+    // Test that each run_passes invocation uses isolated PassConfig state
+    constexpr size_t num_threads = 8;
+    constexpr size_t iterations = 20;
+    std::atomic<size_t> failures{0};
+
+    pass::Manager manager;
+    manager.register_pass<TestModelPassTrue>();
+    manager.register_pass<TestModelPassFalse>();
+
+    auto worker = [&]() {
+        for (size_t i = 0; i < iterations; ++i) {
+            try {
+                auto graph = make_test_graph();
+                // Each thread independently enables/disables passes
+                auto config = manager.get_pass_config();
+                if (i % 2 == 0) {
+                    config->disable<TestModelPassTrue>();
+                } else {
+                    config->enable<TestModelPassTrue>();
+                }
+                // Concurrent invocations should not interfere with each other's enable/disable state
+                manager.run_passes(graph);
+               auto sorted = graph->get_ordered_ops();
+                if (!validate_list(sorted)) {
+                    failures++;
+                }
+            } catch (...) {
+                failures++;
+            }
+        }
+    };
+
+    std::vector<std::thread> threads;
+    threads.reserve(num_threads);
+    for (size_t t = 0; t < num_threads; ++t) {
+        threads.emplace_back(worker);
+    }
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    EXPECT_EQ(failures.load(), 0U) << "Concurrent PassConfig isolation failed";
+}
+

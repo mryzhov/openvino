@@ -6,6 +6,7 @@
 
 #include <list>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
@@ -58,6 +59,11 @@ public:
     /// \brief Default constructor
     PassConfig();
 
+    PassConfig(const PassConfig& other);
+    PassConfig(PassConfig&& other) noexcept;
+    PassConfig& operator=(const PassConfig& other);
+    PassConfig& operator=(PassConfig&& other) noexcept;
+
     /// \brief Disable transformation by its type_info
     /// \param type_info Transformation type_info
     void disable(const DiscreteTypeInfo& type_info);
@@ -78,10 +84,13 @@ public:
 
     /// \brief Set callback for all kind of transformations
     void set_callback(const param_callback& callback) {
+        std::lock_guard<std::mutex> lock(m_config_mutex);
         m_callback = callback;
     }
     template <typename... Args>
-    typename std::enable_if<sizeof...(Args) == 0>::type set_callback(const param_callback& callback) {}
+    typename std::enable_if<sizeof...(Args) == 0>::type set_callback(const param_callback& callback) {
+        set_callback(callback);
+    }
 
     /// \brief Set callback for particular transformation class types
     ///
@@ -109,8 +118,8 @@ public:
     ///
     template <typename T, class... Args>
     void set_callback(const param_callback& callback) {
-        m_callback_map[T::get_type_info_static()] = callback;
-        set_callback<Args...>(callback);
+        std::lock_guard<std::mutex> lock(m_config_mutex);
+        set_callback_locked<T, Args...>(callback);
     }
 
     /// \brief Get callback for given transformation type_info
@@ -132,6 +141,7 @@ public:
     /// \param type_info Transformation type_info
     /// \return true if transformation type was disabled and false otherwise
     bool is_disabled(const DiscreteTypeInfo& type_info) const {
+        std::lock_guard<std::mutex> lock(m_config_mutex);
         return m_disabled.count(type_info);
     }
 
@@ -146,6 +156,7 @@ public:
     /// \param type_info Transformation type_info
     /// \return true if transformation type was force enabled and false otherwise
     bool is_enabled(const DiscreteTypeInfo& type_info) const {
+        std::lock_guard<std::mutex> lock(m_config_mutex);
         return m_enabled.count(type_info);
     }
 
@@ -159,10 +170,19 @@ public:
     void add_disabled_passes(const PassConfig& rhs);
 
 private:
+    template <typename... Args>
+    typename std::enable_if<sizeof...(Args) == 0>::type set_callback_locked(const param_callback& callback) {}
+
+    template <typename T, class... Args>
+    void set_callback_locked(const param_callback& callback) {
+        m_callback_map[T::get_type_info_static()] = callback;
+        set_callback_locked<Args...>(callback);
+    }
     param_callback m_callback;
     param_callback_map m_callback_map;
     std::unordered_set<DiscreteTypeInfo> m_disabled;
     std::unordered_set<DiscreteTypeInfo> m_enabled;
+    mutable std::mutex m_config_mutex;
 };
 }  // namespace pass
 }  // namespace ov
