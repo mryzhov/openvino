@@ -57,55 +57,49 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::op::v5::Loop>& loop
     if (loop->get_input_size() < 9 || loop->get_output_size() != 2) {
         return false;
     }
-    auto Parameter_5427 = any_input(rank_equals(4) && shape_matches("[?, head_num, ?, v_head_size]"));
-    auto Parameter_5426 = any_input(rank_equals(4) && shape_matches("[?, head_num, k_head_size, v_head_size]"));
-    auto Parameter_5425 = any_input(rank_equals(3) && shape_matches("[?, head_num, 1]"));
-    auto Parameter_5424 = any_input(rank_equals(3) && shape_matches("[?, head_num, 1]"));
-    // value
-    auto Parameter_5423 = any_input(rank_equals(4) && shape_matches("[?, head_num, 1, value_head_size]"));
-    // key
-    auto Parameter_5422 = any_input(rank_equals(4) && shape_matches("[?, head_num, 1, k_head_size]"));
-    // query
-    auto Parameter_5421 = any_input(rank_equals(4) && shape_matches("[?, head_num, 1, k_head_size]"));
-    auto Parameter_5420 = any_input();
-    ;  //  tensor_array<i32[]> Parameter_5420()
-    auto Unsqueeze_5454 = wrap_type<ov::op::v0::Unsqueeze>({Parameter_5420, 0});
-    auto Parameter_5426_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5426});
-    auto Parameter_5424_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5424});
-    // gate
-    auto Exp_5435 = wrap_type<ov::op::v0::Exp>({Parameter_5424_decompressed_to_f32});
-    auto Unsqueeze_5436 = wrap_type<ov::op::v0::Unsqueeze>({Exp_5435, {-1}});
-    auto Multiply_5437 = wrap_type<ov::op::v1::Multiply>({Parameter_5426_decompressed_to_f32, Unsqueeze_5436});
-    auto Parameter_5422_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5422});
-    auto Squeeze_5431 = wrap_type<ov::op::v0::Squeeze>({Parameter_5422_decompressed_to_f32, {2}});
-    auto Unsqueeze_5445 = wrap_type<ov::op::v0::Unsqueeze>({Squeeze_5431, {-1}});
-    auto Parameter_5423_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5423});
-    auto Squeeze_5432 = wrap_type<ov::op::v0::Squeeze>({Parameter_5423_decompressed_to_f32, {2}});
-    auto Multiply_5441 = wrap_type<ov::op::v1::Multiply>({Multiply_5437, Unsqueeze_5445});
-    auto ReduceSum_5442 = wrap_type<ov::op::v1::ReduceSum>({Multiply_5441, {-2}}, {{"keep_dims", false}});
-    auto Subtract_5443 = wrap_type<ov::op::v1::Subtract>({Squeeze_5432, ReduceSum_5442});
-    auto Parameter_5425_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5425});
-    auto Multiply_5444 = wrap_type<ov::op::v1::Multiply>({Subtract_5443, Parameter_5425_decompressed_to_f32});
-    auto Unsqueeze_5446 = wrap_type<ov::op::v0::Unsqueeze>({Multiply_5444, {-2}});
-    auto Multiply_5447 = wrap_type<ov::op::v1::Multiply>({Unsqueeze_5445, Unsqueeze_5446});
-    auto Add_5448 = wrap_type<ov::op::v1::Add>({Multiply_5437, Multiply_5447});
-    auto Parameter_5421_decompressed_to_f32 = pattern::optional<ov::op::v0::Convert>({Parameter_5421});
-    auto Squeeze_5430 = wrap_type<ov::op::v0::Squeeze>({Parameter_5421_decompressed_to_f32, 2});
-    auto Unsqueeze_5449 = wrap_type<ov::op::v0::Unsqueeze>({Squeeze_5430, {-1}});
-    auto Multiply_5450 = wrap_type<ov::op::v1::Multiply>({Add_5448, Unsqueeze_5449});
-
-    auto ReduceSum_5451 = wrap_type<ov::op::v1::ReduceSum>({Multiply_5450, {-2}}, {{"keep_dims", true}});
-    auto ReduceSum_5451_compressed_to_f16 = pattern::optional<ov::op::v0::Convert>({ReduceSum_5451});
-    auto ScatterUpdate_5455 =
-        wrap_type<ov::op::v3::ScatterUpdate>({Parameter_5427, Unsqueeze_5454, ReduceSum_5451_compressed_to_f16, 2});
-    auto Result_5460 = wrap_type<ov::op::v0::Result>({ScatterUpdate_5455});
-    auto Add_5448_compressed_to_f16 = pattern::optional<ov::op::v0::Convert>({Add_5448});
-    auto Result_5459 = wrap_type<ov::op::v0::Result>({Add_5448_compressed_to_f16});
-
-    ov::pass::pattern::Matcher loop_output_matcher(Result_5460);
-    ov::pass::pattern::Matcher loop_state_matcher(Result_5459);
+    
     auto body = loop->get_function();
     const auto& body_results = body->get_results();
+    if (body_results.size() < 3) {
+        return false;
+    }
+    
+    auto out_buffer = any_input(shape_matches("[?, head_num, ?, v_head_size]"));
+    auto state_in = any_input(shape_matches("[?, head_num, k_head_size, v_head_size]"));
+    auto beta = any_input(shape_matches("[?, head_num, 1]"));
+    auto gate = any_input(shape_matches("[?, head_num, 1]"));
+    auto value = any_input(shape_matches("[?, head_num, 1, value_head_size]"));
+    auto key = any_input(shape_matches("[?, head_num, 1, k_head_size]"));
+    auto query = any_input(shape_matches("[?, head_num, 1, k_head_size]"));
+    auto time_index = any_input();
+
+    auto gate_expanded = wrap_type<ov::op::v0::Exp>({gate});
+    auto gate_for_state = wrap_type<ov::op::v0::Unsqueeze>({gate_expanded, {-1}});
+    auto decayed_state = wrap_type<ov::op::v1::Multiply>({state_in, gate_for_state});
+
+    auto key_squeezed = wrap_type<ov::op::v0::Squeeze>({key, {2}});
+    auto key_unsqueezed = wrap_type<ov::op::v0::Unsqueeze>({key_squeezed, {-1}});
+
+    auto decayed_state_times_key = wrap_type<ov::op::v1::Multiply>({decayed_state, key_unsqueezed});
+    auto value_residual =
+        wrap_type<ov::op::v1::ReduceSum>({decayed_state_times_key, {-2}}, {{"keep_dims", false}});
+    auto value_delta = wrap_type<ov::op::v1::Subtract>({value, value_residual});
+
+    auto value_update = wrap_type<ov::op::v1::Multiply>({value_delta, beta});
+    auto value_update_unsqueezed = wrap_type<ov::op::v0::Unsqueeze>({value_update, {-2}});
+    auto key_value_update = wrap_type<ov::op::v1::Multiply>({key_unsqueezed, value_update_unsqueezed});
+    auto state_out = wrap_type<ov::op::v1::Add>({decayed_state, key_value_update});
+
+    auto query_squeezed = wrap_type<ov::op::v0::Squeeze>({query, 2});
+    auto query_unsqueezed = wrap_type<ov::op::v0::Unsqueeze>({query_squeezed, {-1}});
+    auto state_query_mul = wrap_type<ov::op::v1::Multiply>({state_out, query_unsqueezed});
+    auto step_out = wrap_type<ov::op::v1::ReduceSum>({state_query_mul, {-2}}, {{"keep_dims", true}});
+    auto step_out_casted = pattern::optional<ov::op::v0::Convert>({step_out});
+    auto updated_out_buffer =
+        wrap_type<ov::op::v3::ScatterUpdate>({out_buffer, time_index, step_out_casted, 2});
+
+    ov::pass::pattern::Matcher loop_output_matcher(updated_out_buffer);
+    ov::pass::pattern::Matcher loop_state_matcher(state_out);
 
     // match output
     if (!loop_output_matcher.match(body_results[2]->output(0)))
@@ -118,7 +112,7 @@ bool matches_linear_attention_loop(const std::shared_ptr<ov::op::v5::Loop>& loop
 
 }  // namespace
 
-static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_pattern,
+static std::shared_ptr<ov::Node> get_scale(const std::shared_ptr<ov::Node>& scale_pattern,
                                            ov::element::Type default_scale_type,
                                            Matcher& matcher) {
     auto& pm = matcher.get_pattern_value_map();
@@ -149,38 +143,40 @@ static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_patte
 }
 
 ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
-    auto value = any_input(rank_equals(4) && shape_matches("[?, head_num, ?, v_head_size]"));
-    auto init_state = any_input(rank_equals(4) && shape_matches("[?, head_num, k_head_size, v_head_size]"));
-    auto loop_output0 = wrap_type<ov::op::v5::Loop>(OutputVector{any_input(),
-                                                                 any_input(),
-                                                                 any_input(),
-                                                                 any_input(),
-                                                                 value->output(0),
-                                                                 any_input(),
-                                                                 any_input(),
-                                                                 init_state->output(0),
-                                                                 any_input()},
-                                                    pattern::output_index_matches(0));
+    auto value = any_input(shape_matches("[?, head_num, ?, v_head_size]"));
+    auto init_state = any_input(shape_matches("[?, head_num, k_head_size, v_head_size]"));
+    // Loop inputs: [0] = trip count, [1] = execution condition, other indices are additional Loop inputs.
+    auto trip_count = any_input();
+    auto execution_condition = any_input();
+    auto loop_input_2 = any_input();
+    auto loop_input_3 = any_input();
+    auto loop_input_5 = any_input();
+    auto loop_input_6 = any_input();
+    auto loop_input_8 = any_input();
+    auto loop_inputs = OutputVector{
+        trip_count,
+        execution_condition,
+        loop_input_2,
+        loop_input_3,
+        value,
+        loop_input_5,
+        loop_input_6,
+        init_state,
+        loop_input_8};
+    auto loop_output0 = wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(0));
+    auto loop_output1 = wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(1));
 
-    auto loop_output1 = wrap_type<ov::op::v5::Loop>(OutputVector{any_input(),
-                                                                 any_input(),
-                                                                 any_input(),
-                                                                 any_input(),
-                                                                 value->output(0),
-                                                                 any_input(),
-                                                                 any_input(),
-                                                                 init_state->output(0),
-                                                                 any_input()},
-                                                    pattern::output_index_matches(1));
-
-    auto reshape_core_attn = pattern::wrap_type<ov::op::v1::Reshape>({loop_output0, {-1}});
-    auto reshape_core_state = pattern::wrap_type<ov::op::v1::Reshape>({loop_output1, {-1}});
-    auto concat_loop = makeOP<ov::op::v0::Concat>({reshape_core_attn, reshape_core_state}, {{"axis", 0}});
+    auto reshape_core_attn = pattern::optional<ov::op::v1::Reshape>({loop_output0, any_input()});
+    auto reshape_core_state = pattern::optional<ov::op::v1::Reshape>({loop_output1, any_input()});
+    
+    auto concat_loop = std::make_shared<ov::op::v0::Concat>(OutputVector{reshape_core_attn, reshape_core_state}, 0);
+    
     auto slice_attn = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, {0}, any_input(), {1}, {0}});
     auto reshape_attn = pattern::wrap_type<opset1::Reshape>({slice_attn, any_input()},
                                                             pattern::shape_matches("[?, head_num, ?, v_head_size]"));
     auto slice_state = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, any_input(), {LLONG_MAX}, {1}, {0}});
     auto reshape_state = pattern::wrap_type<opset1::Reshape>({slice_state, any_input()});
+    
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         bool changed = false;
@@ -243,18 +239,19 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
             return false;
         }
         std::vector<std::shared_ptr<ov::Node>> rt_nodes{loop};
-        ov::OutputVector inputs;
-        inputs.reserve(6);
         std::shared_ptr<ov::Node> scale_node;
         auto q_type = pattern_map.at(transpose_query).get_element_type();
         if (!(scale_node = get_scale(attn_scale, q_type, m)))
             return false;
-        inputs.push_back(pattern_map.at(query));       // query
-        inputs.push_back(pattern_map.at(key));         // key
-        inputs.push_back(pattern_map.at(value));       // value
-        inputs.push_back(pattern_map.at(init_state));  // initial_state
-        inputs.push_back(pattern_map.at(gate));        // g
-        inputs.push_back(pattern_map.at(beta));        // beta
+            
+        ov::OutputVector inputs = {
+            pattern_map.at(query),       // query
+            pattern_map.at(key),         // key
+            pattern_map.at(value),       // value
+            pattern_map.at(init_state),  // initial_state
+            pattern_map.at(gate),        // g
+            pattern_map.at(beta)         // beta
+        };
 
         auto linear_attn = std::make_shared<ov::op::GatedDeltaNet>(inputs);
 
@@ -291,18 +288,15 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
     auto eps_k = pattern::optional<ov::op::v0::Convert>({eps_k_const});
 
     auto l2_norm = [](const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& eps) {
-        auto input_convert = pattern::optional<ov::op::v0::Convert>({data});
-        auto mul = pattern::wrap_type<ov::op::v1::Multiply>({input_convert, input_convert});
+        auto input_fp = pattern::optional<ov::op::v0::Convert>({data});
+        auto sq = pattern::wrap_type<ov::op::v1::Multiply>({input_fp, input_fp});
         auto axis_const = pattern::wrap_type<ov::op::v0::Constant>(value_matches("-1") || value_matches("3"));
         auto axis = pattern::optional<ov::op::v0::Convert>({axis_const});
-        auto reduce_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({mul, axis}, {{"keep_dims", true}});
-        auto add = pattern::wrap_type<ov::op::v1::Add>({reduce_sum, eps});
-        auto sqrt = pattern::wrap_type<ov::op::v0::Sqrt>({add});
-        auto const_one = pattern::wrap_type<ov::op::v0::Constant>(value_matches("1"));
-        auto convert_one = pattern::optional<ov::op::v0::Convert>({const_one});
-        auto div = pattern::wrap_type<ov::op::v1::Divide>({any_input(), sqrt});
-        auto multiply = pattern::wrap_type<ov::op::v1::Multiply>({input_convert, div});
-        return multiply;
+        auto sq_sum = pattern::wrap_type<ov::op::v1::ReduceSum>({sq, axis}, {{"keep_dims", true}});
+        auto sq_sum_eps = pattern::wrap_type<ov::op::v1::Add>({sq_sum, eps});
+        auto denom = pattern::wrap_type<ov::op::v0::Sqrt>({sq_sum_eps});
+        auto inv_norm = pattern::wrap_type<ov::op::v1::Divide>({any_input(), denom});
+        return pattern::wrap_type<ov::op::v1::Multiply>({input_fp, inv_norm});
     };
 
     auto normalized_query = l2_norm(query, eps_q);
