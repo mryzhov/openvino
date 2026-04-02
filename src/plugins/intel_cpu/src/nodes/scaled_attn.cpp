@@ -28,6 +28,7 @@
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/node_config.h"
+#include "nodes/memory.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -1979,6 +1980,42 @@ void ScaledDotProductAttention::execute(const dnnl::stream& strm) {
     PlainTensor k_scale_zp;
     PlainTensor v_scale_zp;
     if (m_config.config.fuse_concat) {
+        if (!m_k_state || !m_v_state) {
+            auto resolveMemoryInputParent = [](NodePtr parentNode) -> std::shared_ptr<MemoryInputBase> {
+                while (parentNode && (parentNode->getType() == Type::Convert || parentNode->getType() == Type::Reorder)) {
+                    if (parentNode->getParentEdges().size() != 1) {
+                        return nullptr;
+                    }
+                    parentNode = parentNode->getParentEdgeAt(0)->getParent();
+                }
+
+                return std::dynamic_pointer_cast<MemoryInputBase>(parentNode);
+            };
+
+            const auto inputNumber = getOriginalInputsNumber();
+            for (size_t idx = inputNumber - 2; idx < inputNumber; idx++) {
+                auto parent = getParentEdgeAt(idx)->getParent();
+                auto memInputNode = resolveMemoryInputParent(parent);
+                if (!memInputNode) {
+                    continue;
+                }
+
+                auto state = std::dynamic_pointer_cast<VariableStateKVcache>(memInputNode->peekAssignedState());
+                if (!state) {
+                    continue;
+                }
+
+                assignState(state, static_cast<int>(idx));
+            }
+        }
+
+        if (!m_k_state || !m_v_state) {
+            OPENVINO_THROW("ScaledDotProductAttentionWithKVCache node with name '", getName(),
+                           "' has null input states after trying to discover from parent MemoryInput nodes. "
+                           "Total inputs: ", getOriginalInputsNumber(),
+                           ", has k_state: ", bool(m_k_state), ", has v_state: ", bool(m_v_state));
+        }
+
         CPU_NODE_ASSERT(m_k_state && m_v_state, "has null input states");
         // initialization will be also completed in this func
         gatherConcatPastkv(inputs[1], inputs[2], getSrcMemoryAtPort(orginSDPInputNumber));

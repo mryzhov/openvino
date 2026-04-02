@@ -170,6 +170,9 @@ public:
 
     MemoryOutputBase& getOutputNode();
     void assignState(MemStatePtr newState) override final;
+    MemStatePtr peekAssignedState() const {
+        return state;
+    }
 
 protected:
     MemoryInputBase(const std::string& id,

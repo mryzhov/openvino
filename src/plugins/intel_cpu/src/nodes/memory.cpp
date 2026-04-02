@@ -54,6 +54,27 @@ using namespace dnnl;
 namespace ov::intel_cpu::node {
 
 namespace {
+int findSdpaChildPort(const MemoryInputSDPA& memoryInputNode, const std::shared_ptr<ScaledDotProductAttention>& sdpaNode) {
+    for (auto&& edge : memoryInputNode.getChildEdgesAtPort(0)) {
+        auto child = edge->getChild();
+        if (child == sdpaNode) {
+            return edge->getOutputNum();
+        }
+
+        if (child->getType() != Type::Convert) {
+            continue;
+        }
+
+        for (auto&& convertChildEdge : child->getChildEdgesAtPort(0)) {
+            if (convertChildEdge->getChild() == sdpaNode) {
+                return convertChildEdge->getOutputNum();
+            }
+        }
+    }
+
+    return -1;
+}
+
 class MemoryStub : public IMemory {
 public:
     class MemoryBlockStub : public IMemoryBlockObserver {
@@ -957,13 +978,7 @@ void MemoryInputSDPA::createPrimitive() {
     // determine the output node idx
     auto memDesc = getBaseMemDescAtOutputPort(0);
     auto sdpaNode = m_sdpaNode.lock();
-    for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port
-        auto node = edge->getChild();
-        if (node == sdpaNode) {
-            m_child_port_idx = edge->getOutputNum();
-            break;
-        }
-    }
+    m_child_port_idx = findSdpaChildPort(*this, sdpaNode);
     CPU_NODE_ASSERT(m_child_port_idx != -1, getName(), " should be connected to SDPA node.");
 }
 

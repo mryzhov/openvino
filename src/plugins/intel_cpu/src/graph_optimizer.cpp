@@ -84,6 +84,49 @@ using namespace ov::intel_cpu::node;
 
 namespace ov::intel_cpu {
 
+namespace {
+
+NodePtr findSdpaThroughOptionalConvert(const NodePtr& node) {
+    if (!node) {
+        return nullptr;
+    }
+
+    if (node->getType() == Type::ScaledDotProductAttention) {
+        return node;
+    }
+
+    if (node->getType() != Type::Convert && node->getType() != Type::Reorder) {
+        return nullptr;
+    }
+
+    const auto& childEdges = node->getChildEdgesAtPort(0);
+    if (childEdges.size() != 1) {
+        return nullptr;
+    }
+
+    auto child = childEdges.front()->getChild();
+    return child && child->getType() == Type::ScaledDotProductAttention ? child : nullptr;
+}
+
+NodePtr findSdpaParentThroughOptionalConvert(const NodePtr& node) {
+    if (!node) {
+        return nullptr;
+    }
+
+    if (node->getType() == Type::ScaledDotProductAttention) {
+        return node;
+    }
+
+    if ((node->getType() != Type::Convert && node->getType() != Type::Reorder) || node->getParentEdges().size() != 1) {
+        return nullptr;
+    }
+
+    auto parent = node->getParentEdgeAt(0)->getParent();
+    return parent && parent->getType() == Type::ScaledDotProductAttention ? parent : nullptr;
+}
+
+}  // namespace
+
 GraphOptimizer::GraphOptimizer() = default;
 
 void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
@@ -3165,20 +3208,30 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
             return false;
         }
         NodePtr childSdpa = nullptr;
+        bool hasSdpaChild = false;
         auto&& childEdges = node->getChildEdgesAtPort(0);
         for (auto&& item : childEdges) {
             auto childNode = item->getChild();
-            if (none_of(childNode->getType(), Type::ScaledDotProductAttention, Type::ShapeOf)) {
-                return false;
+            if (childNode->getType() == Type::ShapeOf) {
+                continue;
             }
 
-            if (Type::ScaledDotProductAttention == childNode->getType()) {
-                if (childSdpa && childSdpa != childNode) {
-                    // only one child SDPA supported
-                    return false;
-                }
-                childSdpa = childNode;
+            auto sdpaCandidate = findSdpaThroughOptionalConvert(childNode);
+            if (!sdpaCandidate) {
+                continue;
             }
+
+            hasSdpaChild = true;
+
+            if (childSdpa && childSdpa != sdpaCandidate) {
+                // only one child SDPA supported
+                return false;
+            }
+            childSdpa = sdpaCandidate;
+        }
+
+        if (!hasSdpaChild) {
+            return false;
         }
 
         CPU_GRAPH_OPTIMIZER_SCOPE(MatchSdpaKvCache_isSuitableMemInput);
@@ -3187,7 +3240,7 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
         OPENVINO_ASSERT(memInputNode, "MemoryInput node ", node->getName(), " has unexpected dynamic type");
         auto& memOutputNode = memInputNode->getOutputNode();
         auto memOutputParent = memOutputNode.getParentEdgeAt(0)->getParent();
-        return memOutputParent == childSdpa;
+        return findSdpaParentThroughOptionalConvert(memOutputParent) == childSdpa;
     };
 
     for (size_t i = 0; i < graphNodes.size(); i++) {
@@ -3225,14 +3278,19 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
         std::shared_ptr<ScaledDotProductAttention> sdpa;
         for (auto&& edge : node->getChildEdgesAtPort(0)) {
             auto child = edge->getChild();
-            if (Type::ScaledDotProductAttention == child->getType()) {
-                sdpa = std::dynamic_pointer_cast<ScaledDotProductAttention>(child);
-                if (sdpa) {
-                    break;
-                }
-                OPENVINO_THROW("Couldn't cast node", child->getName(), " to ScaledDotProductAttention type");
+            auto sdpaNode = findSdpaThroughOptionalConvert(child);
+            if (!sdpaNode) {
+                continue;
             }
+
+            sdpa = std::dynamic_pointer_cast<ScaledDotProductAttention>(sdpaNode);
+            if (sdpa) {
+                break;
+            }
+            OPENVINO_THROW("Couldn't cast node", sdpaNode->getName(), " to ScaledDotProductAttention type");
         }
+
+        OPENVINO_ASSERT(sdpa, "MemoryInput node ", node->getName(), " is missing a ScaledDotProductAttention child");
 
         // capture reference to the original mem output before graph transformations
         auto& memOutput = memInputNode->getOutputNode();
