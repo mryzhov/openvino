@@ -780,6 +780,7 @@ class TestParallelRunner:
         hash_map = {}
         test_times = []
         fix_priority = []
+        test_error_messages = {}  # Dictionary to store error messages by test name
         for log in Path(self._working_dir).rglob("log_*.log"):
             log_filename = os.path.join(self._working_dir, log)
             with open(log_filename, "r", encoding=constants.ENCODING) as log_file:
@@ -842,6 +843,16 @@ class TestParallelRunner:
                                     test_results[dir] = 1
                                 if dir != "passed" and dir != "skipped":
                                     fix_priority.append((ref_k or 0, test_name))
+                                    # Extract error messages from test_log
+                                    error_messages = []
+                                    for log_line in test_log:
+                                        log_line_lower = log_line.lower()
+                                        if any(keyword in log_line_lower for keyword in ['error', 'failed', 'exception', 'assert', 'mismatch']):
+                                            error_msg = log_line.strip()
+                                            if error_msg and error_msg not in error_messages:
+                                                error_messages.append(error_msg)
+                                    if error_messages:
+                                        test_error_messages[test_name] = error_messages[:3]  # Keep first 3 error messages
                                 ref_k = None
                                 test_cnt_real_saved_now += 1
                                 test_name = None
@@ -1014,6 +1025,22 @@ class TestParallelRunner:
                 is_successfull_run = False
         if self._disabled_tests:
             logger.info(f"disabled test counter is: {len(self._disabled_tests)}")
+
+        # Print failed tests to console with error messages
+        if len(fix_priority) > 0:
+            logger.info("\n" + "="*80)
+            logger.info("FAILED TESTS SUMMARY")
+            logger.info("="*80)
+            for priority, test_name in fix_priority:
+                logger.error(f"  FAILED: {test_name} (priority: {priority})")
+                # Print error messages if available
+                if test_name in test_error_messages:
+                    for error_msg in test_error_messages[test_name]:
+                        # Truncate long error messages
+                        if len(error_msg) > 120:
+                            error_msg = error_msg[:117] + "..."
+                        logger.error(f"    └─ {error_msg}")
+            logger.info("="*80 + "\n")
 
         diff_set = set(saved_tests).difference(set(test_list_runtime))
         if diff_set:
