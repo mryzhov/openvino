@@ -1,7 +1,9 @@
 -c ../constraints.txt
 --extra-index-url https://download.pytorch.org/whl/cpu
-optimum-intel[tests,nncf]
+# Optimum Intel 2.2.0's tests extra requires sentence-transformers<5.4.
+optimum-intel[nncf]
 whowhatbench[llm-test-openvino] @ git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark
-pytest
+# Preserve the pytest range previously supplied by the Optimum Intel tests extra.
+pytest>=7.2.0,<8.0.0
 pytest-html
 jinja2>=3.1.0

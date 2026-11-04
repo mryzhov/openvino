@@ -307,8 +307,10 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
     };
 
     // The block-key cache grows by zero blocks up to the complete blocks of the longest sequence.
-    const auto longest_i64 = std::make_shared<v0::Convert>(g.key_length, element::i64);
-    const auto longest = std::make_shared<v1::ReduceMax>(longest_i64, i64({0}), true);
+    Output<Node> longest = std::make_shared<v1::ReduceMax>(g.key_length, i64({0}), true);
+    if (g.key_length.get_element_type() != element::i64) {
+        longest = std::make_shared<v0::Convert>(longest, element::i64);
+    }
     const auto needed_blocks = std::make_shared<v1::Divide>(longest, i64({key_block_size}));
     const auto missing_blocks = std::make_shared<v1::Subtract>(needed_blocks, dims_of(g.cache, {1}));
     const auto growth = std::make_shared<v1::Maximum>(missing_blocks, i64({0}));

@@ -89,7 +89,6 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         const auto& query = pattern_map.at(p_query);
         const auto& raw_keys = pattern_map.at(p_raw_keys);
         const auto& config = indexer->get_config();
-        const auto data_type = query.get_element_type();
         const auto& query_shape = query.get_partial_shape();
         const auto& keys_shape = raw_keys.get_partial_shape();
         const auto key_heads = keys_shape[heads_axis].get_length();
@@ -104,7 +103,7 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         // The caches use the main KV page table, so the page dimensions are dynamic.
         const auto layer = std::to_string(m_layer_index++);
         const auto add_cache = [&](const std::string& name, const ov::PartialShape& shape) {
-            const auto cache = pa_params.add(name + "." + layer, data_type, shape);
+            const auto cache = pa_params.add(name + "." + layer, ov::element::dynamic, shape);
             enable_keep_const_precision(cache);
             return cache;
         };

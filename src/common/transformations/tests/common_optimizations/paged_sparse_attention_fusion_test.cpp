@@ -163,8 +163,8 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
     Output<Node> output;
     if (paged) {
         const auto suffix = o.existing_caches ? ".1" : ".0";
-        const auto key_cache = param(std::string("key_cache") + suffix, o.precision, PartialShape::dynamic(4));
-        const auto value_cache = param(std::string("value_cache") + suffix, o.precision, PartialShape::dynamic(4));
+        const auto key_cache = param(std::string("key_cache") + suffix, element::dynamic, PartialShape::dynamic(4));
+        const auto value_cache = param(std::string("value_cache") + suffix, element::dynamic, PartialShape::dynamic(4));
         enable_keep_const_precision(key_cache);
         enable_keep_const_precision(value_cache);
         const auto flatten = [&](const Output<Node>& data, int64_t width) {

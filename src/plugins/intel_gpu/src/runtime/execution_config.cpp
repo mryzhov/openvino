@@ -22,6 +22,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/selective_ssm.hpp"
@@ -200,12 +201,12 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 }
 
 void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) {
-    auto is_paged_attention_model = false;
-    const auto is_LLM = ov::op::util::is_large_language_model(model, [&is_paged_attention_model](std::shared_ptr<ov::Node> node) {
-        if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
-            is_paged_attention_model = true;
-            return true;
-        }
+    const auto& ops = model.get_ops();
+    const bool is_paged_attention_model = std::any_of(ops.begin(), ops.end(), [](const auto& node) {
+        return ov::is_type<ov::op::PagedAttentionExtension>(node) ||
+               ov::is_type<ov::op::internal::PagedSparseAttention>(node);
+    });
+    const auto is_LLM = is_paged_attention_model || ov::op::util::is_large_language_model(model, [](std::shared_ptr<ov::Node> node) {
         return ov::is_type<ov::intel_gpu::op::KVCache>(node);
     });
     const auto has_lora = std::any_of(model.get_variables().begin(), model.get_variables().end(),
@@ -215,7 +216,6 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 
     apply_rt_info(context, get_rt_info(model), is_LLM, is_paged_attention_model, has_lora);
 
-    const auto& ops = model.get_ops();
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
 
     std::function<void(std::shared_ptr<Node>)> process_op = [&, this](std::shared_ptr<Node> op) {

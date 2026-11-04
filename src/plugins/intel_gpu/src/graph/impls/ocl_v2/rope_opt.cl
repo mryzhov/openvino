@@ -588,6 +588,11 @@ uint cos_sin_p = p;
     #endif
 #endif
 
+    for (uint base = ROTARY_NDIMS + r; base < OUTPUT_SIZE_X; base += HALF_ROTARY_NDIMS) {
+        for (uint i = 0; i < VEC_SIZE && base + i < OUTPUT_SIZE_X; ++i) {
+            output[output_idx + base + i] = input[input_idx + base + i];
+        }
+    }
 }
 #endif
 

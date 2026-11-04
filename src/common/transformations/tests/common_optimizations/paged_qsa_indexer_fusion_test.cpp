@@ -145,11 +145,11 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
         const auto block_indices = make_named_param("block_indices", element::i32, PartialShape{-1});
         const auto block_indices_begins = make_named_param("block_indices_begins", element::i32, PartialShape{-1});
         const auto index_key_cache =
-            make_named_param("index_key_cache.0", element::f32, PartialShape{-1, key_heads, -1, head_size});
+            make_named_param("index_key_cache.0", element::dynamic, PartialShape{-1, key_heads, -1, head_size});
         const auto index_block_rope_cache =
-            make_named_param("index_block_rope_cache.0", element::f32, PartialShape{-1, -1, 2 * rotary_dim});
+            make_named_param("index_block_rope_cache.0", element::dynamic, PartialShape{-1, -1, 2 * rotary_dim});
         const auto block_index_keys_cache =
-            make_named_param("block_index_keys_cache.0", element::f32, PartialShape{-1, key_heads, -1, head_size});
+            make_named_param("block_index_keys_cache.0", element::dynamic, PartialShape{-1, key_heads, -1, head_size});
         params.insert(params.end(),
                       {past_lens,
                        subsequence_begins,

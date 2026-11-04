@@ -14,7 +14,9 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
@@ -35,6 +37,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
     MATCHER_SCOPE(ConvertPagedAttnInputs);
 
     auto paged_op = pattern::wrap_type<ov::op::PagedAttentionExtension,
+                                       ov::op::internal::PagedQSAIndexer,
+                                       ov::op::internal::PagedSparseAttention,
                                        ov::op::internal::PagedCausalConv1D,
                                        ov::op::internal::PagedGatedDeltaNet,
                                        ov::op::internal::PagedSelectiveSSM>();
@@ -42,7 +46,12 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
         const auto root = m.get_match_root();
         bool status = false;
 
-        if (const auto pa_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(root)) {
+        // PagedAttentionExtension and PagedSparseAttention share the key/value cache inputs (3, 4) and the
+        // `num_k_heads`/`k_head_size`/`num_v_heads`/`v_head_size` runtime info that defines the cache shape.
+        const auto pa_op =
+            ov::is_type_any_of<ov::op::PagedAttentionExtension, ov::op::internal::PagedSparseAttention>(root) ? root
+                                                                                                              : nullptr;
+        if (pa_op) {
             auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));
             auto value_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(4));
             if (!key_cache || !value_cache) {
@@ -82,22 +91,33 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
 
                 return block_shape;
             };
-            auto key_cache_precision = format_cache_precision(m_config.keyCachePrecision, m_config.inferencePrecision);
-            auto value_cache_precision =
-                format_cache_precision(m_config.valueCachePrecision, m_config.inferencePrecision);
+            const auto sparse_cache_precision = ov::is_type<ov::op::internal::PagedSparseAttention>(pa_op)
+                                                    ? m_config.sparseCachePrecision
+                                                    : ov::element::dynamic;
+            auto key_cache_precision = format_cache_precision(
+                sparse_cache_precision.is_static() ? sparse_cache_precision : m_config.keyCachePrecision,
+                m_config.inferencePrecision);
+            auto value_cache_precision = format_cache_precision(
+                sparse_cache_precision.is_static() ? sparse_cache_precision : m_config.valueCachePrecision,
+                m_config.inferencePrecision);
             key_cache->set_element_type(key_cache_precision);
             value_cache->set_element_type(value_cache_precision);
             enable_keep_const_precision(key_cache);
             enable_keep_const_precision(value_cache);
             if (pa_op->get_rt_info().count("num_k_heads") && pa_op->get_rt_info().count("k_head_size") &&
                 pa_op->get_rt_info().count("num_v_heads") && pa_op->get_rt_info().count("v_head_size")) {
+                const auto& key_cache_order =
+                    ov::is_type<ov::op::internal::PagedSparseAttention>(pa_op) &&
+                            !m_config.sparseKeyCacheDimOrder.empty()
+                        ? m_config.sparseKeyCacheDimOrder
+                        : m_config.keyCacheDimOrder;
                 const auto key_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_k_heads"].as<size_t>(),
                                                               pa_op->get_rt_info()["k_head_size"].as<size_t>(),
                                                               m_config.keyCacheBlockSize,
                                                               key_cache_precision,
                                                               m_config.keyCacheGroupSize,
                                                               m_config.keyCacheQuantBychannel,
-                                                              m_config.keyCacheDimOrder);
+                                                              key_cache_order);
                 const auto value_cache_shape = init_cache_shape(pa_op->get_rt_info()["num_v_heads"].as<size_t>(),
                                                                 pa_op->get_rt_info()["v_head_size"].as<size_t>(),
                                                                 m_config.valueCacheBlockSize,
@@ -136,6 +156,25 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
 
             key_cache->validate_and_infer_types();
             value_cache->validate_and_infer_types();
+        }
+
+        if (const auto paged_qsa = ov::as_type_ptr<ov::op::internal::PagedQSAIndexer>(root)) {
+            using In = ov::op::internal::PagedQSAIndexer::InputIdx;
+            std::vector<std::shared_ptr<v0::Parameter>> caches;
+            for (const auto idx : {In::INDEX_KEY_CACHE, In::INDEX_BLOCK_ROPE_CACHE, In::BLOCK_INDEX_KEYS_CACHE}) {
+                const auto cache = ov::as_type_ptr<v0::Parameter>(paged_qsa->get_input_node_shared_ptr(idx));
+                if (!cache) {
+                    return false;
+                }
+                caches.push_back(cache);
+            }
+            const auto cache_precision = paged_qsa->get_input_element_type(In::INDEX_QUERY);
+            for (const auto& cache : caches) {
+                cache->set_element_type(cache_precision);
+                enable_keep_const_precision(cache);
+                cache->validate_and_infer_types();
+            }
+            return true;
         }
 
         if (const auto paged_conv = ov::as_type_ptr<ov::op::internal::PagedCausalConv1D>(root)) {

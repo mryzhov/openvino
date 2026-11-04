@@ -25,6 +25,7 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/relu.hpp"
@@ -243,7 +244,8 @@ bool is_large_language_model(const ov::Model& model, std::function<bool(std::sha
         if (func(op))
             return true;
 
-        if (kvcache_matcher->match(op->output(0)) || ov::is_type<ov::op::PagedAttentionExtension>(op))
+        if (kvcache_matcher->match(op->output(0)) || ov::is_type<ov::op::PagedAttentionExtension>(op) ||
+            ov::is_type<ov::op::internal::PagedSparseAttention>(op))
             return true;
     }
     return false;

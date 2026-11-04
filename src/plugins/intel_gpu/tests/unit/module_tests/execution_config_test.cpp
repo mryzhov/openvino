@@ -14,7 +14,9 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/subtract.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -150,6 +152,46 @@ static std::shared_ptr<ov::Model> make_pa_matmul_model(ov::element::Type weight_
                             pa_xattn_threshold, pa_xattn_block_size, pa_xattn_stride,
                             pa_arkv_evict, pa_arkv_div_idx, pa_arkv_div_begins,
                             pa_token_type_ids, pa_qq_bias, pa_qq_bias_begins});
+}
+
+static std::shared_ptr<ov::Model> make_sparse_pa_matmul_model(ov::element::Type weight_type) {
+    auto model = make_pa_matmul_model(weight_type);
+    auto result = model->get_results().at(1);
+    auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(result->input_value(0).get_node_shared_ptr());
+    OPENVINO_ASSERT(pa);
+    auto selected = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 1, 16});
+    auto count = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 1});
+    auto sinks = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{0}, {});
+    ov::OutputVector inputs;
+    for (size_t i = 0; i < 9; ++i) {
+        inputs.push_back(pa->input_value(i));
+    }
+    inputs.insert(inputs.end(), {selected, count, pa->input_value(9), sinks});
+    auto sparse = std::make_shared<ov::op::internal::PagedSparseAttention>(inputs, 4);
+    result->input(0).replace_source_output(sparse);
+    model->add_parameters({selected, count});
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+TEST(execution_config, paged_sparse_attention_uses_paged_llm_defaults) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto model = make_sparse_pa_matmul_model(ov::element::u4);
+    model->set_rt_info("8.0", "runtime_options", ov::hint::activations_scale_factor.name());
+
+    EXPECT_TRUE(ov::op::util::is_large_language_model(*model));
+    ExecutionConfig config;
+    config.finalize(ctx.get(), model.get());
+    EXPECT_EQ(config.get_kv_cache_precision(), ov::element::u4);
+    EXPECT_LT(config.get_activations_scale_factor(), 0.0f);
+
+    ExecutionConfig overridden;
+    overridden.set_user_property(ov::hint::kv_cache_precision(ov::element::f16));
+    overridden.set_user_property(ov::hint::activations_scale_factor(4.0f));
+    overridden.finalize(ctx.get(), model.get());
+    EXPECT_EQ(overridden.get_kv_cache_precision(), ov::element::f16);
+    EXPECT_EQ(overridden.get_activations_scale_factor(), 4.0f);
 }
 
 TEST(execution_config, kv_cache_u4_weights_auto_detect_u4) {

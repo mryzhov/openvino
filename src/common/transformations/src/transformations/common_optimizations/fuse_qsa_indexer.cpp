@@ -162,11 +162,11 @@ FuseQSAIndexerBase::FuseQSAIndexerBase() {
 
         // QSAPrepare output 0 holds the complete blocks of the longest sequence, while QSAIndexer keeps the cache
         // shape, so the cache is grown by zero blocks before the call.
-        const auto key_length_i64 = key_length.get_element_type() == ov::element::i64
-                                        ? key_length
-                                        : rg.make<v0::Convert>(key_length, ov::element::i64);
-        const auto max_key_length = rg.make<v1::ReduceMax>(key_length_i64, i64({0}), true);
-        const auto needed_blocks = rg.make<v1::Divide>(max_key_length, i64({key_block_size}));
+        const auto max_key_length = rg.make<v1::ReduceMax>(key_length, i64({0}), true);
+        const auto max_key_length_i64 = key_length.get_element_type() == ov::element::i64
+                                            ? max_key_length->output(0)
+                                            : rg.make<v0::Convert>(max_key_length, ov::element::i64)->output(0);
+        const auto needed_blocks = rg.make<v1::Divide>(max_key_length_i64, i64({key_block_size}));
         const auto past_block_count = dims_of(past_block_keys, {1});
         const auto missing_blocks = rg.make<v1::Subtract>(needed_blocks, past_block_count);
         const auto cache_growth_blocks = rg.make<v1::Maximum>(missing_blocks, i64({0}));

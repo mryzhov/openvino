@@ -125,9 +125,8 @@ PagedSparseAttentionFusion::PagedSparseAttentionFusion(paged_attention::PaParams
             ++m_layer_index;
         }
         const auto suffix = "." + std::to_string(m_layer_index++);
-        const auto key_cache = pa_params.add("key_cache" + suffix, key.get_element_type(), PartialShape::dynamic(4));
-        const auto value_cache =
-            pa_params.add("value_cache" + suffix, value.get_element_type(), PartialShape::dynamic(4));
+        const auto key_cache = pa_params.add("key_cache" + suffix, element::dynamic, PartialShape::dynamic(4));
+        const auto value_cache = pa_params.add("value_cache" + suffix, element::dynamic, PartialShape::dynamic(4));
 
         NodeRegistry rg;
         const auto i64 = [&rg](const std::vector<int64_t>& values) {

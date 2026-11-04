@@ -72,6 +72,8 @@
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/sparse_attention.hpp"
+#include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -123,6 +125,7 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
+#include "plugin/transformations/sparse_attention_fusion.hpp"
 #include "plugin/transformations/stateless_kv_fusion.hpp"
 #include "plugin/transformations/swoosh_fusion.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
@@ -485,6 +488,33 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
         }
     }
     return false;
+}
+
+KVCacheQuantConfig make_qsa_kv_cache_quant(const ExecutionConfig& config) {
+    KVCacheQuantConfig quant;
+    const auto precision = config.get_kv_cache_precision();
+    if (!precision.is_static() || !precision.is_integral()) {
+        return quant;
+    }
+    const auto bits = static_cast<uint8_t>(precision.bitwidth());
+    if (bits != 8 && bits != 4) {
+        return quant;
+    }
+    const bool symmetric = config.get_qsa_kv_cache_symmetric();
+    quant.value = {op::KVQuant::Mode::BY_TOKEN, bits, symmetric, 0};
+    if (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_TOKEN) {
+        quant.key = {op::KVQuant::Mode::BY_TOKEN, bits, symmetric, 0};
+    } else {
+        const auto group_size = config.get_qsa_key_cache_group_size();
+        OPENVINO_ASSERT(group_size <= std::numeric_limits<uint16_t>::max(),
+                        "[GPU] QSA key cache group size is too large: ",
+                        group_size);
+        quant.key = {op::KVQuant::Mode::BY_CHANNEL,
+                     bits,
+                     symmetric,
+                     static_cast<uint16_t>(group_size)};
+    }
+    return quant;
 }
 
 // LPT's Split/VariadicSplitTransformation moves the dequantization from above the split to
@@ -945,6 +975,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             kv_cache_config.keyCachePrecision = kv_cache_precision;
             kv_cache_config.valueCachePrecision = kv_cache_precision;
             kv_cache_config.inferencePrecision = infer_precision;
+            kv_cache_config.sparseCachePrecision = infer_precision;
             if (use_xattention) {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
@@ -952,6 +983,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
                 kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
             }
+            kv_cache_config.sparseKeyCacheDimOrder = {0, 1, 2, 3};
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
             if (use_xattention) {
@@ -1664,6 +1696,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Fuse before FuseRMSRoPE combines the query's internal RMS and RoPE nodes.
         manager.register_pass<ov::pass::FuseQSAIndexer>();
         manager.register_pass<ov::intel_gpu::FuseRoPEInputDeinterleave>();
+        manager.register_pass<ov::intel_gpu::SparseAttentionFusion>(make_qsa_kv_cache_quant(config));
+        const auto ops = func->get_ops();
+        const bool has_sparse_attention = std::any_of(ops.begin(), ops.end(), [](const auto& op) {
+            return ov::is_type<ov::op::v17::SparseAttention>(op) ||
+                   ov::is_type<ov::op::v17::SparseAttentionIndexer>(op);
+        });
+        if (has_sparse_attention) {
+            // These fusions can introduce i64 shape arithmetic after the earlier integer conversion.
+            manager.register_pass<ov::pass::ConvertPrecision>(
+                precisions_map{{ov::element::i64, ov::element::i32}}, type_to_fuse_map{}, false, false);
+        }
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();

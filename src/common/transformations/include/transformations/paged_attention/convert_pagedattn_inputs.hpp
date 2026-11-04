@@ -34,6 +34,8 @@ public:
         bool valueCacheQuantBychannel = false;
         std::vector<size_t> keyCacheDimOrder = {0, 1, 2, 3};
         std::vector<size_t> valueCacheDimOrder = {0, 1, 2, 3};
+        std::vector<size_t> sparseKeyCacheDimOrder;
+        ov::element::Type sparseCachePrecision = ov::element::dynamic;  // dynamic uses the key/value precisions
     };
 
     OPENVINO_MATCHER_PASS_RTTI("ConvertPagedAttnInputs");

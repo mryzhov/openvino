@@ -20,10 +20,11 @@ namespace ov::op::internal {
 /// each row after the call. RoPE is the rotate-half RoPE of the first `indexer_rotary_dim` channels with
 /// the per-token `rope_cos` / `rope_sin`.
 ///
-/// The inputs, outputs and attributes match the GPU plugin QSAIndexer op. The raw keys are RMS-normalized
+/// The inputs, outputs and attributes mirror the GPU plugin QSAIndexer op, except that the RoPE state uses
+/// the QSAPrepare layout (all cosine values followed by all sine values). The raw keys are RMS-normalized
 /// with `epsilon` and `k_norm_weight`, and then rotated. The query gets the same steps when `query_norm` and
-/// `query_rope` are set (the GPU contract); otherwise `index_query` already holds the normalized or rotated
-/// query and `q_norm_weight` is unused. The query is normalized before it is rotated.
+/// `query_rope` are set; otherwise `index_query` already holds the normalized or rotated query and
+/// `q_norm_weight` is unused. The query is normalized before it is rotated.
 class OPENVINO_API QSAIndexer : public ov::op::Op {
 public:
     OPENVINO_OP("QSAIndexer");
@@ -39,7 +40,7 @@ public:
         static constexpr size_t K_NORM_WEIGHT = 6;           ///< [D_idx]
         static constexpr size_t BLOCK_INDEX_KEYS_CACHE = 7;  ///< [B, H_ik, blocks, D_idx]
         static constexpr size_t PAST_INCOMPLETE_RAW_K = 8;   ///< [B, H_ik, r - 1, D_idx]
-        static constexpr size_t PAST_INCOMPLETE_ROPE = 9;    ///< [B, 2 * indexer_rotary_dim], (cos_j, sin_j)
+        static constexpr size_t PAST_INCOMPLETE_ROPE = 9;    ///< [B, 2 * indexer_rotary_dim], cos followed by sin
 
         static constexpr size_t COUNT = 10;
     };

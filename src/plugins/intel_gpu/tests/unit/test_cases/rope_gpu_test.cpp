@@ -88,6 +88,9 @@ static void rope_ref(const memory::ptr input, const memory::ptr cos, const memor
                     write_dst(base_out + i, c1 * in1 - s1 * in2);
                     write_dst(base_out + half + i, c2 * in2 + s2 * in1);
                 }
+                for (size_t i = rotary_ndims; i < head_size; ++i) {
+                    write_dst(base_out + i, read_src(base_in + i));
+                }
             }
         }
     }
@@ -378,7 +381,9 @@ static void run_rope(data_types dt,
                      rope_variant variant = rope_variant::rotate_half,
                      bool use_rope_cache = false,
                      bool is_caching_test = false,
-                     bool unaligned_input = false) {
+                     bool unaligned_input = false,
+                     size_t partial_rotary_ndims = 0,
+                     bool infer_head_size = false) {
     auto& engine = get_test_engine();
     size_t batch = in_shape[0].get_length();
     size_t seq;
@@ -391,7 +396,7 @@ static void run_rope(data_types dt,
     } else {
         seq = in_shape[2].get_length();
     }
-    const size_t rotary_ndims = head_size;  // All tests cover full head_size
+    const size_t rotary_ndims = partial_rotary_ndims ? partial_rotary_ndims : head_size;
 
     // Variant-specific cos/sin table and output shapes (bfyx)
     ov::PartialShape cos_shape;
@@ -457,7 +462,7 @@ static void run_rope(data_types dt,
 
     ov::op::internal::RoPE::Config config;
     config.head_cnt = head_cnt;
-    config.head_size = head_size;
+    config.head_size = infer_head_size ? 0 : head_size;
     config.rotary_ndims = rotary_ndims;
     config.input_trans0213 = input_trans0213 && variant == rope_variant::rotate_half;
     config.is_interleaved = variant == rope_variant::interleaved;
@@ -565,6 +570,21 @@ TEST_P(rope_gpu_test, rope_large) {
 // RoPE dynamic shape (seq is dynamic)
 TEST_P(rope_gpu_test, rope_dynamic) {
     run_rope(GetParam(), ov::PartialShape{1, 2, 4, 8}, 2, 8, false, true);
+}
+
+TEST_P(rope_gpu_test, rope_partial_tail_transposed_dynamic) {
+    run_rope(GetParam(), ov::PartialShape{37, 1, 4, 64}, 4, 64, true, true,
+             rope_variant::rotate_half, false, false, false, 16);
+}
+
+TEST_P(rope_gpu_test, rope_partial_tail_vectorized) {
+    run_rope(GetParam(), ov::PartialShape{2, 2, 3, 96}, 2, 96, false, false,
+             rope_variant::rotate_half, false, false, false, 32);
+}
+
+TEST_P(rope_gpu_test, rope_partial_tail_inferred_head_size) {
+    run_rope(GetParam(), ov::PartialShape{37, 1, 4, 64}, 4, 64, true, true,
+             rope_variant::rotate_half, false, false, false, 16, true);
 }
 
 // RoPE interleaved variant (per-element cos/sin tables), small head - VEC_SIZE=1 path
